@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Information Card</title>
+    <!-- 引入Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <!-- 引入手工CSS樣式 -->
+    <style>
+        .info-card {
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+            transition: 0.3s;
+            border-radius: 5px; /* 5px rounded corners */
+        }
+
+        .info-card:hover {
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+        }
+
+        .container {
+            padding: 2px 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <!-- 卡片 -->
+            <div class="card info-card">
+                <!-- 卡片內容 -->
+                <div class="card-body">
+                    <div th:with="userLoggedIn=${session.currentUserId != null}">
+                        <div th:if="${userLoggedIn}">
+                            <h5 class="card-title" th:text="${user.getId()}"> User ID: </h5>
+                            <p class="card-text" >Email: tommot20076@gmail.com</p>
+                            <p class="card-text">Email Verification: Unverified</p>
+                            <p class="card-text">API usage/month: 600</p>
+                            <p class="card-text">API remaining/month: 0</p>
+                        <!-- 按鍵或其他想要呈現的元件 -->
+                        </div>
+                        <div th:unless="${userLoggedIn}">
+                            <h5 class="card-title"> User ID: </h5>
+                            <p class="card-text" >Email: tommot20076@gmail.com</p>
+                            <p class="card-text">Email Verification: Unverified</p>
+                            <p class="card-text">API usage/month: 600</p>
+                            <p class="card-text">API remaining/month: 0</p>
+                            <!-- 按鍵或其他想要呈現的元件 -->
+                        </div>
+                    </div>
+
+                    </div>
+                </div>
+            </div>
+            <!-- 卡片結束 -->
+        </div>
+    </div>
+</div>
+
+<!-- 引入Bootstrap JavaScript (optional) -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+</body>
+</html>
