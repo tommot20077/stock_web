@@ -172,13 +172,14 @@
 					password: password,
 					remember_me: remember_me
 				};
+				console.log(JSON.stringify(formData));
 
 
 				let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
 				let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
 
 				showSpinner()
-				fetch('/api/login', {
+				fetch('/login_p', {
 					method: 'POST',
 					headers: {
 						[csrfHeader]: csrfToken,

@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Controller;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -11,14 +12,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User;
 import xyz.dowob.stockweb.Service.UserService;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 @RequestMapping("/api")
 @RestController
 public class ApiController {
@@ -44,12 +47,28 @@ public class ApiController {
         try {
             User user = userService.loginUser(loginUserDto, response);
             Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            SecurityContextHolder.getContext().setAuthentication(auth);;
             session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
             session.setAttribute("currentUserId", user.getId());
-            return ResponseEntity.ok().body("登入成功");
+
+            String jwt = userService.generateJwtToken(user, response);
+            Map<String, String> tokenMap = new HashMap<>();
+            tokenMap.put("token", jwt);
+
+            return ResponseEntity.ok().body(tokenMap);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @GetMapping("/getUserDetail")
+    public ResponseEntity<?> getUserDetail(HttpSession session) {
+        try {
+            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
+            return ResponseEntity.ok().body(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 }

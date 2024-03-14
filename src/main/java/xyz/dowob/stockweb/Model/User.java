@@ -19,6 +19,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column
+    private String username;
+
     @Column(nullable = false)
     private String firstName;
 
@@ -63,6 +66,14 @@ public class User {
     public void createRememberMeToken(String token, int expireTimeDays) {
         setRememberMeToken(token);
         setRememberMeTokenExpireTime(OffsetDateTime.now(ZoneId.of(timezone)).plusDays(expireTimeDays));
+    }
+
+    public String extractUsernameFromEmail(String email) {
+        if (email.contains("@")) {
+            return email.substring(0, email.indexOf('@'));
+        } else {
+            throw new IllegalArgumentException("傳入的電子郵件不合法");
+        }
     }
 
     public Collection<? extends GrantedAuthority> getAuthorities() {

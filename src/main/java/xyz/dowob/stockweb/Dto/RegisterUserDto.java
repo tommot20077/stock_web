@@ -18,6 +18,7 @@ public class RegisterUserDto {
         user.setEmail(userDto.getEmail());
         user.setFirstName(userDto.getFirst_name());
         user.setLastName(userDto.getLast_name());
+        user.setUsername(user.extractUsernameFromEmail(userDto.getEmail()));
 
     }
 

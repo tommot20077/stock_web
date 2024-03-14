@@ -2,29 +2,46 @@ package xyz.dowob.stockweb.Service;
 
 import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.CustomArgon2PasswordEncoder;
+import xyz.dowob.stockweb.Component.TokenProvider;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Model.User;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Repository.UserRepository;
 
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.Date;
 import java.util.UUID;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final TokenProvider tokenProvider;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, TokenProvider tokenProvider, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.tokenProvider = tokenProvider;
+        this.passwordEncoder = passwordEncoder;
     }
+
+
 
     public void registerUser(RegisterUserDto userDto) throws RuntimeException {
         User user = new User();
@@ -33,23 +50,27 @@ public class UserService {
             throw new RuntimeException("此信箱已經被註冊");
         }
         RegisterUserDto.registerUserDtoToUser(user, userDto);
-        user.setPassword(argon2Hash(userDto.getPassword()));
+        user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         userRepository.save(user);
 
     }
 
     public User loginUser(LoginUserDto userDto, HttpServletResponse re) {
-        User user = userRepository.findByEmail(userDto.getEmail())
-                .orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
+        if (userDto == null) {
+            throw new RuntimeException("資料格式錯誤");
+        } else {
+            User user = userRepository.findByEmail(userDto.getEmail())
+                    .orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
 
-        if (!argon2Verify(user.getPassword(), userDto.getPassword())) {
-            throw new RuntimeException("帳號或密碼錯誤");
-        }
+            if (!passwordEncoder.matches(userDto.getPassword(), user.getPassword())) {
+                throw new RuntimeException("帳號或密碼錯誤");
+            }
 
-        if (userDto.isRemember_me()) {
-            generateRememberMeToken(re, user);
+            if (userDto.isRemember_me()) {
+                generateRememberMeToken(re, user);
+            }
+            return user;
         }
-        return user;
     }
 
 
@@ -75,31 +96,10 @@ public class UserService {
         }
     }
 
-    private String argon2Hash(String original) {
-        Argon2 argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id);
-        char[] originalChars = original.toCharArray();
-        try {
-            return argon2.hash(2, 1024 * 1024, 1, originalChars);
-        } finally {
-            argon2.wipeArray(originalChars);
-        }
-    }
-
-    private boolean argon2Verify(String inRepository, String needToVerify) {
-        Argon2 argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id);
-        char[] passwordChars = needToVerify.toCharArray();
-        try {
-            return argon2.verify(inRepository, passwordChars);
-        } finally {
-            argon2.wipeArray(passwordChars);
-        }
-    }
-
-
     private void generateRememberMeToken(HttpServletResponse response, User user) {
         if (user.getRememberMeToken() == null || user.getRememberMeToken().isBlank()) {
             String token = UUID.randomUUID().toString();
-            String hashedToken = argon2Hash(token);
+            String hashedToken = passwordEncoder.encode(token);
             String base64Token = Base64.getEncoder().encodeToString(hashedToken.getBytes(StandardCharsets.UTF_8));
 
             int expireTimeDays = 7;
@@ -148,5 +148,15 @@ public class UserService {
                 }
             }
         }
+    }
+
+    public String generateJwtToken (User user, HttpServletResponse response) {
+        String jwt = tokenProvider.generateToken(user.getId());
+        Cookie jwtCookie = new Cookie("JWT", jwt);
+        jwtCookie.setPath("/");
+        jwtCookie.setHttpOnly(true);
+        response.addCookie(jwtCookie);
+
+        return jwt;
     }
 }
