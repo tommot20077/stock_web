@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
 
 import java.time.LocalDateTime;
@@ -50,6 +51,10 @@ public class User {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Role role = Role.UNVERIFIED_USER;
+
+    @Column
+    @Enumerated(EnumType.STRING)
+    private Gender gender = Gender.OTHER;
 
 
     @PreUpdate

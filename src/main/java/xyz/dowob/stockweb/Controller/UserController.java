@@ -16,13 +16,17 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User;
 import xyz.dowob.stockweb.Service.UserService;
 
+import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @Controller
@@ -97,16 +101,26 @@ public class UserController {
         return "index";
     }
 
-
-
+    @GetMapping("/profile")
+    public String profile (HttpSession session, Model model) {
+        if (session.getAttribute("currentUserId")!= null) {
+            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
+            model.addAttribute(user);
+        }
+        return "profile";
+    }
 
 
     @GetMapping("/logout")
-    public String logout(HttpSession session, HttpServletRequest request, HttpServletResponse response) {
+    public void logout(HttpSession session, HttpServletRequest request, HttpServletResponse response, @RequestParam(required = false, name = "redirection", defaultValue = "true") boolean redirection) {
         Cookie[] cookies = request.getCookies();
         userService.deleteRememberMeCookie(response, session, cookies);
         session.invalidate();
-        return "redirect:/login";
+        if (redirection) {
+            response.setHeader("Location", "/login");
+            response.setStatus(302);
+        }
     }
+
 
 }

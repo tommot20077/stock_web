@@ -9,6 +9,8 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.CustomArgon2PasswordEncoder;
 import xyz.dowob.stockweb.Component.TokenProvider;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
+import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Model.User;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Repository.UserRepository;
@@ -24,15 +27,16 @@ import xyz.dowob.stockweb.Repository.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.OffsetDateTime;
-import java.util.Base64;
-import java.util.Date;
-import java.util.UUID;
+import java.time.ZoneId;
+import java.util.*;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
     private final TokenProvider tokenProvider;
     private final PasswordEncoder passwordEncoder;
+
+    Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
     public UserService(UserRepository userRepository, TokenProvider tokenProvider, PasswordEncoder passwordEncoder) {
@@ -73,6 +77,40 @@ public class UserService {
         }
     }
 
+    public void updateUserDetail(User user, Map<String, String> userInfo) {
+
+        String originalPassword = userInfo.get("originalPassword");
+        if (originalPassword != null && !originalPassword.isBlank() && passwordEncoder.matches(userInfo.get("originalPassword"), user.getPassword())) {
+            if (userInfo.get("newPassword") != null && !userInfo.get("newPassword").isBlank()) {
+                validatePassword(userInfo.get("newPassword"));
+                user.setPassword(passwordEncoder.encode(userInfo.get("newPassword")));
+                logger.warn("用戶 " + user.getEmail() + " 更改密碼");
+            }
+
+            user.setFirstName(userInfo.get("firstName"));
+            user.setLastName(userInfo.get("lastName"));
+            user.setEmail(userInfo.get("email"));
+
+
+            TimeZone timeZone = TimeZone.getTimeZone(userInfo.get("timeZone"));
+            if (timeZone != null && !"GMT".equals(timeZone.getID())) {
+                user.setTimezone(timeZone.getID());
+            } else {
+                user.setTimezone("Etc/UTC");
+            }
+            user.setTimezone(userInfo.get("timeZone"));
+
+            try {
+                user.setGender(Gender.valueOf(userInfo.get("gender")));
+            } catch (IllegalArgumentException e) {
+                user.setGender(Gender.OTHER);
+            }
+            userRepository.save(user);
+        } else {
+            throw new RuntimeException("密碼錯誤");
+        }
+    }
+
 
 
     public User getUserById(Long id) {
@@ -97,7 +135,10 @@ public class UserService {
     }
 
     private void generateRememberMeToken(HttpServletResponse response, User user) {
-        if (user.getRememberMeToken() == null || user.getRememberMeToken().isBlank()) {
+        if (
+                user.getRememberMeToken() == null
+                || user.getRememberMeToken().isBlank()
+                || user.getRememberMeTokenExpireTime().isBefore(OffsetDateTime.now(ZoneId.of(user.getTimezone())))) {
             String token = UUID.randomUUID().toString();
             String hashedToken = passwordEncoder.encode(token);
             String base64Token = Base64.getEncoder().encodeToString(hashedToken.getBytes(StandardCharsets.UTF_8));

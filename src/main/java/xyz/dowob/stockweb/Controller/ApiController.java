@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -18,9 +19,12 @@ import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User;
 import xyz.dowob.stockweb.Service.UserService;
 
+import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequestMapping("/api")
 @RestController
@@ -61,14 +65,55 @@ public class ApiController {
         }
     }
 
-    @GetMapping("/getUserDetail")
+    @GetMapping("/user/getUserDetail")
     public ResponseEntity<?> getUserDetail(HttpSession session) {
         try {
             User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
-            return ResponseEntity.ok().body(user);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            if (user != null) {
+                Map<String, Object> userInfo = new HashMap<>();
+                userInfo.put("email", user.getEmail());
+                userInfo.put("firstName", user.getFirstName());
+                userInfo.put("lastName", user.getLastName());
+                userInfo.put("id", user.getId());
+                userInfo.put("role", user.getRole());
+                userInfo.put("gender", user.getGender().toString());
+                userInfo.put("timeZone", user.getTimezone());
+
+                return ResponseEntity.ok(userInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
         }
+    }
+
+    @PostMapping("/user/updateUserDetail")
+    public ResponseEntity<?> updateUserDetail(@RequestBody Map<String, String> userInfo, HttpSession session) {
+        try {
+            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
+            if (user != null) {
+                userService.updateUserDetail(user, userInfo);
+                return ResponseEntity.ok().body("更新成功");
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("錯誤: "+e.getMessage());
+        }
+
+    }
+
+
+    @GetMapping("/common/getTimeZoneList")
+    public ResponseEntity<?> getTimeZoneList() {
+
+        List<String> timezones = ZoneId.getAvailableZoneIds()
+                .stream()
+                .sorted()
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok().body(timezones);
     }
 
 }

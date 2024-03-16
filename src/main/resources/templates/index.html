@@ -42,19 +42,19 @@
           </a>
         </div>
       </div>
-      <div class="navbar-menu-wrapper d-flex align-items-top"> 
+      <div class="navbar-menu-wrapper d-flex align-items-top">
         <ul class="navbar-nav">
           <li class="nav-item font-weight-semibold d-none d-lg-block ms-0">
-            <h1 class="welcome-text">Good Morning, <span class="text-black fw-bold">John Doe</span></h1>
-            <h3 class="welcome-sub-text">Your performance summary this week </h3>
+            <h1 class="welcome-text">歡迎回來， <span class="text-black fw-bold">用戶</span><a class="welcome-text" href="#"></a></h1>
+            <h3 class="welcome-sub-text">這是目前這周的收益 </h3>
           </li>
         </ul>
         <ul class="navbar-nav ms-auto">
           <li class="nav-item dropdown d-none d-lg-block">
-            <a class="nav-link dropdown-bordered dropdown-toggle dropdown-toggle-split" id="messageDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false"> Select Category </a>
+            <a class="nav-link dropdown-bordered dropdown-toggle dropdown-toggle-split" id="messageDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false"> 選擇分類 </a>
             <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list pb-0" aria-labelledby="messageDropdown">
               <a class="dropdown-item py-3" >
-                <p class="mb-0 font-weight-medium float-left">Select category</p>
+                <p class="mb-0 font-weight-medium float-left">選擇分類</p>
               </a>
               <div class="dropdown-divider"></div>
               <a class="dropdown-item preview-item">
@@ -135,7 +135,7 @@
               </a>
             </div>
           </li>
-          <li class="nav-item dropdown"> 
+          <li class="nav-item dropdown">
             <a class="nav-link count-indicator" id="countDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="icon-bell"></i>
               <span class="count"></span>
@@ -375,7 +375,7 @@
           <li class="nav-item">
             <a class="nav-link" href="/index">
               <i class="mdi mdi-grid-large menu-icon"></i>
-              <span class="menu-title">Dashboard</span>
+              <span class="menu-title">總覽</span>
             </a>
           </li>
           <li class="nav-item nav-category">UI Elements</li>
@@ -383,7 +383,7 @@
             <a class="nav-link" data-bs-toggle="collapse" href="#ui-basic" aria-expanded="false" aria-controls="ui-basic">
               <i class="menu-icon mdi mdi-floor-plan"></i>
               <span class="menu-title">UI Elements</span>
-              <i class="menu-arrow"></i> 
+              <i class="menu-arrow"></i>
             </a>
             <div class="collapse" id="ui-basic">
               <ul class="nav flex-column sub-menu">
@@ -442,25 +442,19 @@
               </ul>
             </div>
           </li>
-          <li class="nav-item nav-category">pages</li>
+          <li class="nav-item nav-category">用戶功能</li>
           <li class="nav-item">
             <a class="nav-link" data-bs-toggle="collapse" href="#auth" aria-expanded="false" aria-controls="auth">
               <i class="menu-icon mdi mdi-account-circle-outline"></i>
-              <span class="menu-title">User Pages</span>
+              <span class="menu-title">用戶功能</span>
               <i class="menu-arrow"></i>
             </a>
             <div class="collapse" id="auth">
               <ul class="nav flex-column sub-menu">
+                <li class="nav-item"> <a class="nav-link" href="profile"> 用戶資料 </a></li>
                 <li class="nav-item"> <a class="nav-link" href="logout"> 登出 </a></li>
               </ul>
             </div>
-          </li>
-          <li class="nav-item nav-category">help</li>
-          <li class="nav-item">
-            <a class="nav-link" href="http://bootstrapdash.com/demo/star-admin2-free/docs/documentation.html">
-              <i class="menu-icon mdi mdi-file-document"></i>
-              <span class="menu-title">Documentation</span>
-            </a>
           </li>
         </ul>
       </nav>
@@ -1225,7 +1219,18 @@
   <!-- Custom js for this page-->
   <script src="js/dashboard.js"></script>
   <script src="js/Chart.roundedBarCharts.js"></script>
+  <script src="/fetch.js"></script>
   <!-- End custom js for this page-->
+
+
+
+<script>
+  getUserDetails();
+</script>
+
+
+
+
 </body>
 
 </html>

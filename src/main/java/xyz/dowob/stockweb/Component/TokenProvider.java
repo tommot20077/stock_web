@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
@@ -28,7 +29,8 @@ public class TokenProvider {
 
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        byte[] encodedSecret = Decoders.BASE64.decode(jwtSecret);
+        this.key = Keys.hmacShaKeyFor(encodedSecret);
     }
     public Long getUserIdFromJWT(String token) {
         Claims claims = Jwts.parser()
@@ -54,13 +56,12 @@ public class TokenProvider {
     public String generateToken(Long userId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
-        Key key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
 
         return Jwts.builder()
                 .subject(Long.toString(userId))
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(key)
+                .signWith(this.key)
                 .compact();
     }
 
