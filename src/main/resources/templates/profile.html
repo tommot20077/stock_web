@@ -14,6 +14,9 @@
   <link rel="stylesheet" href="/vendors/simple-line-icons/css/simple-line-icons.css">
   <link rel="stylesheet" href="/vendors/css/vendor.bundle.base.css">
   <!-- endinject -->
+  <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <!-- Plugin css for this page -->
   <link rel="stylesheet" href="/vendors/select2/select2.min.css">
   <link rel="stylesheet" href="/vendors/select2-bootstrap-theme/select2-bootstrap.min.css">
@@ -468,59 +471,74 @@
       <div class="main-panel">        
         <div class="content-wrapper">
           <div class="row">
-            <div class="col-12 grid-margin stretch-card">
+            <div class="col-12 grid-margin stretch-card" style="max-width: 1200px">
               <div class="card">
-                <div class="card-body">
-                  <h4 class="card-title">用戶資料</h4>
-                  <form class="forms-sample" id="userProfileForm">
-                    <div class="form-group">
-                      <label for="lastName">姓氏</label>
-                      <input type="text" class="form-control" id="lastName" placeholder="姓氏">
-                    </div>
-                    <div class="form-group">
-                      <label for="firstName">名字</label>
-                      <input type="text" class="form-control" id="firstName" placeholder="名字">
-                    </div>
-                    <div class="form-group">
-                      <label for="email">電子信箱</label>
-                      <input type="email" class="form-control" id="email" placeholder="電子信箱">
-                    </div>
-                    <div class="form-group">
-                      <label for="newPassword">重設密碼</label>
-                      <input type="password" class="form-control" id="newPassword" placeholder="至少8個字元，並且至少擁有英文及數字">
-                    </div>
-                    <div class="form-group">
-                      <label for="newRePassword">確認重設密碼</label>
-                      <input type="password" class="form-control" id="newRePassword" placeholder="確認密碼">
-                    </div>
-                    <div class="form-group">
-                      <label for="gender">性別</label>
-                        <select class="form-control" id="gender">
-                          <option>男性</option>
-                          <option>女性</option>
-                          <option>其他</option>
-                        </select>
+                <ul class="nav nav-tabs">
+                  <li class="nav-item">
+                    <a class="nav-link active" id="setting-tab" data-toggle="tab" href="#userProfileForm">用戶資料</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="verifyEmail-tab" data-toggle="tab" href="#verifyEmailForm">驗證信箱</a>
+                  </li>
+                </ul>
+
+                <div class="tab-content">
+                  <div class="tab-pane fade show active" id="userProfileForm">
+                    <form class="forms-sample">
+                      <div class="form-group">
+                        <label for="lastName">姓氏</label>
+                        <input type="text" class="form-control" id="lastName" placeholder="姓氏">
                       </div>
-                    <div class="form-group">
-                      <label for="timeZone">用戶時區</label>
-                      <select class="form-control" id="timeZone"></select>
-                    </div>
-                    <script>getTimeZoneList()</script>
-                    <!--
-                    <div class="form-group">
-                      <label>File upload</label>
-                      <input type="file" name="img[]" class="file-upload-default">
-                      <div class="input-group col-xs-12">
-                        <input type="text" class="form-control file-upload-info" disabled placeholder="Upload Image">
-                        <span class="input-group-append">
-                          <button class="file-upload-browse btn btn-primary" type="button">Upload</button>
-                        </span>
+                      <div class="form-group">
+                        <label for="firstName">名字</label>
+                        <input type="text" class="form-control" id="firstName" placeholder="名字">
                       </div>
-                    </div>
-                    -->
-                    <a id="userProfileFormSubmit" class="btn btn-primary me-2">更新資料</a>
-                    <a class="btn btn-light" href="index">返回</a>
-                  </form>
+                      <div class="form-group">
+                        <label for="email">電子信箱</label>
+                        <input type="email" class="form-control" id="email" placeholder="電子信箱">
+                      </div>
+                      <div class="form-group">
+                        <label for="newPassword">重設密碼</label>
+                        <input type="password" class="form-control" id="newPassword" placeholder="至少8個字元，並且至少擁有英文及數字">
+                      </div>
+                      <div class="form-group">
+                        <label for="newRePassword">確認重設密碼</label>
+                        <input type="password" class="form-control" id="newRePassword" placeholder="確認密碼">
+                      </div>
+                      <div class="form-group">
+                        <label for="gender">性別</label>
+                          <select class="form-control" id="gender">
+                            <option>男性</option>
+                            <option>女性</option>
+                            <option>其他</option>
+                          </select>
+                        </div>
+                      <div class="form-group">
+                        <label for="timeZone">用戶時區</label>
+                        <select class="form-control" id="timeZone"></select>
+                      </div>
+                      <script>getTimeZoneList()</script>
+                      <a id="userProfileFormSubmit" class="btn btn-primary me-2">更新資料</a>
+                      <a class="btn btn-light" href="index">返回</a>
+                    </form>
+                  </div>
+
+                  <div class="tab-pane fade" id="verifyEmailForm">
+                    <form class="forms-sample">
+                      <div class="form-group">
+                        <label for="verifyEmail">要驗證的信箱</label>
+                        <div class="input-group" style="max-width: 500px">
+                          <input id ="verifyEmail" type="text" class="form-control" placeholder="驗證信箱" aria-label="Recipient's username" style="max-width: 500px;" readonly>
+                          <div class="input-group-append">
+                            <a id="sendVerificationEmailButton" class="btn btn-sm btn-primary" type="button" style="margin-left: 10px">獲取驗證信</a>
+                          </div>
+                        </div>
+                        <div id="VerificationEmailFail"></div>
+                        <div id="verifyEmailSuccess" style="color: green;display: none">驗證信已發送，請至信箱收取</div>
+                      </div>
+                    </form>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -594,6 +612,7 @@
   <script>
     getUserDetails();
     updateUserProfile();
+    sendVerificationEmail();
   </script>
 
 

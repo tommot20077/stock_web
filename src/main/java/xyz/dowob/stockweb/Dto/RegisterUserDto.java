@@ -13,13 +13,4 @@ public class RegisterUserDto {
     private String last_name;
 
 
-
-    public static void registerUserDtoToUser(User user, RegisterUserDto userDto) {
-        user.setEmail(userDto.getEmail());
-        user.setFirstName(userDto.getFirst_name());
-        user.setLastName(userDto.getLast_name());
-        user.setUsername(user.extractUsernameFromEmail(userDto.getEmail()));
-
-    }
-
 }

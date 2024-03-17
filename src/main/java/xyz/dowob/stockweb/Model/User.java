@@ -2,6 +2,8 @@ package xyz.dowob.stockweb.Model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import xyz.dowob.stockweb.Enum.Gender;
@@ -12,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 
 @Entity
 @Data
@@ -35,9 +38,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String rememberMeToken;
 
-    private OffsetDateTime rememberMeTokenExpireTime;
 
     @Column(nullable = false, updatable = false)
     private OffsetDateTime created;
@@ -56,6 +57,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Gender gender = Gender.OTHER;
 
+    @OneToOne(cascade = CascadeType.ALL, mappedBy = "user")
+    private Token token;
+
 
     @PreUpdate
     protected void onUpdate() {
@@ -68,10 +72,7 @@ public class User {
         updated = OffsetDateTime.now(ZoneId.of(timezone));
     }
 
-    public void createRememberMeToken(String token, int expireTimeDays) {
-        setRememberMeToken(token);
-        setRememberMeTokenExpireTime(OffsetDateTime.now(ZoneId.of(timezone)).plusDays(expireTimeDays));
-    }
+
 
     public String extractUsernameFromEmail(String email) {
         if (email.contains("@")) {
@@ -86,5 +87,26 @@ public class User {
     }
 
 
+    @Override
+    public String toString() {
+        return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
+            @Override
+            protected boolean accept(java.lang.reflect.Field f) {
+                return super.accept(f) && !f.getName().equals("token");
+            }
+        }).toString();
+    }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(id, user.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

@@ -58,7 +58,7 @@ function getRole(role) {
     const map = {
         "ADMIN": "管理員",
         "UNVERIFIED_USER": "未驗證用戶",
-        "VERIFIED_USER": "驗證用戶"
+        "VERIFIED_USER": "已驗證用戶"
     }
     return map[role] || "未知用戶";
 }
@@ -67,6 +67,7 @@ function displayProfileForm() {
     document.getElementById('firstName').value = firstName;
     document.getElementById('lastName').value = lastName;
     document.getElementById('email').value = email;
+    document.getElementById('verifyEmail').value = email;
 
 
     let timeZoneSelect = document.getElementById('timeZone');
@@ -188,12 +189,50 @@ function updateUserProfile() {
     }
 }
 
+function sendVerificationEmail() {
+    document.getElementById('sendVerificationEmailButton').addEventListener('click', (event) => {
+        event.target.disabled = true;
+        event.preventDefault()
+
+        showSpinner(true);
+        hideById('confirmCard');
+        hideById("VerificationEmailFail")
+        hideById('VerificationEmailSuccess');
+        let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+        let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        fetch("/api/user/sendVerificationEmail", {
+            method: 'POST',
+            headers: {
+                [csrfHeader]: csrfToken,
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            if (response.ok) {
+                hideSpinner();
+                hideById('VerificationEmailFail');
+                document.getElementById("verifyEmailSuccess").style.display = "block";
+            } else {
+                return response.text().then(data => {
+                    throw new Error(data);
+                });
+            }}
+        ).catch(data => {
+            hideSpinner();
+            hideById('VerificationEmailSuccess');
+            displayError(data, 'VerificationEmailFail')
+        })
+    })
+}
 
 function hideById(id) {
-    document.getElementById(id).style.display = 'none';
+    if (document.getElementById(id)) {
+        document.getElementById(id).style.display = 'none';
+    }
 }
 function showFlexById(id) {
-    document.getElementById(id).style.display = 'flex';
+    if (document.getElementById(id)) {
+        document.getElementById(id).style.display = 'flex';
+    }
 }
 
 function showSpinner(showRings) {
@@ -215,4 +254,5 @@ function displayError(error, elementId) {
     // Set the error message and color
     element.innerText = error;
     element.style.color = 'red';
+    element.style.display = "block"
 }

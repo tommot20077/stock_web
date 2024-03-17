@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +56,7 @@ public class ApiController {
             session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
             session.setAttribute("currentUserId", user.getId());
 
+
             String jwt = userService.generateJwtToken(user, response);
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", jwt);
@@ -68,7 +70,7 @@ public class ApiController {
     @GetMapping("/user/getUserDetail")
     public ResponseEntity<?> getUserDetail(HttpSession session) {
         try {
-            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
+            User user = userService.getUserFromJwtTokenOrSession(session);
             if (user != null) {
                 Map<String, Object> userInfo = new HashMap<>();
                 userInfo.put("email", user.getEmail());
@@ -90,8 +92,9 @@ public class ApiController {
 
     @PostMapping("/user/updateUserDetail")
     public ResponseEntity<?> updateUserDetail(@RequestBody Map<String, String> userInfo, HttpSession session) {
+
         try {
-            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
+            User user = userService.getUserFromJwtTokenOrSession(session);
             if (user != null) {
                 userService.updateUserDetail(user, userInfo);
                 return ResponseEntity.ok().body("更新成功");
@@ -115,5 +118,26 @@ public class ApiController {
 
         return ResponseEntity.ok().body(timezones);
     }
+
+    @PostMapping("/user/sendVerificationEmail")
+    public ResponseEntity<?> verifyEmail(HttpSession session) {
+        try {
+            userService.sendVerificationEmail(session);
+            return ResponseEntity.ok().body("已寄出驗證信");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+        }
+    }
+
+    @GetMapping("/user/verifyEmail")
+    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+        try {
+            userService.verifyEmail(token);
+            return ResponseEntity.ok().body("驗證成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("驗證失敗: "+e.getMessage());
+        }
+    }
+
 
 }

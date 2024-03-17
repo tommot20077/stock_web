@@ -3,22 +3,15 @@ package xyz.dowob.stockweb.Config;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
-import xyz.dowob.stockweb.Component.CustomArgon2PasswordEncoder;
-import xyz.dowob.stockweb.Component.TokenProvider;
 import xyz.dowob.stockweb.Filter.JwtAuthenticationFilter;
-import xyz.dowob.stockweb.Service.CustomUserDetailsService;
 import xyz.dowob.stockweb.Service.UserService;
 import xyz.dowob.stockweb.Filter.RememberMeAuthenticationFilter;
 
@@ -63,7 +56,7 @@ public class SecurityConfig {
                 ).exceptionHandling((exception) -> exception
                         .accessDeniedPage("/login")
                 ).authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers ("/api/login","/api/register","/login","/login_p", "/register","/error").permitAll()
+                        .requestMatchers ("/api/login","/api/register","/api/user/verifyEmail","/login","/login_p", "/register","/error").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "favicon", "/assets/**").permitAll()
                         .anyRequest().authenticated()
                 ).logout((logout) -> logout

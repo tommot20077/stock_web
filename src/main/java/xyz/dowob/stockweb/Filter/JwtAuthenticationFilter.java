@@ -13,14 +13,14 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-import xyz.dowob.stockweb.Component.TokenProvider;
+import xyz.dowob.stockweb.Component.JwtTokenProvider;
 import xyz.dowob.stockweb.Service.CustomUserDetailsService;
 
 import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
-    private  TokenProvider tokenProvider;
+    private JwtTokenProvider jwtTokenProvider;
     @Autowired
     private  CustomUserDetailsService customUserDetailsService;
 
@@ -28,8 +28,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
-            if(StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                Long userId = tokenProvider.getUserIdFromJWT(jwt);
+            if(StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+
+                Long userId =  Long.parseLong(jwtTokenProvider.getClaimsFromJWT(jwt).getSubject());
                 UserDetails userDetails = customUserDetailsService.loadUserById(userId);
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
