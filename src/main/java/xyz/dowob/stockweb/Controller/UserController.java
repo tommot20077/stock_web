@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User;
+import xyz.dowob.stockweb.Service.TokenService;
 import xyz.dowob.stockweb.Service.UserService;
 
 import java.time.ZoneId;
@@ -33,9 +34,11 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
+    private final TokenService tokenService;
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, TokenService tokenService) {
         this.userService = userService;
+        this.tokenService = tokenService;
     }
 
 
@@ -114,13 +117,14 @@ public class UserController {
     @GetMapping("/logout")
     public void logout(HttpSession session, HttpServletRequest request, HttpServletResponse response, @RequestParam(required = false, name = "redirection", defaultValue = "true") boolean redirection) {
         Cookie[] cookies = request.getCookies();
-        userService.deleteRememberMeCookie(response, session, cookies);
+        tokenService.deleteRememberMeCookie(response, session, cookies);
         session.invalidate();
         if (redirection) {
             response.setHeader("Location", "/login");
             response.setStatus(302);
         }
     }
+
 
 
 }

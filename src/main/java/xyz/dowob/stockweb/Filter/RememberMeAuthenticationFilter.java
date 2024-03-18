@@ -17,6 +17,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import xyz.dowob.stockweb.Model.User;
+import xyz.dowob.stockweb.Service.TokenService;
 import xyz.dowob.stockweb.Service.UserService;
 
 
@@ -25,6 +26,8 @@ import java.io.IOException;
 public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private  UserService userService;
+    @Autowired
+    private TokenService tokenService;
     @Autowired
     private  CacheManager cacheManager;
 
@@ -40,7 +43,7 @@ public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
             if (cookies != null) {
                 for (Cookie cookie : cookies) {
                     if (cookie.getName().equals("REMEMBER_ME")) {
-                        Long userId = userService.verifyRememberMeToken(cookie.getValue());
+                        Long userId = tokenService.verifyRememberMeToken(cookie.getValue());
                         if (userId != null) {
                             Cache userCache = cacheManager.getCache("user");
                             if (userCache != null) {

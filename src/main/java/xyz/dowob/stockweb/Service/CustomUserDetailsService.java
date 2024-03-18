@@ -43,7 +43,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (user == null ) {
             throw new RuntimeException("找不到用戶mail為 : " + mail);
         } else {
-            System.out.println("userId: "+ user.getId());
             return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
                     true, true, true, true, user.getAuthorities());
         }

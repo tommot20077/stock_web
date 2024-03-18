@@ -51,7 +51,6 @@ public class JwtTokenProvider {
         try {
             Claims claims = getClaimsFromJWT(authToken);
             Long UserId = Long.parseLong(claims.getSubject());
-            System.out.println("UserId: " + UserId);
             User user = userRepository.findById(UserId).orElseThrow(() -> new RuntimeException("找不到使用者"));
             Integer tokenVersionInDb = user.getToken().getJwtApiCount();
             Integer tokenVersionInToken = claims.get("token_version", Integer.class);

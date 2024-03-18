@@ -1,39 +1,36 @@
-package xyz.dowob.stockweb.Controller;
+package xyz.dowob.stockweb.Controller.Api;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User;
+import xyz.dowob.stockweb.Service.TokenService;
 import xyz.dowob.stockweb.Service.UserService;
 
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
-@RequestMapping("/api")
+@RequestMapping("/api/user")
 @RestController
-public class ApiController {
+public class ApiUserController {
     private final UserService userService;
+    private final TokenService tokenService;
     @Autowired
-    public ApiController(UserService userService) {
+    public ApiUserController(UserService userService, TokenService tokenService) {
         this.userService = userService;
+        this.tokenService = tokenService;
     }
 
 
@@ -57,7 +54,7 @@ public class ApiController {
             session.setAttribute("currentUserId", user.getId());
 
 
-            String jwt = userService.generateJwtToken(user, response);
+            String jwt = tokenService.generateJwtToken(user, response);
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", jwt);
 
@@ -67,7 +64,7 @@ public class ApiController {
         }
     }
 
-    @GetMapping("/user/getUserDetail")
+    @GetMapping("/getUserDetail")
     public ResponseEntity<?> getUserDetail(HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
@@ -90,7 +87,7 @@ public class ApiController {
         }
     }
 
-    @PostMapping("/user/updateUserDetail")
+    @PostMapping("/updateUserDetail")
     public ResponseEntity<?> updateUserDetail(@RequestBody Map<String, String> userInfo, HttpSession session) {
 
         try {
@@ -108,31 +105,20 @@ public class ApiController {
     }
 
 
-    @GetMapping("/common/getTimeZoneList")
-    public ResponseEntity<?> getTimeZoneList() {
-
-        List<String> timezones = ZoneId.getAvailableZoneIds()
-                .stream()
-                .sorted()
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok().body(timezones);
-    }
-
-    @PostMapping("/user/sendVerificationEmail")
+    @PostMapping("/sendVerificationEmail")
     public ResponseEntity<?> verifyEmail(HttpSession session) {
         try {
-            userService.sendVerificationEmail(session);
+            tokenService.sendVerificationEmail(session);
             return ResponseEntity.ok().body("已寄出驗證信");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
         }
     }
 
-    @GetMapping("/user/verifyEmail")
+    @GetMapping("/verifyEmail")
     public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
         try {
-            userService.verifyEmail(token);
+            tokenService.verifyEmail(token);
             return ResponseEntity.ok().body("驗證成功");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("驗證失敗: "+e.getMessage());

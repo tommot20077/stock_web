@@ -12,6 +12,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import xyz.dowob.stockweb.Filter.JwtAuthenticationFilter;
+import xyz.dowob.stockweb.Service.TokenService;
 import xyz.dowob.stockweb.Service.UserService;
 import xyz.dowob.stockweb.Filter.RememberMeAuthenticationFilter;
 
@@ -20,11 +21,13 @@ import xyz.dowob.stockweb.Filter.RememberMeAuthenticationFilter;
 @EnableWebSecurity
 public class SecurityConfig {
     private final UserService userService;
+    private final TokenService tokenService;
 
     @Autowired
-    public SecurityConfig(UserService userService) {
+    public SecurityConfig(UserService userService, TokenService tokenService) {
         this.userService = userService;
 
+        this.tokenService = tokenService;
     }
 
     @Bean
@@ -56,7 +59,7 @@ public class SecurityConfig {
                 ).exceptionHandling((exception) -> exception
                         .accessDeniedPage("/login")
                 ).authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers ("/api/login","/api/register","/api/user/verifyEmail","/login","/login_p", "/register","/error").permitAll()
+                        .requestMatchers ("/api/user/login","/api/user/register","/api/user/verifyEmail","/login","/login_p", "/register","/error").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "favicon", "/assets/**").permitAll()
                         .anyRequest().authenticated()
                 ).logout((logout) -> logout
@@ -64,7 +67,7 @@ public class SecurityConfig {
                             HttpSession session = request.getSession(false);
                             if (session != null) {
                                 Cookie[] cookies = request.getCookies();
-                                userService.deleteRememberMeCookie(response, session, cookies);
+                                tokenService.deleteRememberMeCookie(response, session, cookies);
                                 session.invalidate();
                             }
                         })

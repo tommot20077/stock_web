@@ -1,19 +1,17 @@
 package xyz.dowob.stockweb.Service;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import xyz.dowob.stockweb.Component.JwtTokenProvider;
 import xyz.dowob.stockweb.Component.MailTokenProvider;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Enum.Gender;
@@ -24,16 +22,14 @@ import xyz.dowob.stockweb.Dto.RegisterUserDto;
 import xyz.dowob.stockweb.Repository.TokenRepository;
 import xyz.dowob.stockweb.Repository.UserRepository;
 
-import java.nio.charset.StandardCharsets;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.*;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final TokenService tokenService;
+
     private final PasswordEncoder passwordEncoder;
     private final MailTokenProvider mailTokenProvider;
 
@@ -41,13 +37,15 @@ public class UserService {
     Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
-    public UserService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, ApplicationEventPublisher applicationEventPublisher) {
+    public UserService(UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
-        this.jwtTokenProvider = jwtTokenProvider;
+        this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
         this.mailTokenProvider = mailTokenProvider;
+
     }
+
 
 
     @Transactional(rollbackFor = {Exception.class})
@@ -83,7 +81,7 @@ public class UserService {
             }
 
             if (userDto.isRemember_me()) {
-                generateRememberMeToken(re, user);
+                tokenService.generateRememberMeToken(re, user);
             }
             return user;
         }
@@ -110,7 +108,7 @@ public class UserService {
                 user.setRole(Role.UNVERIFIED_USER);
                 user.setUsername(user.extractUsernameFromEmail(userInfo.get("email")));
 
-                mailTokenProvider.sendVerificationEmail(user);//還沒檢查
+                mailTokenProvider.sendVerificationEmail(user);
                 logger.warn("用戶 " + user.getEmail() + " 更改信箱");
             }
 
@@ -157,74 +155,7 @@ public class UserService {
         }
     }
 
-    private void generateRememberMeToken(HttpServletResponse response, User user) {
-        Token userToken = user.getToken();
-        if (userToken.getRememberMeToken() == null || userToken.getRememberMeToken().isBlank() || userToken.getRememberMeTokenExpireTime().isBefore(OffsetDateTime.now(ZoneId.of(user.getTimezone())))) {
-            String token = UUID.randomUUID().toString();
-            String hashedToken = passwordEncoder.encode(token);
-            String base64Token = Base64.getEncoder().encodeToString(hashedToken.getBytes(StandardCharsets.UTF_8));
 
-            int expireTimeDays = 7;
-            userToken.createRememberMeToken(hashedToken, expireTimeDays);
-            userRepository.save(user);
-
-            Cookie rememberMeCookie = new Cookie("REMEMBER_ME", base64Token);
-            rememberMeCookie.setMaxAge(expireTimeDays * 24 * 60 * 60);
-            rememberMeCookie.setPath("/");
-            rememberMeCookie.setHttpOnly(true);
-            rememberMeCookie.setSecure(true);
-            response.addCookie(rememberMeCookie);
-        }
-    }
-
-    @Transactional
-    public Long verifyRememberMeToken(String base64Token) throws RuntimeException {
-        if (base64Token == null) {
-            return null;
-        }
-        String argonToken = new String(Base64.getDecoder().decode(base64Token), StandardCharsets.UTF_8);
-        Token userToken = tokenRepository.findByRememberMeToken(argonToken).orElse(null);
-        if (userToken != null) {
-            User user = userToken.getUser();
-            if (user.getToken().getRememberMeTokenExpireTime().isAfter(OffsetDateTime.now())) {
-                return user.getId();
-            }
-        }
-        return null;
-    }
-
-    public void deleteRememberMeCookie(HttpServletResponse response, HttpSession session, Cookie[] cookies){
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (cookie.getName().equals("REMEMBER_ME")) {
-                    User user  = getUserById((Long) session.getAttribute("currentUserId"));
-                    Token userToken = user.getToken();
-                    if (userToken.getRememberMeToken() != null) {
-                        userToken.setRememberMeToken(null);
-                        userToken.setRememberMeTokenExpireTime(null);
-                        userRepository.save(user);
-                    }
-                    Cookie rememberMeCookie = new Cookie("REMEMBER_ME", null);
-                    rememberMeCookie.setMaxAge(0);
-                    rememberMeCookie.setPath("/");
-                    rememberMeCookie.setHttpOnly(true);
-                    rememberMeCookie.setSecure(true);
-                    response.addCookie(rememberMeCookie);
-                }
-            }
-        }
-    }
-
-    public String generateJwtToken (User user, HttpServletResponse response) {
-        String jwt = jwtTokenProvider.generateToken(user.getId(),user.getToken().getAndIncrementJwtApiCount());
-        tokenRepository.save(user.getToken());
-        Cookie jwtCookie = new Cookie("JWT", jwt);
-        jwtCookie.setPath("/");
-        jwtCookie.setHttpOnly(true);
-        response.addCookie(jwtCookie);
-
-        return jwt;
-    }
 
 
     public User getUserFromJwtTokenOrSession (HttpSession session) {
@@ -238,29 +169,7 @@ public class UserService {
         return getUserById(userId);
     }
 
-    public void sendVerificationEmail(HttpSession session) {
-        User user = getUserFromJwtTokenOrSession(session);
-        if (user.getRole() == Role.UNVERIFIED_USER) {
-            mailTokenProvider.sendVerificationEmail(user);
-        } else {
-            throw new RuntimeException("用戶已經完成驗證");
-        }
-    }
 
-
-    public void verifyEmail(String base128Token) {
-        if (base128Token == null || base128Token.isBlank()) {
-            throw new RuntimeException("密鑰不存在");
-        }
-        User user = mailTokenProvider.validateTokenAndReturnUser(base128Token);
-        if (user != null) {
-            user.setRole(Role.VERIFIED_USER);
-            user.getToken().setEmailApiToken(null);
-            userRepository.save(user);
-            logger.warn("用戶 " + user.getEmail() + " 完成驗證");
-
-        }
-    }
 }
 
 
