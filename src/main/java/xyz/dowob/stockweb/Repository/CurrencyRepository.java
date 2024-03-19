@@ -13,6 +13,5 @@ public interface CurrencyRepository extends JpaRepository<Currency, Long> {
     @Query("SELECT DISTINCT c.currency FROM Currency c")
     List<String> findAllDistinctCurrencies();
 
-    Optional<Currency> findByCurrencyAndUpdateTime(String name, LocalDateTime updateTime);
 
 }

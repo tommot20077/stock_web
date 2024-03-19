@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,16 +42,16 @@ public class CurrencyService {
     Logger logger = LoggerFactory.getLogger(CurrencyService.class);
     @Transactional(rollbackFor = {Exception.class})
     public void updateCurrencyData() {
-        logger.info("更新匯率資料中");
+        logger.info("獲取匯率資料中");
         RestTemplate restTemplate = new RestTemplate();
         String result = restTemplate.getForObject(API_URL, String.class);
-        logger.info("開始新增匯率資料");
+        logger.info("開始新匯率資料");
         processCurrencyData(result);
     }
 
 
 
-
+    @Async
     public void processCurrencyData(String jsonData) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -76,7 +77,7 @@ public class CurrencyService {
                 BigDecimal exRate = new BigDecimal(entry.getValue().get("Exrate").asText());
                 LocalDateTime updateTime = LocalDateTime.parse(entry.getValue().get("UTC").asText(), formatter);
 
-                Optional<Currency> existingData = currencyRepository.findByCurrencyAndUpdateTime(currency, updateTime);
+                Optional<Currency> existingData = currencyRepository.findByCurrency(currency);
                 if (existingData.isPresent()) {
                     logger.debug(currency + "的匯率資料已存在");
                     Currency data = existingData.get();
@@ -150,6 +151,10 @@ public class CurrencyService {
         return rates;
 
 
+    }
+
+    public List<CurrencyHistory> getCurrencyHistory(String currency) {
+        return currencyHistoryRepository.findByCurrencyOrderByUpdateTimeDesc(currency);
     }
 
     public List<String> getCurrencyList() {

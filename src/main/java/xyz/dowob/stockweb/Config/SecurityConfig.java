@@ -59,8 +59,9 @@ public class SecurityConfig {
                 ).exceptionHandling((exception) -> exception
                         .accessDeniedPage("/login")
                 ).authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers ("/api/user/login","/api/user/register","/api/user/verifyEmail","/login","/login_p", "/register","/error").permitAll()
+                        .requestMatchers ("/api/user/common/login","/api/user/common/register","/api/user/common/verifyEmail","/login","/login_p", "/register","/error").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "favicon", "/assets/**").permitAll()
+                        .requestMatchers("/api/admin/updateCurrencyData").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 ).logout((logout) -> logout
                         .addLogoutHandler((request, response, authentication) -> {

@@ -1,5 +1,5 @@
 function getUserDetails() {
-    fetch("/api/user/getUserDetail")
+    fetch("/api/user/common/getUserDetail")
         .then(response => {
             if (response.ok) return response.json();
             throw new Error("獲取用戶資料失敗");
@@ -88,7 +88,7 @@ function displayProfileForm() {
 }
 
 function getTimeZoneList() {
-    fetch("/api/common/getTimeZoneList")
+    fetch("/api/user/common/getTimeZoneList")
         .then(response => {
             if (response.ok) return response.json();
             throw new Error("獲取時區列表失敗");
@@ -159,7 +159,7 @@ function updateUserProfile() {
                 let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
                 let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
 
-                fetch("/api/user/updateUserDetail", {
+                fetch("/api/user/common/updateUserDetail", {
                     method: 'POST',
                     headers: {
                         [csrfHeader]: csrfToken,
@@ -200,7 +200,7 @@ function sendVerificationEmail() {
         hideById('VerificationEmailSuccess');
         let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
         let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
-        fetch("/api/user/sendVerificationEmail", {
+        fetch("/api/user/common/sendVerificationEmail", {
             method: 'POST',
             headers: {
                 [csrfHeader]: csrfToken,

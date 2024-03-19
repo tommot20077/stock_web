@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @SpringBootApplication
 @EnableCaching
 @EnableScheduling
+@EnableAsync
 public class StockWebApplication {
 
     public static void main(String[] args) {

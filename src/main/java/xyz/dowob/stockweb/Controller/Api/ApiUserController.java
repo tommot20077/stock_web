@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RequestMapping("/api/user")
+@RequestMapping("/api/user/common")
 @RestController
 public class ApiUserController {
     private final UserService userService;
@@ -123,6 +123,17 @@ public class ApiUserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("驗證失敗: "+e.getMessage());
         }
+    }
+
+    @GetMapping("/getTimeZoneList")
+    public ResponseEntity<?> getTimeZoneList() {
+
+        List<String> timezones = ZoneId.getAvailableZoneIds()
+                .stream()
+                .sorted()
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok().body(timezones);
     }
 
 

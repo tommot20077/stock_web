@@ -5,9 +5,9 @@ import org.springframework.data.jpa.repository.Query;
 import xyz.dowob.stockweb.Model.CurrencyHistory;
 
 import java.util.List;
+import java.util.Set;
 
 public interface CurrencyHistoryRepository extends JpaRepository<CurrencyHistory, Long> {
 
-    @Query("SELECT DISTINCT c.currency FROM CurrencyHistory c")
-    List<String> findAllDistinctCurrencies();
+    List<CurrencyHistory> findByCurrencyOrderByUpdateTimeDesc(String currency);
 }

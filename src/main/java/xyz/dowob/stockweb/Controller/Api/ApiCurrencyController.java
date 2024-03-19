@@ -13,22 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 @Controller
-@RequestMapping("/api/currency")
+@RequestMapping("/api/user/currency")
 public class ApiCurrencyController {
 
     private final CurrencyService currencyService;
     @Autowired
     public ApiCurrencyController(CurrencyService currencyService) {
         this.currencyService = currencyService;
-    }
-    @PostMapping("/updateCurrencyData")
-    public ResponseEntity<?> updateCurrencyData() {
-        try {
-            currencyService.updateCurrencyData();
-            return ResponseEntity.ok().body("匯率更新成功");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
     }
     @GetMapping("/getCurrencyExchangeRates")
     public ResponseEntity<Map<String, BigDecimal>> getCurrencyExchangeRates(@RequestBody List<String> currencyCodes) {
@@ -47,12 +38,12 @@ public class ApiCurrencyController {
         BigDecimal result = currencyService.convertCurrency(from, to, amount);
         return ResponseEntity.ok().body(result);
     }
-    /*
+
     @GetMapping("/getCurrencyHistory")
     public ResponseEntity<?> getCurrencyHistory(@RequestParam String currency) {
         List<CurrencyHistory> currencyHistoryList = currencyService.getCurrencyHistory(currency);
         return ResponseEntity.ok().body(currencyHistoryList);
+
     }
-    */
 
 }
