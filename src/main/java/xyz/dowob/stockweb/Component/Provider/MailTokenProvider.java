@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Provider;
 
 import lombok.Data;
 import lombok.Getter;

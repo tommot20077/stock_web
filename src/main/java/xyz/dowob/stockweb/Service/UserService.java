@@ -12,7 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import xyz.dowob.stockweb.Component.MailTokenProvider;
+import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;

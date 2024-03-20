@@ -8,11 +8,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 @SpringBootApplication
-@EnableCaching
+@EnableCaching(proxyTargetClass=true)
 @EnableScheduling
-@EnableAsync
+@EnableAsync(proxyTargetClass=true)
 public class StockWebApplication {
-
     public static void main(String[] args) {
         SpringApplication.run(StockWebApplication.class, args);
     }

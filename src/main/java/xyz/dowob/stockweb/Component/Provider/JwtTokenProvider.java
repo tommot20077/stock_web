@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Provider;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -55,8 +55,6 @@ public class JwtTokenProvider {
             Integer tokenVersionInDb = user.getToken().getJwtApiCount();
             Integer tokenVersionInToken = claims.get("token_version", Integer.class);
             return tokenVersionInDb.equals(tokenVersionInToken);
-
-            //Jwts.parser().verifyWith(key).build().parseSignedClaims(authToken);
         } catch (SignatureException | IllegalArgumentException | UnsupportedJwtException | ExpiredJwtException |
                  MalformedJwtException ex) {
             logger.error("不合法的Jwt Token: " + ex.getMessage());

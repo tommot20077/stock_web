@@ -13,7 +13,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-import xyz.dowob.stockweb.Component.JwtTokenProvider;
+import xyz.dowob.stockweb.Component.Provider.JwtTokenProvider;
 import xyz.dowob.stockweb.Service.CustomUserDetailsService;
 
 import java.io.IOException;
@@ -30,7 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
             if(StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
 
-                Long userId =  Long.parseLong(jwtTokenProvider.getClaimsFromJWT(jwt).getSubject());
+                Long userId = Long.parseLong(jwtTokenProvider.getClaimsFromJWT(jwt).getSubject());
                 UserDetails userDetails = customUserDetailsService.loadUserById(userId);
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

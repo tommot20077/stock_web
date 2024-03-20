@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Controller.Api;
+package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;

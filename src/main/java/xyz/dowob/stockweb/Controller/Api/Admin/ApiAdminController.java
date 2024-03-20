@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Controller.Api;
+package xyz.dowob.stockweb.Controller.Api.Admin;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
