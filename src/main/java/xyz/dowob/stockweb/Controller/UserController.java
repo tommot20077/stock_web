@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,15 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Service.TokenService;
-import xyz.dowob.stockweb.Service.UserService;
-
-import java.time.ZoneId;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.User.TokenService;
+import xyz.dowob.stockweb.Service.User.UserService;
 
 
 @Controller

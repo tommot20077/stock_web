@@ -12,9 +12,9 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.LoginUserDto;
 import xyz.dowob.stockweb.Dto.RegisterUserDto;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Service.TokenService;
-import xyz.dowob.stockweb.Service.UserService;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.User.TokenService;
+import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.time.ZoneId;
 import java.util.HashMap;

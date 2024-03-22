@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import xyz.dowob.stockweb.Component.Provider.JwtTokenProvider;
-import xyz.dowob.stockweb.Service.CustomUserDetailsService;
+import xyz.dowob.stockweb.Service.User.CustomUserDetailsService;
 
 import java.io.IOException;
 @Component

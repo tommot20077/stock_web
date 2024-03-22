@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Service;
+package xyz.dowob.stockweb.Service.User;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -13,10 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Provider.JwtTokenProvider;
 import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
 import xyz.dowob.stockweb.Enum.Role;
-import xyz.dowob.stockweb.Model.Token;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Repository.TokenRepository;
-import xyz.dowob.stockweb.Repository.UserRepository;
+import xyz.dowob.stockweb.Model.User.Token;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.User.TokenRepository;
+import xyz.dowob.stockweb.Repository.User.UserRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;

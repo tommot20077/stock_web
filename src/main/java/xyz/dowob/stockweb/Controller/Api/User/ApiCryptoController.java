@@ -7,8 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
-import xyz.dowob.stockweb.Service.WebSocketService;
+import xyz.dowob.stockweb.Service.Crypto.WebSocketService;
 
 @Controller
 @RequestMapping("/api/user/crypto")

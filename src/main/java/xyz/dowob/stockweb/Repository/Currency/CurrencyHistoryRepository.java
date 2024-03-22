@@ -1,11 +1,9 @@
-package xyz.dowob.stockweb.Repository;
+package xyz.dowob.stockweb.Repository.Currency;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import xyz.dowob.stockweb.Model.CurrencyHistory;
+import xyz.dowob.stockweb.Model.Currency.CurrencyHistory;
 
 import java.util.List;
-import java.util.Set;
 
 public interface CurrencyHistoryRepository extends JpaRepository<CurrencyHistory, Long> {
 

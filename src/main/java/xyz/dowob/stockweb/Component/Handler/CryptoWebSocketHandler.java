@@ -3,7 +3,6 @@ package xyz.dowob.stockweb.Component.Handler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -11,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -21,9 +19,9 @@ import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import xyz.dowob.stockweb.Component.WebSocketConnectionStatusEvent;
-import xyz.dowob.stockweb.Model.Crypto;
-import xyz.dowob.stockweb.Repository.CryptoRepository;
-import xyz.dowob.stockweb.Service.CryptoInfluxDBService;
+import xyz.dowob.stockweb.Model.Crypto.Crypto;
+import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
+import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxDBService;
 
 import java.io.IOException;
 import java.util.*;
@@ -92,7 +90,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws Exception {
         if (eventPublisher != null) {
             eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
-            logger.info("WebSocket連線關閉: Session " + session.getId() + "; Status " + status.getReason());
+            logger.info("WebSocket連線關閉: Session " + session.getId());
             scheduler.shutdownNow();
             try {
                 if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -125,7 +123,10 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             long lifeTime = (new Date().getTime() - connectionTime.getTime()) / 1000;
             if (lifeTime > connectMaxLiftTime) {
                 reconnectAndResubscribe();
+            } else {
+                logger.info("WebSocket連線正常，目前已存活時間: " + lifeTime + "秒");
             }
+
         }, 5, 5, TimeUnit.MINUTES);
     }
 
@@ -199,35 +200,44 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
 
     public void subscribeToSymbol(String symbol, String channel) throws Exception {
-        if (this.webSocketSession != null) {
-            Crypto CryptoSymbol = getSymbol(symbol, channel);
-            if (CryptoSymbol != null) {
-                logger.warn("已訂閱過" + symbol);
-            } else {
-                String message = "{\"method\": \"SUBSCRIBE\", \"params\": [\"" + symbol.toLowerCase() + "@" + channel.toLowerCase() +"\"], \"id\": null}";
-                this.webSocketSession.sendMessage(new TextMessage(message));
-                Crypto crypto = new Crypto();
-                crypto.setSymbol(symbol);
-                crypto.setChannel(channel);
-                if (cryptoRepository != null) {
-                    cryptoRepository.save(crypto);
-                } else {
-                    logger.warn("CryptoRepository未初始化");
-                }
-            }
+        Crypto CryptoSymbol = getSymbol(symbol, channel);
+        if (CryptoSymbol != null) {
+            logger.warn("已訂閱過" + symbol);
         } else {
-            logger.warn("WebSocket連線尚未建立");
-            throw new Exception("WebSocket連線尚未建立");
+            if (this.webSocketSession != null) {
+                String id = generateRequestId();
+                String message = "{\"method\": \"SUBSCRIBE\", \"params\": [\"" + symbol.toLowerCase() + "@" + channel.toLowerCase() +"\"], \"id\":" + null + "}";
+                this.webSocketSession.sendMessage(new TextMessage(message));
+                logger.info("已訂閱" + symbol);
+            }
+            Crypto crypto = new Crypto();
+            crypto.setSymbol(symbol);
+            crypto.setChannel(channel);
+            if (cryptoRepository != null) {
+                cryptoRepository.save(crypto);
+            } else {
+                logger.warn("CryptoRepository未初始化");
+            }
         }
     }
 
     public void unsubscribeFromSymbol(String symbol, String channel) throws Exception {
-        if (this.webSocketSession != null) {
-            String message = "{\"method\": \"UNSUBSCRIBE\", \"params\": [\"" + symbol.toLowerCase() + "@" + channel.toLowerCase() +"\"]}";
-            this.webSocketSession.sendMessage(new TextMessage(message));
-        } else {
-            logger.warn("WebSocket連線尚未建立");
-            throw new Exception("WebSocket連線尚未建立");
+        Crypto CryptoSymbol = getSymbol(symbol, channel);
+        if (CryptoSymbol == null) {
+            logger.warn("尚未訂閱過" + symbol);
+        }else {
+            if (this.webSocketSession != null) {
+                String id = generateRequestId();
+
+                String message = "{\"method\": \"UNSUBSCRIBE\", \"params\": [\"" + symbol.toLowerCase() + "@" + channel.toLowerCase() +"\"], \"id\":" + null + "}";
+                webSocketSession.sendMessage(new TextMessage(message));
+                logger.warn("已取消訂閱" + symbol);
+            }
+            if (cryptoRepository != null) {
+                cryptoRepository.delete(CryptoSymbol);
+            } else {
+                logger.warn("CryptoRepository未初始化");
+            }
         }
     }
     /*
@@ -354,6 +364,11 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.error("釋放資源時發生錯誤", e);
         }
     }
+
+    private String generateRequestId() {
+        return UUID.randomUUID().toString();
+    }
+
 
 }
 

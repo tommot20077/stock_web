@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Service;
+package xyz.dowob.stockweb.Service.User;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,10 +8,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Repository.UserRepository;
-
-import java.util.Collection;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.User.UserRepository;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {

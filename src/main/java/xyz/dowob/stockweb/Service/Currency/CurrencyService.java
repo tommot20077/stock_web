@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Service;
+package xyz.dowob.stockweb.Service.Currency;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,14 +7,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-import xyz.dowob.stockweb.Model.Currency;
-import xyz.dowob.stockweb.Model.CurrencyHistory;
-import xyz.dowob.stockweb.Repository.CurrencyHistoryRepository;
-import xyz.dowob.stockweb.Repository.CurrencyRepository;
+import xyz.dowob.stockweb.Model.Currency.Currency;
+import xyz.dowob.stockweb.Model.Currency.CurrencyHistory;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyHistoryRepository;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

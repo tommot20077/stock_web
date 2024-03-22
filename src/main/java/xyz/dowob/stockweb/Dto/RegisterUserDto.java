@@ -2,7 +2,6 @@ package xyz.dowob.stockweb.Dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import xyz.dowob.stockweb.Model.User;
 
 @Data
 @AllArgsConstructor

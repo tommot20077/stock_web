@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Model;
+package xyz.dowob.stockweb.Model.Currency;
 
 import jakarta.persistence.*;
 import lombok.Data;

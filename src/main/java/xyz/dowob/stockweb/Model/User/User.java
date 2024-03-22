@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Model;
+package xyz.dowob.stockweb.Model.User;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -9,12 +9,10 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
 
-import java.time.LocalDateTime;
+import java.lang.reflect.Field;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
 
 @Entity
 @Data
@@ -60,6 +58,9 @@ public class User {
     @OneToOne(cascade = CascadeType.ALL, mappedBy = "user")
     private Token token;
 
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
+    private List<Subscribe> subscriptions = new ArrayList<>();;
+
 
     @PreUpdate
     protected void onUpdate() {
@@ -91,8 +92,8 @@ public class User {
     public String toString() {
         return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
             @Override
-            protected boolean accept(java.lang.reflect.Field f) {
-                return super.accept(f) && !f.getName().equals("token");
+            protected boolean accept(Field f) {
+                return super.accept(f) && !f.getName().equals("token") && !f.getName().equals("subscriptions");
             }
         }).toString();
     }

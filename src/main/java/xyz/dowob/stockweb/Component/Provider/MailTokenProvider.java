@@ -1,22 +1,17 @@
 package xyz.dowob.stockweb.Component.Provider;
 
-import lombok.Data;
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import xyz.dowob.stockweb.Model.Token;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Repository.TokenRepository;
-import xyz.dowob.stockweb.Repository.UserRepository;
-import xyz.dowob.stockweb.Service.UserService;
+import xyz.dowob.stockweb.Model.User.Token;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.User.TokenRepository;
+import xyz.dowob.stockweb.Service.User.UserService;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Base64;

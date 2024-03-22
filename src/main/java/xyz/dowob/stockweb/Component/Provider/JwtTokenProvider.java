@@ -10,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Repository.UserRepository;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.User.UserRepository;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -55,6 +55,7 @@ public class JwtTokenProvider {
             Integer tokenVersionInDb = user.getToken().getJwtApiCount();
             Integer tokenVersionInToken = claims.get("token_version", Integer.class);
             return tokenVersionInDb.equals(tokenVersionInToken);
+
         } catch (SignatureException | IllegalArgumentException | UnsupportedJwtException | ExpiredJwtException |
                  MalformedJwtException ex) {
             logger.error("不合法的Jwt Token: " + ex.getMessage());

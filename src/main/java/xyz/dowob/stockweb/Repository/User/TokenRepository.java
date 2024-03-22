@@ -1,8 +1,7 @@
-package xyz.dowob.stockweb.Repository;
+package xyz.dowob.stockweb.Repository.User;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import xyz.dowob.stockweb.Model.Token;
-import xyz.dowob.stockweb.Model.User;
+import xyz.dowob.stockweb.Model.User.Token;
 
 import java.time.OffsetDateTime;
 import java.util.List;

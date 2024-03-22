@@ -1,10 +1,9 @@
-package xyz.dowob.stockweb.Repository;
+package xyz.dowob.stockweb.Repository.Currency;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import xyz.dowob.stockweb.Model.Currency;
+import xyz.dowob.stockweb.Model.Currency.Currency;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 

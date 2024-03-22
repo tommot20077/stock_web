@@ -1,10 +1,10 @@
-package xyz.dowob.stockweb.Repository;
+package xyz.dowob.stockweb.Repository.Crypto;
 
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import xyz.dowob.stockweb.Model.Crypto;
+import xyz.dowob.stockweb.Model.Crypto.Crypto;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +18,8 @@ public interface CryptoRepository extends JpaRepository<Crypto, Long> {
 
     @NotNull
     List<Crypto> findAll();
+
+    void deleteBySymbolAndChannel(String symbol, String channel);
 
     @Query("SELECT DISTINCT c.symbol FROM Crypto c")
     Set<String> findAllDistinctSymbols();

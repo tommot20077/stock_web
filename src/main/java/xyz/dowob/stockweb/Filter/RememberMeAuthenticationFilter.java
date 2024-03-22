@@ -16,9 +16,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import xyz.dowob.stockweb.Model.User;
-import xyz.dowob.stockweb.Service.TokenService;
-import xyz.dowob.stockweb.Service.UserService;
+import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.User.TokenService;
+import xyz.dowob.stockweb.Service.User.UserService;
 
 
 import java.io.IOException;

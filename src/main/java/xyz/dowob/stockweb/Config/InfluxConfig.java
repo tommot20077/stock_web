@@ -17,12 +17,21 @@ public class InfluxConfig {
     @Value("${db.influxdb.org}")
     private String org;
 
-    @Value("${db.influxdb.bucket}")
-    private String bucket;
+    @Value("${db.influxdb.bucket.crypto}")
+    private String cryptoBucket;
+
+    @Value("${db.influxdb.bucket.stock}")
+    private String stockBucket;
 
 
-    @Bean
-    public InfluxDBClient influxDBClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, bucket);
+
+    @Bean(name = "CryptoInfluxDBClient")
+    public InfluxDBClient cryptoInfluxDBClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
+    }
+
+    @Bean(name = "StockInfluxDBClient")
+    public InfluxDBClient stockInfluxDBClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockBucket);
     }
 }

@@ -5,6 +5,6 @@ public enum AssetType {
     STOCK_US,
     FUND_TW,
     FUND_US,
-    CASH,
-    CRYPTO
+    CRYPTO,
+    CASH
 }

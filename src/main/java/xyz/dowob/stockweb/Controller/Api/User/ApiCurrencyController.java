@@ -4,9 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import xyz.dowob.stockweb.Model.Currency;
-import xyz.dowob.stockweb.Model.CurrencyHistory;
-import xyz.dowob.stockweb.Service.CurrencyService;
+import xyz.dowob.stockweb.Model.Currency.CurrencyHistory;
+import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 
 import java.math.BigDecimal;
 import java.util.List;

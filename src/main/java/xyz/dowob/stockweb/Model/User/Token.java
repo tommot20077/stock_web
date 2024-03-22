@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Model;
+package xyz.dowob.stockweb.Model.User;
 
 import jakarta.persistence.*;
 import lombok.Data;
