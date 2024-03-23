@@ -20,4 +20,6 @@ public class Subscribe {
     @JoinColumn(name = "asset_id")
     private Asset asset;
 
+    private String assetDetail;
+
 }

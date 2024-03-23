@@ -107,10 +107,14 @@ public class StockTwService {
                         stock.setAssetType(AssetType.STOCK_TW);
                         stockTwRepository.save(stock);
                     }
+                } else {
+                    throw new RuntimeException("無法解析股票列表");
                 }
             } catch (Exception e) {
                 throw new RuntimeException("更新股票列表失敗");
             }
+        } else {
+            throw new RuntimeException("更新股票列表失敗");
         }
     }
 

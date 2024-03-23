@@ -14,23 +14,10 @@ import java.util.Map;
 
 @Service
 public class CryptoInfluxDBService {
-    /*
-    @Value("${db.influxdb.url}")
-    private String url;
-
-    @Value("${db.influxdb.token}")
-    private String token;
-
-    @Value("${db.influxdb.org}")
-    private String org;
-
-    @Value("${db.influxdb.bucket}")
-    private String bucket;
-     */
     private final InfluxDBClient CryptoInfluxDBClient;
     Logger logger = LoggerFactory.getLogger(CryptoInfluxDBService.class);
     @Autowired
-    public CryptoInfluxDBService(@Qualifier("StockInfluxDBClient")InfluxDBClient CryptoInfluxDBClient) {
+    public CryptoInfluxDBService(@Qualifier("CryptoInfluxDBClient")InfluxDBClient CryptoInfluxDBClient) {
         this.CryptoInfluxDBClient = CryptoInfluxDBClient;
     }
 
@@ -45,7 +32,7 @@ public class CryptoInfluxDBService {
         Double volume = Double.parseDouble(kline.get("v").toString()); // 成交量
 
         Point point = Point.measurement("kline_data")
-                .addTag("symbol", kline.get("s").toString())
+                .addTag("tradingPair", kline.get("s").toString())
                 .addField("open", open)
                 .addField("close", close)
                 .addField("high", high)

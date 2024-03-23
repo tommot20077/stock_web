@@ -9,16 +9,20 @@ import xyz.dowob.stockweb.Model.Common.Asset;
 @PrimaryKeyJoinColumn(name = "asset_id")
 @Entity
 @Data
-@Table(name = "crypto_subscription")
-public class Crypto extends Asset {
+@Table(name = "crypto_data")
+public class CryptoTradingPair extends Asset {
 
     @Column(nullable = false)
-    private String symbol;
+    private String tradingPair;
 
     @Column(nullable = false)
-    private String channel;
+    private String baseAsset;
+
+    @Column(nullable = false)
+    private String quoteAsset;
 
     @Column(name = "subscribe_number", nullable = false)
     private int subscribeNumber = 0;
+
 
 }

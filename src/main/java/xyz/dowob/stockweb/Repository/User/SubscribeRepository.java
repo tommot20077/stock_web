@@ -8,5 +8,6 @@ import java.util.Optional;
 
 public interface SubscribeRepository extends JpaRepository<Subscribe, Long> {
     Optional<Subscribe> findByUserIdAndAssetId(Long userId, Long assetId);
+    Optional<Subscribe> findByUserIdAndAssetIdAndAssetDetail(Long userId, Long assetId, String assetDetail);
     void deleteByUserIdAndAssetId(Long userId, Long assetId);
 }
