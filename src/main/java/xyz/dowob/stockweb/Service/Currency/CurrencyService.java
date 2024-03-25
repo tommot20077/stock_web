@@ -10,10 +10,14 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Currency.CurrencyHistory;
+import xyz.dowob.stockweb.Model.User.Subscribe;
+import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyHistoryRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
+import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,13 +36,19 @@ public class CurrencyService {
 
     private final CurrencyRepository currencyRepository;
     private final CurrencyHistoryRepository currencyHistoryRepository;
+    private final SubscribeRepository subscribeRepository;
+
 
     @Autowired
-    public CurrencyService(CurrencyRepository currencyRepository, CurrencyHistoryRepository currencyHistoryRepository) {
+    public CurrencyService(CurrencyRepository currencyRepository, CurrencyHistoryRepository currencyHistoryRepository, SubscribeRepository subscribeRepository) {
         this.currencyRepository = currencyRepository;
         this.currencyHistoryRepository = currencyHistoryRepository;
+        this.subscribeRepository = subscribeRepository;
     }
     Logger logger = LoggerFactory.getLogger(CurrencyService.class);
+
+
+    @Async
     @Transactional(rollbackFor = {Exception.class})
     public void updateCurrencyData() {
         logger.info("獲取匯率資料中");
@@ -48,9 +58,6 @@ public class CurrencyService {
         processCurrencyData(result);
     }
 
-
-
-    @Async
     public void processCurrencyData(String jsonData) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -103,6 +110,7 @@ public class CurrencyService {
                     currencyData.setCurrency(currency);
                     currencyData.setExchangeRate(exRate);
                     currencyData.setUpdateTime(updateTime);
+                    currencyData.setAssetType(AssetType.CASH);
                     currencyRepository.save(currencyData);
                     logger.debug(currency+ "的匯率資料新增完成");
 
@@ -111,6 +119,7 @@ public class CurrencyService {
                     currencyHistory.setCurrency(currency);
                     currencyHistory.setExchangeRate(exRate);
                     currencyHistory.setUpdateTime(updateTime);
+                    currencyHistory.setAssetType(AssetType.CASH);
                     currencyHistoryRepository.save(currencyHistory);
                     logger.debug("新增"+ currency + "的匯率歷史資料完成");
 
@@ -148,9 +157,43 @@ public class CurrencyService {
             }
         }
         return rates;
+    }
 
+    public void subscribeCurrency(String from, String to, User user) {
+        if (from.equals(to)) {
+            throw new RuntimeException("訂閱貨幣不可相同");
+        }
+        Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
+        Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
+
+        subscribeRepository.findByUserIdAndAssetIdAndAssetDetail(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).ifPresent(subscribe -> {
+            throw new RuntimeException("已訂閱過此貨幣對" + from + " <-> " + to);
+        });
+        Subscribe subscribe = new Subscribe();
+        subscribe.setUser(user);
+        subscribe.setAsset(toCurrency);
+        subscribe.setAssetDetail(fromCurrency.getId().toString());
+        subscribeRepository.save(subscribe);
+        logger.info(user.getUsername() + "訂閱" + from + " <-> " + to);
 
     }
+
+    public void unsubscribeCurrency(String from, String to, User user) {
+        if (from.equals(to)) {
+            throw new RuntimeException("取消訂閱貨幣不可相同");
+        }
+        Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
+        Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
+        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndAssetDetail(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).orElse(null);
+        if (subscribe != null) {
+            subscribeRepository.delete(subscribe);
+            logger.info(user.getUsername() + "取消訂閱" + from + " <-> " + to);
+        } else {
+            throw new RuntimeException("未訂閱過此貨幣對" + from + " <-> " + to);
+        }
+    }
+
+
 
     public List<CurrencyHistory> getCurrencyHistory(String currency) {
         return currencyHistoryRepository.findByCurrencyOrderByUpdateTimeDesc(currency);

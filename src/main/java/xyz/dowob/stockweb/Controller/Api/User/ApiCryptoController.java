@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import xyz.dowob.stockweb.Dto.CryptoSubscriptionDto;
+import xyz.dowob.stockweb.Dto.Subscription.SubscriptionCryptoDto;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -28,12 +28,12 @@ public class ApiCryptoController {
     }
 
     @PostMapping("/subscribe")
-    public ResponseEntity<?> subscribeSymbol(@RequestBody CryptoSubscriptionDto request, HttpSession session) {
+    public ResponseEntity<?> subscribeSymbol(@RequestBody SubscriptionCryptoDto request, HttpSession session) {
         try {
             if (session.getAttribute("currentUserId") == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            List<CryptoSubscriptionDto.Subscription> subscriptions = request.getSubscriptions();
+            List<SubscriptionCryptoDto.Subscription> subscriptions = request.getSubscriptions();
             Long userId = (Long) session.getAttribute("currentUserId");
             User user = userService.getUserById(userId);
             if (user == null) {
@@ -46,7 +46,7 @@ public class ApiCryptoController {
             if (subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要訂閱的加密貨幣和通知通道");
             } else {
-                for (CryptoSubscriptionDto.Subscription subscription : subscriptions) {
+                for (SubscriptionCryptoDto.Subscription subscription : subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
                     String channel = subscription.getChannel().toLowerCase();
                     try {
@@ -67,12 +67,12 @@ public class ApiCryptoController {
     }
 
     @PostMapping("/unsubscribe")
-    public ResponseEntity<?> unsubscribeSymbol(@RequestBody CryptoSubscriptionDto request, HttpSession session) {
+    public ResponseEntity<?> unsubscribeSymbol(@RequestBody SubscriptionCryptoDto request, HttpSession session) {
         try {
             if (session.getAttribute("currentUserId") == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            List<CryptoSubscriptionDto.Subscription> Subscriptions = request.getSubscriptions();
+            List<SubscriptionCryptoDto.Subscription> Subscriptions = request.getSubscriptions();
             Long userId = (Long) session.getAttribute("currentUserId");
             User user = userService.getUserById(userId);
             if (user == null) {
@@ -84,7 +84,7 @@ public class ApiCryptoController {
             if (Subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要取消訂閱的加密貨幣和通知通道");
             } else {
-                for (CryptoSubscriptionDto.Subscription subscription : Subscriptions) {
+                for (SubscriptionCryptoDto.Subscription subscription : Subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
                     String channel = subscription.getChannel().toLowerCase();
                     try {

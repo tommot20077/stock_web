@@ -123,6 +123,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     private void scheduleReconnection() {
         if (scheduler.isShutdown() || scheduler.isTerminated()) {
             scheduler = Executors.newSingleThreadScheduledExecutor();
+            logger.info("WebSocket連線重新建立: 已重新初始化");
         }
 
         scheduler.scheduleAtFixedRate(() -> {
@@ -133,7 +134,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 logger.info("WebSocket連線正常，目前已存活時間: " + lifeTime + "秒");
             }
 
-        }, 5, 5, TimeUnit.MINUTES);
+        }, 1, 1, TimeUnit.HOURS);
     }
 
 
@@ -271,8 +272,6 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                                 isRunning = false;
                             }
                         }
-
-
                     } else {
                         logger.warn("CryptoRepository未初始化");
                         throw new Exception("CryptoRepository未初始化");

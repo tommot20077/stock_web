@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Dto;
+package xyz.dowob.stockweb.Dto.User;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

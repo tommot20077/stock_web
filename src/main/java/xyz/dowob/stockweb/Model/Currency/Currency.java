@@ -2,20 +2,19 @@ package xyz.dowob.stockweb.Model.Currency;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import xyz.dowob.stockweb.Model.Common.Asset;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @Data
 @Table(name = "currency_data")
-public class Currency {
-
-    @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    private Long id;
-
+@PrimaryKeyJoinColumn(name = "asset_id")
+public class Currency extends Asset {
     @Column(unique = true)
     private String currency;
 

@@ -173,7 +173,7 @@ public class CryptoService {
     public void checkAndReconnectWebSocket() {
         if (!isRunning) {
             try {
-                logger.info("正在重新連線");
+                logger.info("開啟自動重連WebSocket: " + isNeedToCheckConnection+ " ，正在重新連線...");
                 openConnection();
                 logger.info("重新連線成功");
             } catch (Exception e) {

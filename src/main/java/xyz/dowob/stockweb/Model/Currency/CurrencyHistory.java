@@ -2,19 +2,18 @@ package xyz.dowob.stockweb.Model.Currency;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import xyz.dowob.stockweb.Model.Common.Asset;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @Data
 @Table(name = "currency_history_data")
-public class CurrencyHistory {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+@PrimaryKeyJoinColumn(name = "asset_id")
+public class CurrencyHistory extends Asset {
     private String currency;
 
     @Column(name = "exchange_rate", precision = 12, scale = 6)

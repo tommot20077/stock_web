@@ -36,8 +36,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-
-
     @Column(nullable = false, updatable = false)
     private OffsetDateTime created;
 
@@ -60,6 +58,9 @@ public class User {
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
     private List<Subscribe> subscriptions = new ArrayList<>();;
+
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
+    private List<Property> property = new ArrayList<>();
 
 
     @PreUpdate
@@ -93,7 +94,7 @@ public class User {
         return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
             @Override
             protected boolean accept(Field f) {
-                return super.accept(f) && !f.getName().equals("token") && !f.getName().equals("subscriptions");
+                return super.accept(f) && !f.getName().equals("token") && !f.getName().equals("subscriptions") && !f.getName().equals("property");
             }
         }).toString();
     }

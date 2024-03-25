@@ -18,5 +18,4 @@ public class Asset {
     @Column(name = "asset_type")
     private AssetType assetType;
 
-
 }

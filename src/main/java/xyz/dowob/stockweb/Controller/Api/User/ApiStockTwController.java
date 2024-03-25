@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import xyz.dowob.stockweb.Dto.StockSubscriptionDto;
+import xyz.dowob.stockweb.Dto.Subscription.SubscriptionStockDto;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -28,7 +28,7 @@ public class ApiStockTwController {
     }
 
     @PostMapping("/subscribe")
-    public ResponseEntity<?> addNewStock(@RequestBody StockSubscriptionDto stockIds, HttpSession session) {
+    public ResponseEntity<?> addNewStock(@RequestBody SubscriptionStockDto stockIds, HttpSession session) {
         if(session.getAttribute("currentUserId") == null){
             return ResponseEntity.status(401).body("請先登入");
         }
@@ -51,7 +51,7 @@ public class ApiStockTwController {
     }
 
     @PostMapping("/unsubscribe")
-    public ResponseEntity<?> removeStock(@RequestBody StockSubscriptionDto stockIds, HttpSession session) {
+    public ResponseEntity<?> removeStock(@RequestBody SubscriptionStockDto stockIds, HttpSession session) {
         if(session.getAttribute("currentUserId") == null){
             return ResponseEntity.status(401).body("請先登入");
         }
