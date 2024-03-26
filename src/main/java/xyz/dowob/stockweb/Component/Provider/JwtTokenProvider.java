@@ -18,16 +18,15 @@ import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
+    private final UserRepository userRepository;
+    // 暫放logger
+    Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
     @Value(value = "${security.jwt.secret}")
     private String jwtSecret;
     @Value(value = "${security.jwt.expiration}")
-    private int expirationMinute ;
+    private int expirationMinute;
     private SecretKey key;
 
-    //暫放logger
-    Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
-
-    private final UserRepository userRepository;
     @Autowired
     public JwtTokenProvider(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -38,6 +37,7 @@ public class JwtTokenProvider {
         byte[] encodedSecret = Decoders.BASE64.decode(jwtSecret);
         this.key = Keys.hmacShaKeyFor(encodedSecret);
     }
+
     public Claims getClaimsFromJWT(String token) {
 
         return Jwts.parser()

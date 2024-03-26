@@ -14,21 +14,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
+import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
+import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.User.Token;
 import xyz.dowob.stockweb.Model.User.User;
-import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.User.TokenRepository;
 import xyz.dowob.stockweb.Repository.User.UserRepository;
 
-import java.util.*;
+import java.util.Map;
+import java.util.TimeZone;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
     private final TokenService tokenService;
+    private final CurrencyRepository currencyRepository;
 
     private final PasswordEncoder passwordEncoder;
     private final MailTokenProvider mailTokenProvider;
@@ -37,10 +41,12 @@ public class UserService {
     Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
-    public UserService(UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
+    public UserService(UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, CurrencyRepository currencyRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
         this.userRepository = userRepository;
+
         this.tokenRepository = tokenRepository;
         this.tokenService = tokenService;
+        this.currencyRepository = currencyRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailTokenProvider = mailTokenProvider;
 
@@ -60,6 +66,7 @@ public class UserService {
         user.setLastName(userDto.getLast_name());
         user.setUsername(user.extractUsernameFromEmail(userDto.getEmail()));
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
+        user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(()-> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
         userRepository.save(user);
 
         logger.warn("用戶 " + user.getEmail() + " 註冊成功");
@@ -125,6 +132,17 @@ public class UserService {
                 user.setGender(Gender.valueOf(userInfo.get("gender")));
             } catch (IllegalArgumentException e) {
                 user.setGender(Gender.OTHER);
+            }
+
+            Currency currency = currencyRepository.findByCurrency(userInfo.get("preferredCurrency")).orElse(null);
+            if (currency != null) {
+                user.setPreferredCurrency(currency);
+                logger.warn("用戶 " + user.getEmail() + " 更改預設幣別");
+            } else {
+                user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(()-> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
+                logger.warn("用戶 " + user.getEmail() + " 更改預設幣別失敗，使用預設幣別：USD");
+                throw new IllegalStateException("更改預設幣別失敗，使用預設幣別：USD");
+
             }
             userRepository.save(user);
         } else {

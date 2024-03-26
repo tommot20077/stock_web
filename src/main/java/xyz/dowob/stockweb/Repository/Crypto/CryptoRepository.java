@@ -1,14 +1,11 @@
 package xyz.dowob.stockweb.Repository.Crypto;
 
-import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long> {
     Optional<CryptoTradingPair> findByTradingPair(String tradingPair);

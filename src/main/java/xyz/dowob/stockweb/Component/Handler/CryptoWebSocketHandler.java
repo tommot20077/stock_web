@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -18,7 +19,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.WebSocketClient;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import xyz.dowob.stockweb.Component.WebSocketConnectionStatusEvent;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.Subscribe;
@@ -28,7 +28,10 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxDBService;
 
 import java.io.IOException;
-import java.util.*;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,11 +44,17 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     private final CryptoRepository cryptoRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final SubscribeRepository subscribeRepository;
+    Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
+    int maxRetryCount = 5;
+    int retryDelay = 10;// 秒
+    int connectMaxLiftTime = 24 * 60 * 60; // 秒
+    Date connectionTime;
+    @Getter
+    boolean isRunning = false;
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ThreadPoolTaskScheduler taskScheduler;
-    Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
     private WebSocketSession webSocketSession;
-
+    private int retryCount = 0;
     @Autowired
     public CryptoWebSocketHandler(CryptoInfluxDBService cryptoInfluxDBService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
         this.cryptoInfluxDBService = cryptoInfluxDBService;
@@ -58,22 +67,6 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     public void setTaskScheduler(ThreadPoolTaskScheduler taskScheduler) {
         this.taskScheduler = taskScheduler;
     }
-
-
-
-
-
-
-    private int retryCount = 0;
-    int maxRetryCount = 5;
-    int retryDelay = 10;//秒
-    int connectMaxLiftTime = 24 * 60 * 60; //秒
-    Date connectionTime;
-    @Getter
-    boolean isRunning = false;
-
-
-
 
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) throws Exception {
@@ -138,10 +131,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     }
 
 
-
-
     @Override
-    public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) throws Exception {
+    public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) {
 
         logger.error("WebSocket 傳輸錯誤: ", exception);
         if (retryCount < maxRetryCount && !isRunning) {
@@ -158,11 +149,11 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     }
 
 
-
     @Override
     @Async
     public void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) throws JsonProcessingException {
-        TypeReference<Map<String, Object>> typeRef = new TypeReference<>() {};
+        TypeReference<Map<String, Object>> typeRef = new TypeReference<>() {
+        };
         logger.debug("收到的消息: " + message.getPayload());
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> jsonMap = objectMapper.readValue(message.getPayload(), typeRef);
@@ -190,7 +181,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     logger.debug("dataMap為null");
                 }
             } else if (jsonMap.containsKey("result")) {
-                logger.debug("WebSocket收到"+ jsonMap);
+                logger.debug("WebSocket收到" + jsonMap);
                 logger.debug("訂閱結果: " + jsonMap.get("result"));
             } else {
                 logger.debug("未知的消息: " + jsonMap);
@@ -258,7 +249,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     if (cryptoRepository != null && eventPublisher != null) {
                         cryptoRepository.save(cryptoTradingPairSymbol);
                         if (cryptoTradingPairSymbol.getSubscribeNumber() == 0) {
-                            String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" +tradingPair.toLowerCase() + channel.toLowerCase() + "\"]"+", \"id\": null}";
+                            String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
                             logger.debug("取消訂閱訊息: " + message);
                             webSocketSession.sendMessage(new TextMessage(message));
                             logger.info("已取消訂閱" + tradingPair + channel + "交易對");
@@ -292,6 +283,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
     private void reconnectAndResubscribe() {
         try {
+            Instant scheduledTime = Instant.now().plusSeconds(retryDelay);
             taskScheduler.schedule(() -> {
                 if (!scheduler.isShutdown() && !scheduler.isTerminated()) {
                     scheduler.shutdown();
@@ -326,14 +318,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 this.connectionTime = new Date();
                 this.retryCount = 0;
                 subscribeAllPreviousTradingPair();
-            }, new Date(System.currentTimeMillis() + retryDelay * 1000L));
+            }, scheduledTime);
         } catch (Exception e) {
             logger.error("嘗試重新連接WebSocket時發生錯誤", e);
             retryCount++;
         }
     }
 
-    private void subscribeAllPreviousTradingPair() {//換小寫
+    private void subscribeAllPreviousTradingPair() {// 換小寫
         try {
             logger.info("嘗試重新訂閱");
             List<String> tradingPairList = findSubscribedTradingPairList();
@@ -348,7 +340,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 logger.info("重新訂閱成功");
                 isRunning = true;
             }
-        } catch(Exception e){
+        } catch (Exception e) {
             logger.error("重新訂閱時發生錯誤", e);
         }
     }
@@ -379,7 +371,6 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.error("釋放資源時發生錯誤", e);
         }
     }
-
 
 
 }

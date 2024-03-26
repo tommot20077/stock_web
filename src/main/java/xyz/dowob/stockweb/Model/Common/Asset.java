@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import xyz.dowob.stockweb.Enum.AssetType;
 
-import java.math.BigDecimal;
-
 @Entity
 @Data
 @Inheritance(strategy = InheritanceType.JOINED)

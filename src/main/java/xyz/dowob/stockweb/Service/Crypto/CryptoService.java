@@ -20,6 +20,7 @@ import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

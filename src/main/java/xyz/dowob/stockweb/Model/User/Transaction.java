@@ -2,7 +2,6 @@ package xyz.dowob.stockweb.Model.User;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.Fetch;
 import xyz.dowob.stockweb.Enum.TransactionType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
@@ -27,14 +26,18 @@ public class Transaction {
     @Column(name = "asset_name")
     private String assetName;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     private Asset asset;
 
-    @Column(name = "quantity")
+    @Column(name = "amount", precision = 25, scale = 8)
+    private BigDecimal amount;
+
+    @Column(name = "quantity", precision = 25, scale = 8)
     private BigDecimal quantity;
 
-    @Column(name = "price_per_unit")
-    private BigDecimal pricePerUnit;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_currency")
+    private Asset unitCurrency;
 
     @Column(name = "transaction_time")
     private LocalDateTime transactionDate;

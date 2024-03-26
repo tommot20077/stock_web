@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Component;
 
-import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.web.socket.WebSocketSession;
 public class WebSocketConnectionStatusEvent extends ApplicationEvent {

@@ -18,16 +18,17 @@ public class Property {
 
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "asset_id")
+    @JoinColumn(name = "asset_id", nullable = false)
     private Asset asset;
 
+    @Column(name = "asset_name", nullable = false)
     private String assetName;
 
-    @Column(precision = 25, scale = 8)
+    @Column(precision = 25, scale = 8, nullable = false)
     private BigDecimal quantity;
 
     @Column(columnDefinition = "TEXT")

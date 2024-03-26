@@ -20,7 +20,6 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
-
 import java.io.IOException;
 @Component
 public class RememberMeAuthenticationFilter extends OncePerRequestFilter {

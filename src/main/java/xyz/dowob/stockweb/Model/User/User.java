@@ -8,6 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
+import xyz.dowob.stockweb.Model.Currency.Currency;
 
 import java.lang.reflect.Field;
 import java.time.OffsetDateTime;
@@ -45,6 +46,10 @@ public class User {
     @Column(nullable = false, columnDefinition = "varchar(100) default 'Etc/UTC'")
     private String timezone = "Etc/UTC";
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "currency_id")
+    private Currency preferredCurrency;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Role role = Role.UNVERIFIED_USER;
@@ -57,7 +62,7 @@ public class User {
     private Token token;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    private List<Subscribe> subscriptions = new ArrayList<>();;
+    private List<Subscribe> subscriptions = new ArrayList<>();
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
     private List<Property> property = new ArrayList<>();
