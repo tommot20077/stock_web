@@ -12,4 +12,6 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
 
     @Query("SELECT DISTINCT s.stockCode, s.stockName FROM StockTw s order by s.stockCode")
     List<Object[]> findDistinctStockCodeAndName();
+
+    List<StockTw> findAllByOrderByStockCode();
 }

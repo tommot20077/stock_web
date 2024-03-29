@@ -1,5 +1,7 @@
 package xyz.dowob.stockweb.Model.User;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
 import xyz.dowob.stockweb.Enum.TransactionType;
@@ -18,6 +20,9 @@ public class Transaction {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private User user;
 
     @Enumerated(EnumType.STRING)
@@ -27,6 +32,9 @@ public class Transaction {
     private String assetName;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private Asset asset;
 
     @Column(name = "amount", precision = 25, scale = 8)
@@ -37,6 +45,9 @@ public class Transaction {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_currency")
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private Asset unitCurrency;
 
     @Column(name = "transaction_time")

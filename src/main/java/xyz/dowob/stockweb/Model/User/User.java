@@ -1,5 +1,7 @@
 package xyz.dowob.stockweb.Model.User;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -48,6 +50,9 @@ public class User {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "currency_id")
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private Currency preferredCurrency;
 
     @Column(nullable = false)
@@ -59,12 +64,21 @@ public class User {
     private Gender gender = Gender.OTHER;
 
     @OneToOne(cascade = CascadeType.ALL, mappedBy = "user")
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private Token token;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private List<Subscribe> subscriptions = new ArrayList<>();
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private List<Property> property = new ArrayList<>();
 
 

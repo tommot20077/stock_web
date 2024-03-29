@@ -35,7 +35,7 @@ public class StockTwService {
     @Value(value = "${stock.tw.finmind.token}")
     private  String finMindToken;
 
-    private Logger logger = LoggerFactory.getLogger(StockTwService.class);
+    private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
     @Autowired
     public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, @Qualifier("StockInfluxDBClient") InfluxDBClient stockInfluxDBClient, ObjectMapper objectMapper) {
         this.stockTwRepository = stockTwRepository;

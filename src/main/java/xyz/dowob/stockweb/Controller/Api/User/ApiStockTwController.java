@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +23,12 @@ import java.util.Map;
 public class ApiStockTwController {
     private final StockTwService stockTwService;
     private final UserService userService;
-    private final ObjectMapper objectMapper;
+
 
     @Autowired
-    public ApiStockTwController(StockTwService stockTwService, UserService userService, ObjectMapper objectMapper) {
+    public ApiStockTwController(StockTwService stockTwService, UserService userService) {
         this.stockTwService = stockTwService;
         this.userService = userService;
-        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/subscribe")

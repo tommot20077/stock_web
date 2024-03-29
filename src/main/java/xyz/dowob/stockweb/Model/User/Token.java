@@ -1,5 +1,7 @@
 package xyz.dowob.stockweb.Model.User;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -21,6 +23,9 @@ public class Token {
     @MapsId
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
     private User user;
 
     @Column(name = "jwt_api_request_count", nullable = false)

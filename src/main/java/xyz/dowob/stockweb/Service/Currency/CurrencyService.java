@@ -110,7 +110,7 @@ public class CurrencyService {
                     currencyData.setCurrency(currency);
                     currencyData.setExchangeRate(exRate);
                     currencyData.setUpdateTime(updateTime);
-                    currencyData.setAssetType(AssetType.CASH);
+                    currencyData.setAssetType(AssetType.CURRENCY);
                     currencyRepository.save(currencyData);
                     logger.debug(currency+ "的匯率資料新增完成");
 
@@ -119,7 +119,7 @@ public class CurrencyService {
                     currencyHistory.setCurrency(currency);
                     currencyHistory.setExchangeRate(exRate);
                     currencyHistory.setUpdateTime(updateTime);
-                    currencyHistory.setAssetType(AssetType.CASH);
+                    currencyHistory.setAssetType(AssetType.CURRENCY);
                     currencyHistoryRepository.save(currencyHistory);
                     logger.debug("新增"+ currency + "的匯率歷史資料完成");
 

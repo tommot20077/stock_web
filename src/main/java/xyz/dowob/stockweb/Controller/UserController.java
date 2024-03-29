@@ -98,11 +98,7 @@ public class UserController {
     }
 
     @GetMapping("/profile")
-    public String profile (HttpSession session, Model model) {
-        if (session.getAttribute("currentUserId")!= null) {
-            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
-            model.addAttribute(user);
-        }
+    public String profile () {
         return "profile";
     }
 
@@ -116,6 +112,11 @@ public class UserController {
             response.setHeader("Location", "/login");
             response.setStatus(302);
         }
+    }
+
+    @GetMapping("/property_info")
+    public String propertyEdit () {
+        return "propertyInfo";
     }
 
 

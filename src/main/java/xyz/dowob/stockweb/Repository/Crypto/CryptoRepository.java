@@ -16,6 +16,8 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
     @Query("SELECT SUM(c.subscribeNumber) FROM CryptoTradingPair c")
     int countAllSubscribeNumber();
 
+    List<CryptoTradingPair> findAllByOrderByBaseAssetAsc();
+
 
 
 }

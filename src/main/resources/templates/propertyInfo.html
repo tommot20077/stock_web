@@ -24,15 +24,16 @@
   <!-- inject:css -->
   <link rel="stylesheet" href=/css/vertical-layout-light/style.css>
   <link rel="stylesheet" href=/common.css>
+  <link rel="stylesheet" href="/loading.css">
   <!-- endinject -->
   <link rel="shortcut icon" href=/favicon.ico />
   <script src="/js/myJavaScript/map.js"></script>
   <script src="/js/myJavaScript/fetch.js"></script>
   <script src="/js/myJavaScript/display.js"></script>
 
-
   <meta name="_csrf" th:content="${_csrf.token}" />
   <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+
 </head>
 
 <body>
@@ -505,8 +506,7 @@
           </a>
           <div class="collapse" id="property">
             <ul class="nav flex-column sub-menu">
-              <li class="nav-item"> <a class="nav-link" href=/index> 資產概況 </a></li>
-              <li class="nav-item"> <a class="nav-link" href=/property_edit> 修改資產 </a></li>
+              <li class="nav-item"> <a class="nav-link" href=/property_info> 資產概況 </a></li>
               <li class="nav-item"> <a class="nav-link" href=/transaction_history> 交易紀錄 </a></li>
             </ul>
           </div>
@@ -547,71 +547,126 @@
       <div class="main-panel">        
         <div class="content-wrapper">
           <div class="row">
-            <div class="col-12 grid-margin stretch-card" style="max-width: 1200px">
+            <div class="col-12 grid-margin stretch-card" style="max-width: 1500px">
               <div class="card">
                 <ul class="nav nav-tabs">
                   <li class="nav-item">
-                    <a class="nav-link active" id="setting-tab" data-toggle="tab" href="#userProfileForm">用戶資料</a>
+                    <a class="nav-link active" id="view_property" data-toggle="tab" href="#userPropertyList">檢視資產</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="verifyEmail-tab" data-toggle="tab" href="#verifyEmailForm">驗證信箱</a>
+                    <a class="nav-link" id="add_property" data-toggle="tab" href="#add_property_tab">新增資產</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="edit_property" data-toggle="tab" href="#edit_property_tab">修改資產</a>
                   </li>
                 </ul>
 
                 <div class="tab-content">
-                  <div class="tab-pane fade show active" id="userProfileForm">
-                    <form class="forms-sample">
-                      <div class="form-group">
-                        <label for="lastName">姓氏</label>
-                        <input type="text" class="form-control" id="lastName" placeholder="姓氏">
-                      </div>
-                      <div class="form-group">
-                        <label for="firstName">名字</label>
-                        <input type="text" class="form-control" id="firstName" placeholder="名字">
-                      </div>
-                      <div class="form-group">
-                        <label for="email">電子信箱</label>
-                        <input type="email" class="form-control" id="email" placeholder="電子信箱">
-                      </div>
-                      <div class="form-group">
-                        <label for="newPassword">重設密碼</label>
-                        <input type="password" class="form-control" id="newPassword" placeholder="至少8個字元，並且至少擁有英文及數字">
-                      </div>
-                      <div class="form-group">
-                        <label for="newRePassword">確認重設密碼</label>
-                        <input type="password" class="form-control" id="newRePassword" placeholder="確認密碼">
-                      </div>
-                      <div class="form-group">
-                        <label for="gender">性別</label>
-                          <select class="form-control" id="gender">
-                            <option>男性</option>
-                            <option>女性</option>
-                            <option>其他</option>
-                          </select>
+                  <div class="tab-pane fade show active" id="userPropertyList">
+                    <div class="table-responsive pt-3">
+                      <table class="table table-bordered">
+                        <thead>
+                        <tr>
+                          <th>
+                            用戶資產ID
+                          </th>
+                          <th>
+                            資產類型
+                          </th>
+                          <th>
+                            資產名稱
+                          </th>
+                          <th>
+                            持有量
+                          </th>
+                          <th>
+                            當前價值
+                          </th>
+                          <th>
+                            備註
+                          </th>
+                          <th>
+                            操作
+                          </th>
+                        </tr>
+                        </thead>
+                        <tbody id="propertyTableBody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+
+
+                  <div class="tab-pane fade" id="edit_property_tab">
+                    <form class="forms-sample" id="edit_property_form">
+                      <div class="form-group row">
+                        <label for="edit_property_id" class="col-sm-3 col-form-label">用戶資產ID</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="edit_property_id" placeholder="ID" name="edit_property_id" readonly>
                         </div>
-                      <div class="form-group">
-                        <label for="timeZone">用戶時區</label>
-                        <select class="form-control" id="timeZone"></select>
                       </div>
-                      <script>getTimeZoneList()</script>
-                      <a id="userProfileFormSubmit" class="btn btn-primary me-2">更新資料</a>
-                      <a class="btn btn-light" href=/index>返回</a>
+                      <div class="form-group row">
+                        <label for="edit_property_type" class="col-sm-3 col-form-label">資產類型</label>
+                        <div class="col-sm-9">
+                          <input type="email" class="form-control" id="edit_property_type" placeholder="類型" name="edit_property_type" readonly>
+                        </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="edit_property_name" class="col-sm-3 col-form-label">資產名稱</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="edit_property_name" placeholder="資產名稱" name="edit_property_name" readonly>
+                        </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="edit_property_quantity" class="col-sm-3 col-form-label">持有量</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="edit_property_quantity" placeholder="持有的數量" name="edit_property_quantity">
+                        </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="edit_property_description" class="col-sm-3 col-form-label">備註</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="edit_property_description" placeholder="資產的紀錄" name="edit_property_description">
+                        </div>
+                      </div>
+                      <div id="success_edit_message" style="display: none; color: green">更新成功</div>
+                      <div id="fail_edit_message" style="display: none ; color: red"></div>
+                      <button type="button" class="btn btn-primary me-2" data-type="UPDATE" id="updateButton">更新</button>
+                      <button class="btn btn-light">取消</button>
                     </form>
                   </div>
 
-                  <div class="tab-pane fade" id="verifyEmailForm">
-                    <form class="forms-sample">
-                      <div class="form-group">
-                        <label for="verifyEmail">要驗證的信箱</label>
-                        <div class="input-group" style="max-width: 500px">
-                          <input id ="verifyEmail" type="text" class="form-control" placeholder="驗證信箱" aria-label="Recipient's username" style="max-width: 500px;" readonly>
-                          <div class="input-group-append">
-                            <a id="sendVerificationEmailButton" class="btn btn-sm btn-primary" type="button" style="margin-left: 10px">獲取驗證信</a>
-                          </div>
+
+                  <div class="tab-pane fade" id="add_property_tab">
+                    <form class="forms-sample" id="add_property_form">
+                      <div class="form-group row">
+                        <label for="add_property_type" class="col-sm-3 col-form-label">資產類型</label>
+                        <div class="col-sm-9">
+                          <select class="form-control" id="add_property_type" name="add_property_type"></select>
                         </div>
-                        <div id="VerificationEmailFail"></div>
-                        <div id="verifyEmailSuccess" style="color: green;display: none">驗證信已發送，請至信箱收取</div>
                       </div>
+                      <div class="form-group row">
+                        <label for="add_property_name" class="col-sm-3 col-form-label">資產名稱</label>
+                          <div class="col-sm-9">
+                            <select class="form-control" id="add_property_name" name="add_property_name">
+                            </select>
+                          </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="add_property_quantity" class="col-sm-3 col-form-label">持有量</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="add_property_quantity" placeholder="持有的數量" name="add_property_quantity">
+                        </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="add_property_describe" class="col-sm-3 col-form-label">備註</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="add_property_describe" placeholder="資產的紀錄" name="add_property_describe">
+                        </div>
+                      </div>
+                      <div id="success_add_message" style="display: none; color: green">新增成功</div>
+                      <div id="fail_add_message" style="display: none; color: red"></div>
+                      <button type="button" class="btn btn-primary me-2" data-type="ADD" id="addButton">新增</button>
+                      <button class="btn btn-light">取消</button>
                     </form>
                   </div>
 
@@ -639,27 +694,20 @@
       <div id="lds-ring" class="lds-ring"><div></div><div></div><div></div><div></div></div>
 
       <div class="col-md-6 grid-margin stretch-card" id="confirmCard">
-        <div class="card">
-          <div class="card-body">
-            <h4 class="card-title">確認更改資料</h4>
-            <p class="card-description">
-              請輸入原本的密碼以確認更改資料
-            </p>
-            <form class="forms-sample">
-              <div class="form-group">
-                <label for="originalPassword">原本密碼</label>
-                <input type="password" class="form-control" id="originalPassword" placeholder="原本密碼">
+          <div class="card">
+              <div class="card-body">
+                  <h4 class="card-title">刪除資產</h4>
+                  <p class="card-description">
+                    確認要刪除此資產
+                  </p>
+                  <div id="deletePropertySuccess" style="color: green;display: none">刪除成功，即將轉跳資產頁面</div>
+                  <div id="deletePropertyFail"></div>
+                  <div>
+                    <a id="confirmDeleteProperty" class="btn btn-primary me-2">確認</a>
+                    <a Id="cancelDeleteProperty" class="btn btn-light">取消</a>
+                  </div>
               </div>
-              <div id="UpdateProfileSuccess" style="color: green;display: none">更新成功，即將轉跳登入頁面</div>
-              <div id="UpdateProfileFail"></div>
-              <div>
-                <a id="confirmUpdateProfile" class="btn btn-primary me-2">確認</a>
-                <a Id="cancelUpdateProfile" class="btn btn-light">取消</a>
-              </div>
-
-            </form>
           </div>
-        </div>
       </div>
   </div>
 
@@ -683,12 +731,28 @@
   <script src="/js/file-upload.js"></script>
   <script src="/js/typeahead.js"></script>
   <script src="/js/select2.js"></script>
+
   <!-- End custom js for this page-->
 
   <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      displayPropertyTable();
+      getPropertyType();
+
+      let updateButton = document.getElementById('updateButton');
+      let addButton = document.getElementById('addButton');
+      if (updateButton) {
+        updateButton.addEventListener('click', addOrUpdatePropertyForm);
+      }
+      if (addButton) {
+        addButton.addEventListener('click', addOrUpdatePropertyForm);
+      }
+    });
     getUserDetails();
     updateUserProfile();
     sendVerificationEmail();
+    getPropertyName();
+
   </script>
 
 

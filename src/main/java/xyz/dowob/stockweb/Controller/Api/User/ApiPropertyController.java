@@ -5,18 +5,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.JsonParseException;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Enum.AssetType;
+import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.User.PropertyService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Controller
 @RequestMapping("/api/user/property")
@@ -32,7 +35,7 @@ public class ApiPropertyController {
         this.propertyService = propertyService;
     }
 
-    @PostMapping("/stock/tw/modify")
+    @PostMapping("/modify/stock_tw")
     public ResponseEntity<?> modifyStock(@RequestBody PropertyListDto propertyListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
@@ -49,7 +52,12 @@ public class ApiPropertyController {
                     logger.debug("來源資料: " + stockTw);
                     propertyService.modifyStock(user, stockTw);
                 } catch (RuntimeException e) {
-                    failureModify.put(stockTw.getSymbol(), e.getMessage());
+                    if (stockTw.getSymbol() != null) {
+                        failureModify.put(stockTw.getSymbol(), e.getMessage());
+                    } else {
+                        failureModify.put(stockTw.getId().toString(), e.getMessage());
+                    }
+
                 }
             }
             if (failureModify.isEmpty()) {
@@ -62,9 +70,10 @@ public class ApiPropertyController {
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }
+
     }
 
-    @PostMapping("/currency/modify")
+    @PostMapping("/modify/currency")
     public ResponseEntity<?> modifyCurrency(@RequestBody PropertyListDto propertyListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
@@ -80,7 +89,11 @@ public class ApiPropertyController {
                     logger.debug("來源資料: " + currency);
                     propertyService.modifyCurrency(user, currency);
                 } catch (RuntimeException e) {
-                    failureModify.put(currency.getSymbol(), e.getMessage());
+                    if (currency.getSymbol() != null) {
+                        failureModify.put(currency.getSymbol(), e.getMessage());
+                    } else {
+                        failureModify.put(currency.getId().toString(), e.getMessage());
+                    }
                 }
             }
             if (failureModify.isEmpty()) {
@@ -96,7 +109,7 @@ public class ApiPropertyController {
         }
     }
 
-    @PostMapping("/crypto/modify")
+    @PostMapping("/modify/crypto")
     public ResponseEntity<?> modifyCrypto(@RequestBody PropertyListDto propertyListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
@@ -112,7 +125,11 @@ public class ApiPropertyController {
                     logger.debug("來源資料: " + crypto);
                     propertyService.modifyCrypto(user, crypto);
                 } catch (RuntimeException e) {
-                    failureModify.put(crypto.getSymbol(), e.getMessage());
+                    if (crypto.getSymbol() != null) {
+                        failureModify.put(crypto.getSymbol(), e.getMessage());
+                    } else {
+                        failureModify.put(crypto.getId().toString(), e.getMessage());
+                    }
                 }
             }
             if (failureModify.isEmpty()) {
@@ -122,6 +139,42 @@ public class ApiPropertyController {
             }
         } catch (JsonParseException e) {
             return ResponseEntity.status(400).body(e.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/getUserAllProperty")
+    public ResponseEntity<?> getAllProperties(HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user == null) {
+                return ResponseEntity.status(401).body("請先登入");
+            }
+            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+
+            return ResponseEntity.ok().body(propertyService.getUserAllProperties(user));
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/getPropertyType")
+    public ResponseEntity<?> getPropertyType() {
+        try {
+            return ResponseEntity.ok().body(AssetType.values());
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/getAllNameByPropertyType")
+    public ResponseEntity<?> getAllNameByPropertyType(@RequestParam String type){
+        try {
+            CacheControl cacheControl = CacheControl.maxAge(1, TimeUnit.HOURS);
+            return ResponseEntity.ok()
+                    .cacheControl(cacheControl)
+                    .body(propertyService.getAllNameByPropertyType(type.trim().toUpperCase()));
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }

@@ -12,5 +12,7 @@ public interface CurrencyRepository extends JpaRepository<Currency, Long> {
     @Query("SELECT DISTINCT c.currency FROM Currency c")
     List<String> findAllDistinctCurrencies();
 
+    List<Currency> findAllByOrderByCurrencyAsc();
+
 
 }
