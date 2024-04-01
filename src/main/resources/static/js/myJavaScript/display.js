@@ -63,3 +63,27 @@ function displayProfileForm() {
         }
     }
 }
+
+async function displayTransactionTable() {
+    let data = await getUserAllTransactions();
+    if(data && Array.isArray(data)){
+        let tableBody = document.getElementById("TransactionTableBody");
+        tableBody.innerHTML = "";
+        data.forEach(function (item) {
+            let row = `
+            <tr>
+                <td>${item.id}</td>
+                <td>${getTransactionType(item.type)}</td>
+                <td>${item.symbol}</td>
+                <td>${item.quantity}</td>
+                <td>${item.amount}</td>
+                <td>${item.unit}</td>
+                <td>${item.date}</td>    
+                <td style="text-align: left">${item.description}</td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    } else {
+        console.log("資料格式錯誤");
+    }
+}

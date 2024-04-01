@@ -18,6 +18,7 @@ public class TransactionListDto {
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class TransactionDto {
+        private String id;
         private String symbol;
         private String type;
         private String quantity;
@@ -46,7 +47,7 @@ public class TransactionListDto {
         }
 
         public LocalDateTime formatTransactionDate() {
-            return LocalDateTime.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            return LocalDateTime.parse(date.replace("T", " "), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
         }
     }
 }

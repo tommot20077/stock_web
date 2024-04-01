@@ -11,6 +11,18 @@ function getAssetType(type) {
     }
     return map[type] || type;
 }
+
+function getTransactionType(type) {
+    const map = {
+        'BUY': "買入",
+        'SELL': "賣出",
+        'DEPOSIT': "存款",
+        'WITHDRAW': "提款"
+    }
+    return map[type] || type;
+}
+
+
 function getRole(role) {
     const map = {
         "ADMIN": "管理員",

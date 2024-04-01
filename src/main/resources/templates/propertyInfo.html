@@ -607,7 +607,7 @@
                       <div class="form-group row">
                         <label for="edit_property_type" class="col-sm-3 col-form-label">資產類型</label>
                         <div class="col-sm-9">
-                          <input type="email" class="form-control" id="edit_property_type" placeholder="類型" name="edit_property_type" readonly>
+                          <input type="text" class="form-control" id="edit_property_type" placeholder="類型" name="edit_property_type" readonly>
                         </div>
                       </div>
                       <div class="form-group row">
@@ -647,8 +647,7 @@
                       <div class="form-group row">
                         <label for="add_property_name" class="col-sm-3 col-form-label">資產名稱</label>
                           <div class="col-sm-9">
-                            <select class="form-control" id="add_property_name" name="add_property_name">
-                            </select>
+                            <select class="form-control" id="add_property_name" name="add_property_name"></select>
                           </div>
                       </div>
                       <div class="form-group row">
@@ -737,7 +736,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       displayPropertyTable();
-      getPropertyType();
+      getPropertyType("add_property_type");
 
       let updateButton = document.getElementById('updateButton');
       let addButton = document.getElementById('addButton');
@@ -749,9 +748,7 @@
       }
     });
     getUserDetails();
-    updateUserProfile();
-    sendVerificationEmail();
-    getPropertyName();
+    detectionPropertyTypeChange("add_property_name", "add_property_type");
 
   </script>
 

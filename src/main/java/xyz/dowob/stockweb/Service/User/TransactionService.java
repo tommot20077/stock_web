@@ -52,8 +52,8 @@ public class TransactionService {
         public void operation(User user, TransactionListDto.TransactionDto transaction) {
             logger.debug("User: " + user);
             logger.debug("紀錄交易: {}", transaction);
-            String symbol = transaction.getSymbol();
-            String unit = transaction.getUnit();
+            String symbol = transaction.getSymbol().toUpperCase();
+            String unit = transaction.getUnit().toUpperCase();
             Asset asset = getAsset(symbol);
             Asset unitAsset = getAsset(unit);
             List<Property> userUnitPropertyList = propertyRepository.findByAssetAndUser(unitAsset, user);
@@ -63,13 +63,13 @@ public class TransactionService {
 
             switch (transaction.formatOperationTypeEnum()) {
                 case BUY:
-                    // TODO 用戶設定顯示貨幣
                     logger.debug("買入{}", symbol);
                     if (userUnitProperty == null || userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal()) < 0) {
                         logger.debug("{} 資產不足", unit);
                         throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + unit + "來完成交易");
                     }
                     logger.debug("扣除 {} 資產數量", unit);
+                    int diffAdd = userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal());
                     userUnitProperty.setQuantity(userUnitProperty.getQuantity().subtract(transaction.formatAmountAsBigDecimal()));
 
                     if (userSymbolProperty != null) {
@@ -106,7 +106,7 @@ public class TransactionService {
 
 
 
-                    int diffAdd = userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal());
+
                     if (diffAdd == 0) {
                         logger.debug("刪除支付資產");
                         propertyRepository.delete(userUnitProperty);
@@ -230,7 +230,6 @@ public class TransactionService {
                     }
 
                     propertyRepository.save(userSymbolProperty);
-                    propertyRepository.save(userUnitProperty);
                     subscribeMethod.subscribeProperty(userSymbolProperty, user);
                     logger.debug("儲存 {} 資產變更", symbol);
                     break;
@@ -291,26 +290,28 @@ public class TransactionService {
     }
 
     public String getUserAllTransaction(User user) throws JsonProcessingException {
-        logger.debug("查詢所有交易紀錄");
+        logger.debug("查詢用戶所有交易紀錄");
         List<TransactionListDto.TransactionDto> transactions = new ArrayList<>();
         List<Transaction> userTransactions = transactionRepository.findByUserOrderByTransactionDateDesc(user);
-        logger.debug("查詢所有交易紀錄數量: {}", userTransactions.size());
+        logger.debug("用戶所有交易紀錄數量: {}", userTransactions.size());
         for (Transaction transaction : userTransactions) {
             TransactionListDto.TransactionDto transactionDto = new TransactionListDto.TransactionDto();
             logger.debug("交易紀錄: {}", transaction);
+            transactionDto.setId(String.valueOf(transaction.getId()));
+            logger.debug("交易ID: {}", transaction.getId());
             transactionDto.setSymbol(transaction.getAssetName());
             logger.debug("交易對象名稱: {}", transaction.getAssetName());
             transactionDto.setUnit(transaction.getUnitCurrencyName());
             logger.debug("交易對象貨幣名稱: {}", transaction.getUnitCurrencyName());
-            transactionDto.setAmount(String.valueOf(transaction.getAmount()));
-            logger.debug("交易對象金額: {}", transaction.getAmount());
-            transactionDto.setQuantity(String.valueOf(transaction.getQuantity()));
-            logger.debug("交易對象數量: {}", transaction.getQuantity());
+            transactionDto.setAmount(transaction.getAmount().stripTrailingZeros().toPlainString());
+            logger.debug("交易對象金額: {}", transaction.getAmount().stripTrailingZeros().toPlainString());
+            transactionDto.setQuantity(transaction.getQuantity().stripTrailingZeros().toPlainString());
+            logger.debug("交易對象數量: {}", transaction.getQuantity().stripTrailingZeros().toPlainString());
             transactionDto.setDescription(transaction.getDescription());
             logger.debug("交易描述: {}", transaction.getDescription());
 
 
-            DateTimeFormatter outputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            DateTimeFormatter outputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
             String formattedDate  = transaction.getTransactionDate().format(outputFormat);
             transactionDto.setDate(formattedDate);
             logger.debug("交易日期: {}", formattedDate);

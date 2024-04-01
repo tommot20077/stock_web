@@ -1,3 +1,4 @@
+let userPreferredCurrency;
 function getUserDetails() {
     fetch("/api/user/common/getUserDetail")
         .then(response => {
@@ -11,7 +12,7 @@ function getUserDetails() {
         role = data.role;
         gender =data.gender;
         timeZone = data.timeZone;
-
+        userPreferredCurrency = data.preferredCurrency;
         if (document.querySelector('.welcome-text > span')) {
             document.querySelector('.welcome-text > span').textContent = firstName;
         }
@@ -20,6 +21,9 @@ function getUserDetails() {
         }
         if (document.getElementById("userProfileForm")) {
             displayProfileForm();
+        }
+        if (document.getElementById("transaction_unit")) {
+            fetchPropertyName("transaction_unit", "CURRENCY")
         }
     })
 }
@@ -209,14 +213,10 @@ async function getUserAllProperties() {
             </div>
         </td>`;
     tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
-
-    let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
-    let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
     try {
         let response = await fetch("/api/user/property/getUserAllProperty",{
             method: 'GET',
             headers: {
-                [csrfHeader]: csrfToken,
                 'Content-Type': 'application/json'
             }
         });
@@ -224,22 +224,22 @@ async function getUserAllProperties() {
         if (response.ok) {
             return await response.json();
         } else {
-            throw new Error('錯誤的請求: ' + response.status +'' + response.statusText);
+            new Error('錯誤的請求: ' + response.status +'' + response.statusText);
         }
     } catch (error) {
         console.error('請求錯誤: ', error);
     }
 }
 
-function getPropertyType(){
-    if (document.getElementById('add_property_type')) {
+function getPropertyType(type_id){
+    if (document.getElementById(type_id)) {
         fetch('/api/user/property/getPropertyType')
             .then(response => response.json())
             .then(data => {
-                let select = document.getElementById('add_property_type');
+                let select = document.getElementById(type_id);
                 select.innerHTML = '';
                 let option = document.createElement('option');
-                option.text = '選擇類型';
+                option.text = '請選擇';
                 option.value = '';
                 select.add(option);
 
@@ -254,49 +254,62 @@ function getPropertyType(){
     }
 }
 
-function getPropertyName() {
-    if (document.getElementById('add_property_name')) {
-        document.getElementById('add_property_type').addEventListener('change', (event) => {
+function detectionPropertyTypeChange(name_id, type_id) {
+    if (document.getElementById(name_id)) {
+        document.getElementById(type_id).addEventListener('change', (event) => {
             let selectType = event.target.value;
-            let cacheKey = '/api/user/property/getAllNameByPropertyType?type=' + selectType;
-
-            caches.match(cacheKey).then(result => {
-                if (result) {
-                    return result.json()
-                } else {
-                    return fetch(cacheKey)
-                        .then(response =>{
-                            let cloneResponse = response.clone();
-                            let jsonResponse = response.json();
-                            caches.open("select-list-cache").then(cache => {
-                                cache.put(cacheKey, cloneResponse);
-                            })
-                            return jsonResponse;
-                        })
-                }
-            }).then(data => {
-                let select = document.getElementById('add_property_name');
-                select.innerHTML = '';
-                let option = document.createElement('option');
-                option.text = '選擇名稱';
-                option.value = '';
-                select.add(option);
-
-
-                Object.entries(data).forEach(function ([key, value]) {
-                    let option = document.createElement('option');
-                    if (key === value) {
-                        option.text = key;
-                    } else {
-                        option.text = key + "-" + value;
-                    }
-                    option.value = key;
-                    select.add(option);
-                })
-            })
+            fetchPropertyName(name_id,selectType);
         })
     }
 }
+
+function fetchPropertyName (name_id, type){
+    let cacheKey = '/api/user/property/getAllNameByPropertyType?type=' + type;
+    caches.match(cacheKey).then(result => {
+        if (result) {
+            return result.json()
+        } else {
+            return fetch(cacheKey)
+                .then(response =>{
+                    let cloneResponse = response.clone();
+                    let jsonResponse = response.json();
+                    caches.open("select-list-cache").then(cache => {
+                        cache.put(cacheKey, cloneResponse);
+                    })
+                    return jsonResponse;
+                })
+        }
+    }).then(data => {
+        let select = document.getElementById(name_id);
+        let foundPreferCurrency = false;
+        select.innerHTML = '';
+        Object.entries(data).forEach(function ([key, value]) {
+            let option = document.createElement('option');
+            if (key === value) {
+                option.text = key;
+            } else {
+                option.text = key + "-" + value;
+            }
+            option.value = key;
+
+            if (key === userPreferredCurrency) {
+                option.selected = true;
+                foundPreferCurrency = true;
+            }
+
+            select.add(option);
+        })
+
+        if (!foundPreferCurrency && select.options.length > 0) {
+            select.options[0].selected = true;
+        }
+    })
+}
+
+
+
+
+
 
 function addOrUpdatePropertyForm(event) {
     if (document.getElementById('add_property_form') || document.getElementById('edit_property_form')) {
@@ -344,7 +357,7 @@ function addOrUpdatePropertyForm(event) {
                 return;
             }
 
-            if (!validateAndSubmitPropertyForm(formData, submitType)) {
+            if (!validatePropertyForm(formData, submitType)) {
                 return;
             }
             let propertyListDto = {
@@ -373,8 +386,14 @@ function addOrUpdatePropertyForm(event) {
                 hideSpinner();
                 if (submitType === 'ADD') {
                     showFlexById('success_add_message');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
                 } else {
                     showFlexById('success_edit_message');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
                 }
             }).catch(error => {
                 hideSpinner();
@@ -442,6 +461,101 @@ function deleteProperty(event, elementId) {
     });
 }
 
+async function getUserAllTransactions() {
+    const tableBody = document.getElementById('TransactionTableBody');
+    tableBody.innerHTML =
+        `<td colspan="8"">
+            <div class="loadingio-spinner-dual-ball-l2u3038qtw8">
+                <div class="ldio-4pqo44ipw4">
+                    <div></div><div></div><div></div>
+                </div>
+            </div>
+        </td>`;
+    tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
+
+    try {
+        let response = await fetch("/api/user/transaction/getUserAllTransaction",{
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            return await response.json();
+        } else {
+            new Error('錯誤的請求: ' + response.status +'' + response.statusText);
+        }
+    } catch (error) {
+        console.error('請求錯誤: ', error);
+    }
+}
+
+function addTransaction(event) {
+    let form = document.getElementById("add_transaction_form");
+    if (form) {
+        this.disabled = true;
+        event.preventDefault();
+        showSpinner(true);
+        hideById("success_message");
+        hideById("fail_message");
+
+        let formData = new FormData(form);
+        let formDataJson = {};
+        if (!validateTransaction(formData)) {
+            hideSpinner();
+            this.disabled = false;
+            return;
+        }
+
+
+
+        formDataJson = {
+            type: formData.get('operation_type'),
+            symbol: formData.get('transaction_name'),
+            quantity: formData.get('transaction_quantity'),
+            amount: formData.get('transaction_amount'),
+            unit: formData.get('transaction_unit'),
+            date: formData.get('transaction_time'),
+            description: formData.get('transaction_description')
+        }
+
+        let transactionListDto = {
+            transactionList: [formDataJson]
+        };
+
+        let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+        let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+
+        fetch('/api/user/transaction/operation', {
+            method: 'POST',
+            headers: {
+                [csrfHeader]: csrfToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(transactionListDto)
+        }).then(response => {
+            if (response.ok) {
+                return response.text().then(data => {
+                    hideSpinner();
+                    showFlexById("success_message");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                    });
+            } else {
+                return response.text().then(data => {
+                    throw new Error(data);
+                });
+            }
+        }).catch(error => {
+            hideSpinner();
+            displayError(error, "fail_message");
+        })
+    }
+
+}
+
 
 
 
@@ -488,10 +602,10 @@ function displayError(error, elementId) {
 }
 
 
-function validateAndSubmitPropertyForm(formData, submitType) {
+function validatePropertyForm(formData, submitType) {
     let quantity = submitType === 'ADD' ? formData.get('add_property_quantity') : formData.get('edit_property_quantity');
     let errorMessage = submitType === 'ADD' ? 'fail_add_message' : 'fail_edit_message';
-    console.log(quantity);
+
     if (quantity === '' || quantity === null || Number(quantity) <= 0) {
         displayError('數量必須大於0', errorMessage);
         hideSpinner();
@@ -499,17 +613,58 @@ function validateAndSubmitPropertyForm(formData, submitType) {
     }
 
     let propertyType = document.getElementById('add_property_type').value;
-    if (!propertyType) {
+    if (!propertyType && errorMessage === 'fail_add_message') {
         displayError('必須選擇類型', errorMessage);
         hideSpinner();
         return false;
     }
 
     let propertyName = document.getElementById('add_property_name').value;
-    if (!propertyName) {
+    if (!propertyName && errorMessage === 'fail_add_message') {
         displayError('必須選擇名稱', errorMessage);
         hideSpinner();
         return false;
     }
+    return true;
+}
+
+function validateTransaction(formData) {
+    let quantity = formData.get("transaction_quantity");
+    let amount = formData.get("transaction_amount");
+    let transactionType = formData.get("transaction_type");
+    let transactionName = formData.get("transaction_name");
+    let date = formData.get("transaction_time");
+    let errorMessage = "fail_message";
+
+    if (quantity === '' || quantity === null || Number(quantity) <= 0) {
+        displayError('數量必須大於0', errorMessage);
+        hideSpinner();
+        return false;
+    }
+
+    if (amount === '' || amount === null || Number(amount) < 0) {
+        displayError('金額必須大於0', errorMessage);
+        hideSpinner();
+        return false;
+    }
+
+    if (!transactionType) {
+        displayError('必須選擇類型', errorMessage);
+        hideSpinner();
+        return false;
+    }
+
+    if (!transactionName) {
+        displayError('必須選擇名稱', errorMessage);
+        hideSpinner();
+        return false;
+    }
+
+    if (!date) {
+        displayError('必須選擇日期', errorMessage);
+        hideSpinner();
+        return false;
+    }
+
     return true;
 }

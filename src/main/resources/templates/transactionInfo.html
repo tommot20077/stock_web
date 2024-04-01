@@ -554,18 +554,18 @@
                     <a class="nav-link active" id="view_property" data-toggle="tab" href="#userTransactionList">交易紀錄</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="add_property" data-toggle="tab" href="#add_transaction_tab">新增交易紀錄</a>
+                    <a class="nav-link" id="add_property" data-toggle="tab" href="#add_transaction_tab">新增交易</a>
                   </li>
                 </ul>
 
                 <div class="tab-content">
-                  <div class="tab-pane fade show active" id="userPropertyList">
+                  <div class="tab-pane fade show active" id="userTransactionList">
                     <div class="table-responsive pt-3">
                       <table class="table table-hover">
                         <thead>
                         <tr>
                           <th>
-                            用戶資產ID
+                            交易紀錄ID
                           </th>
                           <th>
                             資產類型
@@ -574,99 +574,89 @@
                             資產名稱
                           </th>
                           <th>
-                            持有量
+                            交易數量
                           </th>
                           <th>
-                            當前價值
+                            交易金額
+                          </th>
+                          <th>
+                            使用貨幣
+                          </th>
+                          <th>
+                            交易時間
                           </th>
                           <th>
                             備註
                           </th>
-                          <th>
-                            操作
-                          </th>
                         </tr>
                         </thead>
-                        <tbody id="propertyTableBody"></tbody>
+                        <tbody id="TransactionTableBody"></tbody>
                       </table>
                     </div>
                   </div>
 
 
-                  <div class="tab-pane fade" id="edit_property_tab">
-                    <form class="forms-sample" id="edit_property_form">
+                  <div class="tab-pane fade" id="add_transaction_tab">
+                    <form class="forms-sample" id="add_transaction_form">
                       <div class="form-group row">
-                        <label for="edit_property_id" class="col-sm-3 col-form-label">用戶資產ID</label>
+                        <label for="operation_type" class="col-sm-3 col-form-label">操作類型</label>
                         <div class="col-sm-9">
-                          <input type="text" class="form-control" id="edit_property_id" placeholder="ID" name="edit_property_id" readonly>
+                          <select type="text" class="form-control" id="operation_type" placeholder="類型" name="operation_type">
+                            <option value="BUY">買入</option>
+                            <option value="SELL">賣出</option>
+                            <option value="DEPOSIT">存款</option>
+                            <option value="WITHDRAW">提款</option>
+                          </select>
                         </div>
                       </div>
                       <div class="form-group row">
-                        <label for="edit_property_type" class="col-sm-3 col-form-label">資產類型</label>
+                        <label for="transaction_type" class="col-sm-3 col-form-label">資產類型</label>
                         <div class="col-sm-9">
-                          <input type="email" class="form-control" id="edit_property_type" placeholder="類型" name="edit_property_type" readonly>
+                          <select class="form-control" id="transaction_type" placeholder="類型" name="transaction_type"></select>
                         </div>
                       </div>
                       <div class="form-group row">
-                        <label for="edit_property_name" class="col-sm-3 col-form-label">資產名稱</label>
+                        <label for="transaction_name" class="col-sm-3 col-form-label">交易資產名稱</label>
                         <div class="col-sm-9">
-                          <input type="text" class="form-control" id="edit_property_name" placeholder="資產名稱" name="edit_property_name" readonly>
+                          <select class="form-control" id="transaction_name" placeholder="交易資產名稱" name="transaction_name"></select>
                         </div>
                       </div>
                       <div class="form-group row">
-                        <label for="edit_property_quantity" class="col-sm-3 col-form-label">持有量</label>
+                        <label for="transaction_quantity" class="col-sm-3 col-form-label">交易數量</label>
                         <div class="col-sm-9">
-                          <input type="text" class="form-control" id="edit_property_quantity" placeholder="持有的數量" name="edit_property_quantity">
+                          <input type="text" class="form-control" id="transaction_quantity" placeholder="資產交易數量" name="transaction_quantity" required>
                         </div>
                       </div>
                       <div class="form-group row">
-                        <label for="edit_property_description" class="col-sm-3 col-form-label">備註</label>
+                        <label for="transaction_unit" class="col-sm-3 col-form-label">使用貨幣</label>
                         <div class="col-sm-9">
-                          <input type="text" class="form-control" id="edit_property_description" placeholder="資產的紀錄" name="edit_property_description">
+                          <select type="text" class="form-control" id="transaction_unit" placeholder="交易使用的貨幣" name="transaction_unit"></select>
                         </div>
                       </div>
-                      <div id="success_edit_message" style="display: none; color: green">更新成功</div>
-                      <div id="fail_edit_message" style="display: none ; color: red"></div>
-                      <button type="button" class="btn btn-primary me-2" data-type="UPDATE" id="updateButton">更新</button>
-                      <button class="btn btn-light">取消</button>
+                      <div class="form-group row">
+                        <label for="transaction_amount" class="col-sm-3 col-form-label">交易金額</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="transaction_amount" placeholder="交易金額(若無則填寫0)" name="transaction_amount" required>
+                        </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="transaction_time" class="col-sm-3 col-form-label">交易時間</label>
+                        <div class="col-sm-9">
+                          <input type="datetime-local" class="form-control" id="transaction_time" placeholder="交易進行時間" name="transaction_time" required>
+                        </div>
+                      </div>
+                      <div class="form-group row">
+                        <label for="transaction_description" class="col-sm-3 col-form-label">備註</label>
+                        <div class="col-sm-9">
+                          <input type="text" class="form-control" id="transaction_description" placeholder="資產的備註" name="transaction_description">
+                        </div>
+                      </div>
+                      <div id="success_message" style="display: none; color: green">新增成功</div>
+                      <div id="fail_message" style="display: none ; color: red"></div>
+                      <button type="submit" class="btn btn-primary me-2" id="addButton">新增</button>
+                      <a href="/transaction_info" class="btn btn-light">取消</a>
                     </form>
                   </div>
-
-
-                  <div class="tab-pane fade" id="add_property_tab">
-                    <form class="forms-sample" id="add_property_form">
-                      <div class="form-group row">
-                        <label for="add_property_type" class="col-sm-3 col-form-label">資產類型</label>
-                        <div class="col-sm-9">
-                          <select class="form-control" id="add_property_type" name="add_property_type"></select>
-                        </div>
-                      </div>
-                      <div class="form-group row">
-                        <label for="add_property_name" class="col-sm-3 col-form-label">資產名稱</label>
-                          <div class="col-sm-9">
-                            <select class="form-control" id="add_property_name" name="add_property_name">
-                            </select>
-                          </div>
-                      </div>
-                      <div class="form-group row">
-                        <label for="add_property_quantity" class="col-sm-3 col-form-label">持有量</label>
-                        <div class="col-sm-9">
-                          <input type="text" class="form-control" id="add_property_quantity" placeholder="持有的數量" name="add_property_quantity">
-                        </div>
-                      </div>
-                      <div class="form-group row">
-                        <label for="add_property_describe" class="col-sm-3 col-form-label">備註</label>
-                        <div class="col-sm-9">
-                          <input type="text" class="form-control" id="add_property_describe" placeholder="資產的紀錄" name="add_property_describe">
-                        </div>
-                      </div>
-                      <div id="success_add_message" style="display: none; color: green">新增成功</div>
-                      <div id="fail_add_message" style="display: none; color: red"></div>
-                      <button type="button" class="btn btn-primary me-2" data-type="ADD" id="addButton">新增</button>
-                      <button class="btn btn-light">取消</button>
-                    </form>
-                  </div>
-
                 </div>
               </div>
             </div>
@@ -689,23 +679,6 @@
 
   <div id="loading-spinner" class="loading-spinner-container">
       <div id="lds-ring" class="lds-ring"><div></div><div></div><div></div><div></div></div>
-
-      <div class="col-md-6 grid-margin stretch-card" id="confirmCard">
-          <div class="card">
-              <div class="card-body">
-                  <h4 class="card-title">刪除資產</h4>
-                  <p class="card-description">
-                    確認要刪除此資產
-                  </p>
-                  <div id="deletePropertySuccess" style="color: green;display: none">刪除成功，即將轉跳資產頁面</div>
-                  <div id="deletePropertyFail"></div>
-                  <div>
-                    <a id="confirmDeleteProperty" class="btn btn-primary me-2">確認</a>
-                    <a Id="cancelDeleteProperty" class="btn btn-light">取消</a>
-                  </div>
-              </div>
-          </div>
-      </div>
   </div>
 
   <!-- container-scroller -->
@@ -733,22 +706,17 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      displayPropertyTable();
-      getPropertyType();
 
-      let updateButton = document.getElementById('updateButton');
-      let addButton = document.getElementById('addButton');
-      if (updateButton) {
-        updateButton.addEventListener('click', addOrUpdatePropertyForm);
-      }
-      if (addButton) {
-        addButton.addEventListener('click', addOrUpdatePropertyForm);
+      displayTransactionTable();
+      getPropertyType("transaction_type");
+
+      if (document.getElementById('add_transaction_form')) {
+        document.getElementById('add_transaction_form').addEventListener('submit', addTransaction);
       }
     });
     getUserDetails();
-    updateUserProfile();
-    sendVerificationEmail();
-    getPropertyName();
+    detectionPropertyTypeChange("transaction_name", "transaction_type");
+
 
   </script>
 

@@ -77,6 +77,7 @@ public class ApiUserController {
                 userInfo.put("role", user.getRole());
                 userInfo.put("gender", user.getGender().toString());
                 userInfo.put("timeZone", user.getTimezone());
+                userInfo.put("preferredCurrency", user.getPreferredCurrency().getCurrency());
 
                 return ResponseEntity.ok(userInfo);
             } else {
