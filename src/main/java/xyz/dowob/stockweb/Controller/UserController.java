@@ -119,6 +119,11 @@ public class UserController {
         return "propertyInfo";
     }
 
+    @GetMapping("/transaction_info")
+    public String transactionEdit () {
+        return "transactionInfo";
+    }
+
 
 
 }

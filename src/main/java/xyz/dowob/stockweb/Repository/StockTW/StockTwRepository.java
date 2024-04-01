@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Repository.StockTW;
 
+import lombok.Data;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
@@ -12,6 +13,10 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
 
     @Query("SELECT DISTINCT s.stockCode, s.stockName FROM StockTw s order by s.stockCode")
     List<Object[]> findDistinctStockCodeAndName();
+    @Query("SELECT s.stockCode, s.stockName FROM StockTw s ORDER BY s.stockCode")
+    List<Object[]> findAllByOrderByStockCode();
 
-    List<StockTw> findAllByOrderByStockCode();
+    @Query("SELECT COUNT(s.subscribers) FROM StockTw s WHERE s = :stockTw")
+    int countStockTwSubscribersNumber(StockTw stockTw);
+
 }

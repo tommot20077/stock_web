@@ -1,10 +1,13 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.JsonParseException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +17,7 @@ import xyz.dowob.stockweb.Service.User.TransactionService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -52,7 +56,20 @@ public class ApiTransactionController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body("伺服器錯誤: " + e.getMessage());
         }
+    }
 
+    @GetMapping("/getUserAllTransaction")
+    public ResponseEntity<?> getUserAllTransaction(HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user == null) {
+                return ResponseEntity.status(401).body("請先登入");
+            }
+            String jsonString = transactionService.getUserAllTransaction(user);
+            return ResponseEntity.ok().body(jsonString);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("伺服器錯誤: " + e.getMessage());
+        }
     }
 
 }

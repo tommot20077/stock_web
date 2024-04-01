@@ -82,6 +82,13 @@ public class User {
     private List<Property> property = new ArrayList<>();
 
 
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
+    @JsonIdentityInfo(
+            generator = ObjectIdGenerators.PropertyGenerator.class,
+            property = "id")
+    private List<PropertySummary> propertySummary = new ArrayList<>();
+
+
     @PreUpdate
     protected void onUpdate() {
         updated = OffsetDateTime.now(ZoneId.of(timezone));
@@ -113,7 +120,11 @@ public class User {
         return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
             @Override
             protected boolean accept(Field f) {
-                return super.accept(f) && !f.getName().equals("token") && !f.getName().equals("subscriptions") && !f.getName().equals("property");
+                return super.accept(f)
+                        && !f.getName().equals("token")
+                        && !f.getName().equals("subscriptions")
+                        && !f.getName().equals("property")
+                        && !f.getName().equals("propertySummary");
             }
         }).toString();
     }

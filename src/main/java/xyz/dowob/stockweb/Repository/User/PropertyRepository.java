@@ -15,10 +15,13 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
 
     @NotNull
     Optional<Property> findById(@NotNull Long id);
-    Optional<Property> findByAssetAndUser(Asset asset, User user);
+    List<Property> findByAssetAndUser(Asset asset, User user);
     @Query("SELECT p FROM Property p JOIN FETCH p.asset a WHERE p.user = :user")
     List<Property> findAllByUser(@Param("user") User user);
 
     @Query("SELECT p FROM Property p WHERE p.user = :user ORDER BY p.asset.assetType, p.assetName")
     List<Property> findAllByUserAndOrderByAssetTypeAndOrderByAssetName(User user);
+
+    @Query("SELECT COUNT(p) FROM Property p WHERE p.user = :user AND p.asset = :asset")
+    int getUserSpecifyAssetCount(User user, Asset asset);
 }

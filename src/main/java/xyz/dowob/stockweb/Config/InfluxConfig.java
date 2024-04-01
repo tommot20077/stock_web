@@ -23,6 +23,9 @@ public class InfluxConfig {
     @Value("${db.influxdb.bucket.stock}")
     private String stockBucket;
 
+    @Value("${db.influxdb.bucket.property_summary}")
+    private String propertySummaryBucket;
+
 
 
     @Bean(name = "CryptoInfluxDBClient")
@@ -33,5 +36,9 @@ public class InfluxConfig {
     @Bean(name = "StockInfluxDBClient")
     public InfluxDBClient stockInfluxDBClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockBucket);
+    }
+    @Bean(name = "propertySummaryInfluxDBClient")
+    public InfluxDBClient propertySummaryInfluxDBClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, propertySummaryBucket);
     }
 }

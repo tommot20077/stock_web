@@ -82,12 +82,20 @@ public class CryptoService {
         if (!this.isConnectionOpen()) {
             logger.warn("目前沒有啟動連線");
         }
+        if (!channel.contains("@")){
+            logger.warn("channel格式錯誤");
+            throw new IllegalStateException("channel格式錯誤");
+        }
         cryptoWebSocketHandler.unsubscribeTradingPair(symbol, channel, user);
     }
 
     public void subscribeTradingPair(String symbol, String channel, User user) throws Exception {
         if (!this.isConnectionOpen()) {
             logger.warn("目前沒有啟動連線");
+        }
+        if (!channel.contains("@")){
+            logger.warn("channel格式錯誤");
+            throw new IllegalStateException("channel格式錯誤");
         }
         cryptoWebSocketHandler.subscribeTradingPair(symbol, channel, user);
     }
@@ -162,7 +170,7 @@ public class CryptoService {
         List<Map<String, Object>> tradingPairList = tradingPairs.stream()
                 .map(tp -> {
                     Map<String, Object> map = new HashMap<>();
-                    map.put("subscribeNumber", tp.getSubscribeNumber());
+                    map.put("subscribeNumber", cryptoRepository.countCryptoSubscribersNumber(tp));
                     map.put("tradingPair", tp.getTradingPair());
                     return map;
                 })

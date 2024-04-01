@@ -4,11 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
@@ -27,6 +29,7 @@ import xyz.dowob.stockweb.Repository.User.TransactionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PropertyService {
@@ -35,17 +38,20 @@ public class PropertyService {
     private final CurrencyRepository currencyRepository;
     private final CryptoRepository cryptoRepository;
     private final TransactionRepository transactionRepository;
+    private final SubscribeMethod subscribeMethod;
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository) {
+    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
         this.cryptoRepository = cryptoRepository;
         this.transactionRepository = transactionRepository;
+        this.subscribeMethod = subscribeMethod;
     }
 
+    @Transactional(rollbackOn = Exception.class)
     public void modifyStock(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
         String symbol = request.getSymbol();
@@ -54,28 +60,40 @@ public class PropertyService {
         logger.debug("股票代碼: " + stockCode);
         String description = request.getDescription();
         logger.debug("描述: " + description);
-        BigDecimal quantity = request.getQuantityBigDecimal();
+        BigDecimal quantity = request.formatQuantityBigDecimal();
         logger.debug("數量: " + quantity);
-        StockTw stock = stockTwRepository.findByStockCode(stockCode).orElse(null);
+        StockTw stock = stockTwRepository.findByStockCode(stockCode).orElseThrow(() -> new RuntimeException("找不到指定的股票代碼"));
 
-        switch (request.getOperationTypeEnum()) {
+
+        switch (request.formatOperationTypeEnum()) {
             case ADD:
                 logger.debug("新增");
+                Property propertyToAdd;
                 if (request.getId() != null) {
                     logger.debug("id: " + request.getId() + "新增時不應該有 id");
                     throw new RuntimeException("新增時不應該有 id");
                 }
 
-                if (stock == null) {
-                    logger.debug("找不到指定的股票代碼");
-                    throw new RuntimeException("找不到指定的股票代碼");
-                }
+                List<Property> propertyList = propertyRepository.findByAssetAndUser(stock, user);
+                if (!propertyList.isEmpty()) {
+                    logger.debug("已經有持有此股票");
+                    propertyToAdd = propertyList.getFirst();
+                    propertyToAdd.setQuantity(quantity.add(propertyToAdd.getQuantity()));
+                    logger.debug("新增時的數量: " + propertyToAdd.getQuantity());
+                } else {
+                    logger.debug("沒有持有此股票");
+                    propertyToAdd = new Property();
+                    propertyToAdd.setUser(user);
+                    propertyToAdd.setAsset(stock);
+                    propertyToAdd.setQuantity(quantity);
 
-                logger.debug("新增持有股票");
-                Property propertyToAdd = new Property();
-                propertyToAdd.setUser(user);
-                propertyToAdd.setAsset(stock);
-                propertyToAdd.setQuantity(quantity);
+                    if (!symbol.contains("-")) {
+                        logger.debug("不包含 '-'，使用股票代碼 + 股票名稱作為名稱");
+                        propertyToAdd.setAssetName(stock.getStockCode() + "-" + stock.getStockName());
+                    } else {
+                        propertyToAdd.setAssetName(symbol);
+                    }
+                }
 
                 if (description!= null) {
                     propertyToAdd.setDescription(description);
@@ -84,16 +102,10 @@ public class PropertyService {
                     propertyToAdd.setDescription("");
                 }
 
-                if (!symbol.contains("-")) {
-                    logger.debug("不包含 '-'，使用股票代碼 + 股票名稱作為名稱");
-                    propertyToAdd.setAssetName(stock.getStockCode() + "-" + stock.getStockName());
-                } else {
-                    propertyToAdd.setAssetName(symbol);
-                }
-
                 propertyRepository.save(propertyToAdd);
                 logger.debug("新增成功");
-                recordTransaction(user, propertyToAdd, request.getOperationTypeEnum());
+                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
+                subscribeMethod.subscribeProperty(propertyToAdd, user);
                 break;
 
             case REMOVE:
@@ -103,20 +115,16 @@ public class PropertyService {
                     throw new RuntimeException("刪除時必須有 id");
                 }
 
-                Property propertyToRemove = propertyRepository.findById(request.getId()).orElse(null);
-                if (propertyToRemove == null) {
-                    logger.debug("找不到指定的持有股票");
-                    throw new RuntimeException("找不到指定的持有股票");
-                }
+                Property propertyToRemove = propertyRepository.findById(request.getId()).orElseThrow(() -> new RuntimeException("找不到指定的持有股票"));
 
                 if (!propertyToRemove.getUser().equals(user)) {
                     logger.debug("無法刪除其他人的持有股票");
                     throw new RuntimeException("無法刪除其他人的持有股票");
                 }
-
+                subscribeMethod.unsubscribeProperty(propertyToRemove, user);
+                recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
                 propertyRepository.delete(propertyToRemove);
                 logger.debug("刪除成功");
-                recordTransaction(user, propertyToRemove, request.getOperationTypeEnum());
                 break;
 
             case UPDATE:
@@ -125,19 +133,20 @@ public class PropertyService {
                     throw new RuntimeException("更新時必須有 id");
                 }
 
-                Property propertyToUpdate = propertyRepository.findById(request.getId()).orElse(null);
-                if (propertyToUpdate == null) {
-                    logger.debug("找不到指定的持有股票");
-                    throw new RuntimeException("找不到指定的持有股票");
-                }
+                Property propertyToUpdate = propertyRepository.findById(request.getId()).orElseThrow(() -> new RuntimeException("找不到指定的持有股票"));
 
                 if (!propertyToUpdate.getUser().equals(user)) {
                     logger.debug("無法更新其他人的持有股票");
                     throw new RuntimeException("無法更新其他人的持有股票");
                 }
 
-                logger.debug("更新股要");
-                propertyToUpdate.setQuantity(quantity);
+                logger.debug("更新股票");
+                if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                    logger.debug("數量必須大於 0");
+                    throw new RuntimeException("數量必須大於 0");
+                } else {
+                    propertyToUpdate.setQuantity(quantity);
+                }
 
                 if (description!= null) {
                     propertyToUpdate.setDescription(description);
@@ -148,7 +157,7 @@ public class PropertyService {
 
                 propertyRepository.save(propertyToUpdate);
                 logger.debug("更新成功");
-                recordTransaction(user, propertyToUpdate, request.getOperationTypeEnum());
+                recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
                 break;
 
             default:
@@ -157,36 +166,41 @@ public class PropertyService {
 
         }
     }
-
+    @Transactional(rollbackOn = Exception.class)
     public void modifyCurrency(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
         Long id = request.getId();
         logger.debug("id: " + id);
         String description = request.getDescription();
         logger.debug("描述: " + description);
-        BigDecimal quantity = request.getQuantityBigDecimal();
+        BigDecimal quantity = request.formatQuantityBigDecimal();
         logger.debug("數量: " + quantity);
-        Currency currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase()).orElse(null);
+        Currency currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase()).orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
         logger.debug("貨幣: " + currency);
 
-        switch (request.getOperationTypeEnum()) {
+        switch (request.formatOperationTypeEnum()) {
             case ADD:
                 logger.debug("新增");
+                Property propertyToAdd;
                 if (id != null) {
                     logger.debug("id: " + id + "新增時不應該有 id");
                     throw new RuntimeException("新增時不應該有 id");
                 }
-                if (currency == null) {
-                    logger.debug("找不到指定的貨幣代碼");
-                    throw new RuntimeException("找不到指定的貨幣代碼");
-                }
-                logger.debug("新增持有貨幣");
 
-                Property propertyToAdd = new Property();
-                propertyToAdd.setUser(user);
-                propertyToAdd.setAsset(currency);
-                propertyToAdd.setAssetName(currency.getCurrency());
-                propertyToAdd.setQuantity(quantity);
+                List<Property> propertyList = propertyRepository.findByAssetAndUser(currency, user);
+                if (propertyList.isEmpty()) {
+                    logger.debug("找不到指定的持有貨幣");
+                    propertyToAdd = new Property();
+                    propertyToAdd.setUser(user);
+                    propertyToAdd.setAsset(currency);
+                    propertyToAdd.setAssetName(currency.getCurrency());
+                    propertyToAdd.setQuantity(quantity);
+                } else {
+                    logger.debug("已經有持有此貨幣");
+                    propertyToAdd = propertyList.getFirst();
+                    logger.debug("新增時的數量: " + quantity.add(propertyToAdd.getQuantity()));
+                    propertyToAdd.setQuantity(quantity.add(propertyToAdd.getQuantity()));
+                }
 
                 if (description!= null) {
                     propertyToAdd.setDescription(description);
@@ -196,8 +210,9 @@ public class PropertyService {
                 }
 
                 propertyRepository.save(propertyToAdd);
+                subscribeMethod.subscribeProperty(propertyToAdd, user);
                 logger.debug("新增成功");
-                recordTransaction(user, propertyToAdd, request.getOperationTypeEnum());
+                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
                 break;
 
             case REMOVE:
@@ -207,20 +222,16 @@ public class PropertyService {
                     throw new RuntimeException("刪除時必須有 id");
                 }
 
-                Property propertyToRemove = propertyRepository.findById(id).orElse(null);
-                if (propertyToRemove == null) {
-                    logger.debug("找不到指定的持有貨幣");
-                    throw new RuntimeException("找不到指定的持有貨幣");
-                }
+                Property propertyToRemove = propertyRepository.findById(id).orElseThrow(() -> new RuntimeException("找不到指定的持有貨幣"));
 
                 if (!propertyToRemove.getUser().equals(user)) {
                     logger.debug("無法刪除其他人的持有貨幣");
                     throw new RuntimeException("無法刪除其他人的持有貨幣");
                 }
-
+                recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
+                subscribeMethod.unsubscribeProperty(propertyToRemove, user);
                 propertyRepository.delete(propertyToRemove);
                 logger.debug("刪除成功");
-                recordTransaction(user, propertyToRemove, request.getOperationTypeEnum());
                 break;
 
             case UPDATE:
@@ -229,11 +240,7 @@ public class PropertyService {
                     throw new RuntimeException("更新時必須有 id");
                 }
 
-                Property propertyToUpdate = propertyRepository.findById(id).orElse(null);
-                if (propertyToUpdate == null) {
-                    logger.debug("找不到指定的持有貨幣");
-                    throw new RuntimeException("找不到指定的持有貨幣");
-                }
+                Property propertyToUpdate = propertyRepository.findById(id).orElseThrow(() -> new RuntimeException("找不到指定的持有貨幣"));
 
                 if (!propertyToUpdate.getUser().equals(user)) {
                     logger.debug("無法更新其他人的持有貨幣");
@@ -242,7 +249,13 @@ public class PropertyService {
 
                 logger.debug("更新貨幣");
 
-                propertyToUpdate.setQuantity(quantity);
+                if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                    logger.debug("數量必須大於 0");
+                    throw new RuntimeException("數量必須大於 0");
+                } else {
+                    propertyToUpdate.setQuantity(quantity);
+                }
+
                 if (description!= null) {
                     propertyToUpdate.setDescription(description);
                 } else {
@@ -251,7 +264,7 @@ public class PropertyService {
                 }
                 propertyRepository.save(propertyToUpdate);
                 logger.debug("更新成功");
-                recordTransaction(user, propertyToUpdate, request.getOperationTypeEnum());
+                recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
                 break;
 
             default:
@@ -259,39 +272,43 @@ public class PropertyService {
                 throw new RuntimeException("不支援的操作類型");
         }
     }
-
+    @Transactional(rollbackOn = Exception.class)
     public void modifyCrypto(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
         Long id = request.getId();
         logger.debug("id: " + id);
         String description = request.getDescription();
         logger.debug("描述: " + description);
-        BigDecimal quantity = request.getQuantityBigDecimal();
+        BigDecimal quantity = request.formatQuantityBigDecimal();
         logger.debug("數量: " + quantity);
         String cryptoTradingPair = (request.getSymbol() + "USDT").toUpperCase();
         logger.debug("加密貨幣: " + cryptoTradingPair);
 
-        switch (request.getOperationTypeEnum()) {
+        CryptoTradingPair tradingPair = cryptoRepository.findByTradingPair(cryptoTradingPair).orElseThrow(() -> new RuntimeException("找不到指定的加密貨幣"));
+        switch (request.formatOperationTypeEnum()) {
             case ADD:
+                Property propertyToAdd;
                 logger.debug("新增");
+
                 if (id != null) {
                     logger.debug("id: " + id + "新增時不應該有 id");
                     throw new RuntimeException("新增時不應該有 id");
                 }
 
-                CryptoTradingPair tradingPair = cryptoRepository.findByTradingPair(cryptoTradingPair).orElse(null);
-                if (tradingPair == null) {
-                    logger.debug("找不到指定的加密貨幣");
-                    throw new RuntimeException("找不到指定的加密貨幣");
+                List<Property> properties = propertyRepository.findByAssetAndUser(tradingPair, user);
+                if (properties.isEmpty()) {
+                    logger.debug("找不到指定的持有加密貨幣");
+                    propertyToAdd = new Property();
+                    propertyToAdd.setUser(user);
+                    propertyToAdd.setAsset(tradingPair);
+                    propertyToAdd.setAssetName(request.getSymbol().toUpperCase());
+                    propertyToAdd.setQuantity(quantity);
+                } else {
+                    logger.debug("找到指定的持有加密貨幣");
+                    propertyToAdd = properties.getFirst();
+                    propertyToAdd.setQuantity(quantity.add(propertyToAdd.getQuantity()));
+                    logger.debug("新增時的數量: " + quantity.add(propertyToAdd.getQuantity()));
                 }
-                logger.debug("新增持有加密貨幣");
-
-                Property propertyToAdd = new Property();
-                propertyToAdd.setUser(user);
-                propertyToAdd.setAsset(tradingPair);
-                propertyToAdd.setAssetName(request.getSymbol().toUpperCase());
-                propertyToAdd.setQuantity(quantity);
-
 
                 if (description!= null) {
                     propertyToAdd.setDescription(description);
@@ -301,7 +318,8 @@ public class PropertyService {
                 }
                 propertyRepository.save(propertyToAdd);
                 logger.debug("新增成功");
-                recordTransaction(user, propertyToAdd, request.getOperationTypeEnum());
+                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
+                subscribeMethod.subscribeProperty(propertyToAdd, user);
                 break;
 
             case REMOVE:
@@ -311,20 +329,17 @@ public class PropertyService {
                     throw new RuntimeException("刪除時必須有 id");
                 }
 
-                Property propertyToRemove = propertyRepository.findById(id).orElse(null);
-                if (propertyToRemove == null) {
-                    logger.debug("找不到指定的持有加密貨幣");
-                    throw new RuntimeException("找不到指定的持有加密貨幣");
-                }
+                Property propertyToRemove = propertyRepository.findById(id).orElseThrow(() ->new IllegalStateException("找不到指定的持有加密貨幣"));
 
                 if (!propertyToRemove.getUser().equals(user)) {
                     logger.debug("無法刪除其他人的持有加密貨幣");
                     throw new RuntimeException("無法刪除其他人的持有加密貨幣");
                 }
 
+                subscribeMethod.unsubscribeProperty(propertyToRemove, user);
+                recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
                 propertyRepository.delete(propertyToRemove);
                 logger.debug("刪除成功");
-                recordTransaction(user, propertyToRemove, request.getOperationTypeEnum());
                 break;
 
             case UPDATE:
@@ -334,11 +349,7 @@ public class PropertyService {
                     throw new RuntimeException("更新時必須有 id");
                 }
 
-                Property propertyToUpdate = propertyRepository.findById(id).orElse(null);
-                if (propertyToUpdate == null) {
-                    logger.debug("找不到指定的持有加密貨幣");
-                    throw new RuntimeException("找不到指定的持有加密貨幣");
-                }
+                Property propertyToUpdate = propertyRepository.findById(id).orElseThrow(() -> new IllegalStateException("找不到指定的持有加密貨幣"));
 
                 if (!propertyToUpdate.getUser().equals(user)) {
                     logger.debug("無法更新其他人的持有加密貨幣");
@@ -347,7 +358,13 @@ public class PropertyService {
 
                 logger.debug("更新加密貨幣");
 
-                propertyToUpdate.setQuantity(quantity);
+                if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                    logger.debug("數量必須大於 0");
+                    throw new RuntimeException("數量必須大於 0");
+                } else {
+                    propertyToUpdate.setQuantity(quantity);
+                }
+
                 if (description!= null) {
                     propertyToUpdate.setDescription(description);
                 } else {
@@ -355,10 +372,9 @@ public class PropertyService {
                     propertyToUpdate.setDescription("");
                 }
 
-
                 propertyRepository.save(propertyToUpdate);
                 logger.debug("更新成功");
-                recordTransaction(user, propertyToUpdate, request.getOperationTypeEnum());
+                recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
                 break;
 
             default:
@@ -380,51 +396,54 @@ public class PropertyService {
             transaction.setType(TransactionType.DEPOSIT);
             logger.debug("設定交易類型: 存款");
             transaction.setDescription("系統自動備註: 新增持有" + property.getAssetName() + "數量: " + property.getQuantity().stripTrailingZeros().toPlainString());
-            logger.debug("設定交易金額: " + property.getQuantity());
         } else if (Objects.equals(operationType.toString(), "REMOVE")) {
             transaction.setType(TransactionType.WITHDRAW);
             logger.debug("設定交易類型: 取款");
             transaction.setDescription("系統自動備註: 刪除持有" + property.getAssetName() + "數量: " + property.getQuantity().stripTrailingZeros().toPlainString());
-            logger.debug("設定交易金額: " + property.getQuantity());
         } else if (Objects.equals(operationType.toString(), "UPDATE")) {
             transaction.setType(TransactionType.UPDATE);
             logger.debug("設定交易類型: 更新");
             transaction.setDescription("系統自動備註: 更新持有" + property.getAssetName() + "數量: " + property.getQuantity().stripTrailingZeros().toPlainString());
-            logger.debug("設定交易金額: " + property.getQuantity());
         }
+        logger.debug("設定交易金額: " + property.getQuantity());
 
         transaction.setAsset(property.getAsset());
         transaction.setAssetName(property.getAssetName());
         transaction.setAmount(BigDecimal.valueOf(0));
         transaction.setQuantity(property.getQuantity());
         transaction.setUnitCurrency(user.getPreferredCurrency());
+        transaction.setUnitCurrencyName(user.getPreferredCurrency().getCurrency());
         transaction.setTransactionDate(LocalDateTime.now());
         transactionRepository.save(transaction);
         logger.debug("儲存交易紀錄");
     }
 
-    public String getUserAllProperties(User user) {
-        logger.debug("讀取使用者: "+ user.getUsername()+ "的持有資產");
-        List<Property> properties = propertyRepository.findAllByUserAndOrderByAssetTypeAndOrderByAssetName(user);
-        logger.debug(properties.size() + " 筆資料");
-        logger.debug("取得資料" + properties);
 
-        List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto = new ArrayList<>();
+    public String getUserAllProperties(User user) {
+        List<Property> propertyList = propertyRepository.findAllByUser(user);
+        Map<String, Property> propertyMap = propertyList.stream()
+                .collect(Collectors.toMap(
+                        property -> property.getAsset().getId().toString(),
+                        property -> property,
+                        (existing, replacement) -> {
+                            existing.setQuantity(existing.getQuantity().add(replacement.getQuantity()));
+                            return existing;
+                        })
+                );
+        List<Property> combinedProperties = new ArrayList<>(propertyMap.values());
+        List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto = combinedProperties.stream()
+                .map(PropertyListDto.getAllPropertiesDto::new)
+                .collect(Collectors.toList());
+
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new Hibernate5JakartaModule());
         String json;
-        logger.debug("建立 Dto 物件");
-
-        for (Property property : properties) {
-            getAllPropertiesDto.add(new PropertyListDto.getAllPropertiesDto(property));
-            logger.debug("建立 Dto 物件: " + property.getAssetName());
-        }
         try {
             json = mapper.writeValueAsString(getAllPropertiesDto);
         } catch (JsonProcessingException e) {
             logger.error("轉換 JSON 失敗", e);
-            throw new RuntimeException("轉換 JSON 失敗");
+            throw new RuntimeException("轉換 JSON 失敗", e);
         }
         logger.debug("取得 JSON 格式資料: " + json);
         return json;
@@ -437,9 +456,13 @@ public class PropertyService {
 
         switch (propertyType) {
             case "STOCK_TW" -> {
-                List<StockTw> stocks = stockTwRepository.findAllByOrderByStockCode();
-                for (StockTw stock : stocks) {
-                    map.put(stock.getStockCode(), stock.getStockName());
+                List<Object[]> stocks = stockTwRepository.findAllByOrderByStockCode();
+                for (Object[] stock : stocks) {
+                    String stockCode = (String) stock[0];
+                    String stockName = (String) stock[1];
+                    if (stockName != null && stockCode != null) {
+                        map.put(stockCode, stockName);
+                    }
                 }
                 logger.debug("取得排序後的股票名稱: " + map);
             }
@@ -451,9 +474,11 @@ public class PropertyService {
                 logger.debug("取得排序後的幣別名稱: " + map);
             }
             case "CRYPTO" -> {
-                List<CryptoTradingPair> tradingPairs = cryptoRepository.findAllByOrderByBaseAssetAsc();
-                for (CryptoTradingPair tradingPair : tradingPairs) {
-                    map.put(tradingPair.getBaseAsset(), tradingPair.getBaseAsset());
+                List<String> baseAssets = cryptoRepository.findAllBaseAssetByOrderByBaseAssetAsc();
+                logger.debug("取得加密貨幣列表: " + baseAssets);
+                for (String baseAsset : baseAssets) {
+                    logger.debug("加密貨幣: " + baseAsset);
+                    map.put(baseAsset, baseAsset);
                 }
                 logger.debug("取得排序後的加密貨幣: " + map);
             }
@@ -465,7 +490,4 @@ public class PropertyService {
         logger.debug("取得名稱: " + map);
         return map;
     }
-
-
-
 }

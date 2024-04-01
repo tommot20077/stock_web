@@ -1,14 +1,14 @@
 package xyz.dowob.stockweb.Model.Stock;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.PrimaryKeyJoinColumn;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.dowob.stockweb.Model.Common.Asset;
+import xyz.dowob.stockweb.Model.User.User;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity
@@ -28,12 +28,21 @@ public class StockTw extends Asset {
 
     @Column(name = "industry_category")
     private String industryCategory;
-
+/*
     @Column(name = "subscribe_number", nullable = false)
     private int subscribeNumber = 0;
+*/
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "stock_subscribers", joinColumns = @JoinColumn(name = "asset_id"))
+    @Column(name = "user_id")
+    private Set<Long> subscribers = new HashSet<>();
 
     @Column(name = "update_time")
     private LocalDate updateTime;
 
 
+
+    public boolean checkUserIsSubscriber(User user) {
+        return subscribers.contains(user.getId());
+    }
 }

@@ -28,6 +28,10 @@ public class Subscribe {
             property = "id")
     private Asset asset;
 
-    private String assetDetail;
+    @Column(name = "is_user_subscribed", nullable = false, columnDefinition = "boolean default false")
+    private boolean isUserSubscribed = false;
+
+    @Column(columnDefinition = "varchar(100)")
+    private String channel;
 
 }

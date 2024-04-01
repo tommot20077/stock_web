@@ -43,7 +43,7 @@ public class StockTwService {
         this.stockInfluxDBClient = stockInfluxDBClient;
         this.objectMapper = objectMapper;
     }
-
+    @Transactional(rollbackFor = Exception.class)
     public void addStockSubscribeToUser(String stockId, User user) {
         StockTw stock = stockTwRepository.findByStockCode(stockId).orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼"));
         Long assetId = stock.getId();
@@ -52,33 +52,34 @@ public class StockTwService {
             throw new RuntimeException("已經訂閱過此股票");
         }
 
-        stock.setSubscribeNumber(stock.getSubscribeNumber() + 1);
+        if (!stock.checkUserIsSubscriber(user)) {
+            stock.getSubscribers().add(user.getId());
+            logger.debug("訂閱成功");
+        }
         stock.setAssetType(AssetType.STOCK_TW);
         stockTwRepository.save(stock);
 
         Subscribe subscribe = new Subscribe();
         subscribe.setUser(user);
         subscribe.setAsset(stock);
+        subscribe.setUserSubscribed(true);
         subscribeRepository.save(subscribe);
 
 
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void removeStockSubscribeToUser(String stockId, User user) {
-        StockTw stock = stockTwRepository.findByStockCode(stockId).orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼"));
-        if (stock != null) {
-            Long assetId = stock.getId();
-            if (subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId).isPresent()) {
-                subscribeRepository.deleteByUserIdAndAssetId(user.getId(), assetId);
-
-                stock.setSubscribeNumber(stock.getSubscribeNumber() - 1);
-                stockTwRepository.save(stock);
-            } else {
-                throw new RuntimeException("沒有找到指定的訂閱");
+        StockTw stock = stockTwRepository.findByStockCode(stockId).orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼: " + stockId));
+        Long assetId = stock.getId();
+        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId).orElseThrow(() -> new RuntimeException("沒有找到指定的訂閱"));
+        if (subscribe.isUserSubscribed()) {
+            if (stock.checkUserIsSubscriber(user)) {
+                stock.getSubscribers().remove(user.getId());
+                logger.debug("取消訂閱成功");
             }
-        } else {
-            throw new RuntimeException("沒有找到指定的股票代碼");
+            stockTwRepository.save(stock);
+            subscribeRepository.delete(subscribe);
         }
     }
     @Transactional

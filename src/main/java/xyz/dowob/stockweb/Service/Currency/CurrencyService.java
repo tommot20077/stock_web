@@ -166,13 +166,14 @@ public class CurrencyService {
         Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
 
-        subscribeRepository.findByUserIdAndAssetIdAndAssetDetail(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).ifPresent(subscribe -> {
+        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).ifPresent(subscribe -> {
             throw new RuntimeException("已訂閱過此貨幣對" + from + " <-> " + to);
         });
         Subscribe subscribe = new Subscribe();
         subscribe.setUser(user);
         subscribe.setAsset(toCurrency);
-        subscribe.setAssetDetail(fromCurrency.getId().toString());
+        subscribe.setChannel(fromCurrency.getId().toString());
+        subscribe.setUserSubscribed(true);
         subscribeRepository.save(subscribe);
         logger.info(user.getUsername() + "訂閱" + from + " <-> " + to);
 
@@ -184,7 +185,7 @@ public class CurrencyService {
         }
         Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
-        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndAssetDetail(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).orElse(null);
+        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).orElse(null);
         if (subscribe != null) {
             subscribeRepository.delete(subscribe);
             logger.info(user.getUsername() + "取消訂閱" + from + " <-> " + to);

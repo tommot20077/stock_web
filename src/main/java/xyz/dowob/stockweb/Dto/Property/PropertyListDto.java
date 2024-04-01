@@ -24,7 +24,7 @@ public class PropertyListDto {
         private String description;
         private String operationType;
 
-        public BigDecimal getQuantityBigDecimal() {
+        public BigDecimal formatQuantityBigDecimal() {
             if (quantity == null) {
                 return null;
             }
@@ -32,7 +32,7 @@ public class PropertyListDto {
             return quantityBigDecimal.setScale(8, RoundingMode.HALF_UP).stripTrailingZeros();
         }
 
-        public OperationType getOperationTypeEnum() {
+        public OperationType formatOperationTypeEnum() {
             try {
                 return OperationType.valueOf(operationType.toUpperCase());
             } catch (Exception e) {

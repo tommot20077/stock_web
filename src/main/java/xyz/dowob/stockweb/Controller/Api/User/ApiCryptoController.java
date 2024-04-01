@@ -53,7 +53,7 @@ public class ApiCryptoController {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
                     String channel = subscription.getChannel().toLowerCase();
                     try {
-                        cryptoService.subscribeTradingPair(tradingPair, channel, user);
+                        cryptoService.subscribeTradingPair(tradingPair, "@kline_1m", user);
                     } catch (Exception e) {
                         failedSubscribes.put(tradingPair + channel, e.getMessage());
                     }
@@ -91,7 +91,7 @@ public class ApiCryptoController {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
                     String channel = subscription.getChannel().toLowerCase();
                     try {
-                        cryptoService.unsubscribeTradingPair(tradingPair, channel, user);
+                        cryptoService.unsubscribeTradingPair(tradingPair, "@kline_1m", user);
                     } catch (Exception e) {
                         failedSubscribes.put(tradingPair + channel, e.getMessage());
                     }
