@@ -7,6 +7,7 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     Optional<StockTw> findByStockCode(String stockCode);
@@ -18,5 +19,8 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
 
     @Query("SELECT COUNT(s.subscribers) FROM StockTw s WHERE s = :stockTw")
     int countStockTwSubscribersNumber(StockTw stockTw);
+
+    @Query("SELECT DISTINCT s.stockCode, s.stockType FROM StockTw s JOIN s.subscribers subscriber")
+    Set<Object[]> findAllAssetIdsWithSubscribers();
 
 }

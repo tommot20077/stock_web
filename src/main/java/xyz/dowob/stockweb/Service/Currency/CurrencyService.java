@@ -2,9 +2,11 @@ package xyz.dowob.stockweb.Service.Currency;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.influxdb.client.InfluxDBClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -22,11 +24,9 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 @Service
@@ -37,15 +37,17 @@ public class CurrencyService {
     private final CurrencyRepository currencyRepository;
     private final CurrencyHistoryRepository currencyHistoryRepository;
     private final SubscribeRepository subscribeRepository;
-
+    private final CurrencyInfluxDBService currencyInfluxDBService;
+    Logger logger = LoggerFactory.getLogger(CurrencyService.class);
 
     @Autowired
-    public CurrencyService(CurrencyRepository currencyRepository, CurrencyHistoryRepository currencyHistoryRepository, SubscribeRepository subscribeRepository) {
+    public CurrencyService(CurrencyRepository currencyRepository, CurrencyHistoryRepository currencyHistoryRepository, SubscribeRepository subscribeRepository, CurrencyInfluxDBService currencyInfluxDBService) {
         this.currencyRepository = currencyRepository;
         this.currencyHistoryRepository = currencyHistoryRepository;
         this.subscribeRepository = subscribeRepository;
+        this.currencyInfluxDBService = currencyInfluxDBService;
     }
-    Logger logger = LoggerFactory.getLogger(CurrencyService.class);
+
 
 
     @Async
@@ -82,6 +84,12 @@ public class CurrencyService {
 
                 BigDecimal exRate = new BigDecimal(entry.getValue().get("Exrate").asText());
                 LocalDateTime updateTime = LocalDateTime.parse(entry.getValue().get("UTC").asText(), formatter);
+                ZonedDateTime zonedDateTime = updateTime.atZone(TimeZone.getTimeZone("UTC").toZoneId());
+
+                logger.debug("開始寫入InfluxDB");
+                currencyInfluxDBService.writeToInflux(currency, exRate, zonedDateTime);
+
+
 
                 Optional<Currency> existingData = currencyRepository.findByCurrency(currency);
                 if (existingData.isPresent()) {
@@ -193,8 +201,6 @@ public class CurrencyService {
             throw new RuntimeException("未訂閱過此貨幣對" + from + " <-> " + to);
         }
     }
-
-
 
     public List<CurrencyHistory> getCurrencyHistory(String currency) {
         return currencyHistoryRepository.findByCurrencyOrderByUpdateTimeDesc(currency);

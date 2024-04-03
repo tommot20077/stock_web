@@ -1,12 +1,12 @@
 package xyz.dowob.stockweb.Service.Stock;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.influxdb.client.InfluxDBClient;
+import com.google.common.util.concurrent.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
@@ -20,27 +20,30 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
+import javax.sound.midi.Track;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class StockTwService {
     private final StockTwRepository stockTwRepository;
     private final SubscribeRepository subscribeRepository;
-    private final InfluxDBClient stockInfluxDBClient;
+    private final StockTwInfluxDBService stockTwInfluxDBService;
     private final ObjectMapper objectMapper;
     private final String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
+    private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
+    RateLimiter rateLimiter = RateLimiter.create(1.0);
 
     @Value(value = "${stock.tw.finmind.token}")
     private  String finMindToken;
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, @Qualifier("StockInfluxDBClient") InfluxDBClient stockInfluxDBClient, ObjectMapper objectMapper) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxDBService, ObjectMapper objectMapper) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
-        this.stockInfluxDBClient = stockInfluxDBClient;
+        this.stockTwInfluxDBService = stockTwInfluxDBService;
         this.objectMapper = objectMapper;
     }
     @Transactional(rollbackFor = Exception.class)
@@ -119,6 +122,85 @@ public class StockTwService {
         }
     }
 
+    public Map<String, List<String>> CheckSubscriptionValidity() {
+        //TODO: 中途加入股票處理
+        //TODO: 收盤數處處理
+
+        RestTemplate restTemplate = new RestTemplate();
+        Set<Object[]> subscribeList = stockTwRepository.findAllAssetIdsWithSubscribers();
+        List<String> checkSuccessList = new ArrayList<>();
+        List<String> checkFailList = new ArrayList<>();
+        List<String> inquiryList = new ArrayList<>();
+        subscribeList.forEach(subscribe -> {
+            String url;
+            String inquiry;
+            String stockCode = subscribe[0].toString();
+            String stock_type = subscribe[1].toString();
+            if (stock_type.equals("twse")) {
+                inquiry ="tse_" + stockCode + ".tw";
+                url = stockCurrentPriceUrl + inquiry;
+            } else if (stock_type.equals("otc")) {
+                inquiry ="otc_" + stockCode + ".tw";
+                url = stockCurrentPriceUrl + inquiry;
+            } else {
+                logger.warn("暫時不支援此類型: " + stockCode + "-" + stock_type);
+                return;
+            }
+            logger.debug("查詢股票: " + stockCode + " " + stock_type);
+            logger.debug("查詢股票網址: " + url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode node;
+            try {
+                node = objectMapper.readTree(response);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Json轉換錯誤: " + response, e);
+            }
+            JsonNode msgArray = node.path("msgArray");
+            if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
+                logger.debug("回應訊息成功");
+                checkSuccessList.add((String) subscribe[0]);
+                inquiryList.add(inquiry);
+            } else {
+                logger.debug("回應訊息失敗");
+                checkFailList.add((String) subscribe[0]);
+            }
+            rateLimiter.acquire();
+        });
+
+
+
+        Map<String, List<String>> result = new HashMap<>();
+        result.put("success", checkSuccessList);
+        result.put("fail", checkFailList);
+        result.put("inquiry", inquiryList);
+
+        return result;
+    }
+
+    @Async
+    public void trackStockPrices(List<String> stockInquiryList) throws JsonProcessingException {
+
+        RestTemplate restTemplate = new RestTemplate();
+        final StringBuilder inquireUrl = new StringBuilder(stockCurrentPriceUrl);
+        logger.debug("要追蹤價格的股票: " + stockInquiryList);
+        stockInquiryList.forEach(stockInquiry -> {
+            inquireUrl.append(stockInquiry).append("|");
+        });
+        logger.debug("拼接查詢網址: " + inquireUrl);
+
+        String response = restTemplate.getForObject(inquireUrl.toString(), String.class);
+        logger.debug("查詢結果: " + response);
+        JsonNode node = objectMapper.readTree(response);
+        JsonNode msgArray = node.path("msgArray");
+        if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
+            logger.debug("開始寫入到inflxdb");
+            stockTwInfluxDBService.writeToInflux(msgArray);
+        }
+    }
+
+
+
     public StockTw getStockData(String stockId) {
         return stockTwRepository.findByStockCode(stockId).orElse(null);
     }
@@ -140,7 +222,6 @@ public class StockTwService {
         } catch (Exception e) {
             return null;
         }
-
     }
 
 

@@ -104,5 +104,18 @@ public class ApiStockTwController {
         }
     }
 
+    @GetMapping("/getSubscriptionCurrentPrice")
+    public ResponseEntity<?> getSubscriptionStocksCurrentPrice() {
+        try {
+            Map<String, List<String>> result = stockTwService.CheckSubscriptionValidity();
+            stockTwService.trackStockPrices(result.get("inquiry"));
+            result.remove("inquiry");
+            return ResponseEntity.ok().body(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
+        }
+
+    }
+
 
 }

@@ -14,11 +14,11 @@ import java.util.Map;
 
 @Service
 public class CryptoInfluxDBService {
-    private final InfluxDBClient CryptoInfluxDBClient;
+    private final InfluxDBClient cryptoInfluxDBClient;
     Logger logger = LoggerFactory.getLogger(CryptoInfluxDBService.class);
     @Autowired
     public CryptoInfluxDBService(@Qualifier("CryptoInfluxDBClient")InfluxDBClient CryptoInfluxDBClient) {
-        this.CryptoInfluxDBClient = CryptoInfluxDBClient;
+        this.cryptoInfluxDBClient = CryptoInfluxDBClient;
     }
 
     public void writeToInflux(Map<String, Object> kline) {
@@ -43,7 +43,7 @@ public class CryptoInfluxDBService {
 
         try {
             logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = CryptoInfluxDBClient.makeWriteApi()) {
+            try (WriteApi writeApi = cryptoInfluxDBClient.makeWriteApi()) {
                 writeApi.writePoint(point);
                 logger.debug("寫入InfluxDB成功");
             }
