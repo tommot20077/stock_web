@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Event;
 
 import org.springframework.context.ApplicationEvent;
 import org.springframework.web.socket.WebSocketSession;

@@ -83,16 +83,13 @@ public class Crontab {
                 logger.debug("收盤時間:更新速度為10分鐘");
                 stockTwService.trackStockPrices(trackableStocks);
             } else {
-                logger.debug("收盤時間:更新速度為5秒");
+                logger.debug("開盤時間:更新速度為5秒");
                 stockTwService.trackStockPrices(trackableStocks);
             }
         } else {
             checkSubscriptions();
         }
     }
-
-
-
 
     @Scheduled(fixedRate = 60000)
     public void checkAndReconnectWebSocket() {

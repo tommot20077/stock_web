@@ -62,8 +62,13 @@ public class PropertyService {
         logger.debug("描述: " + description);
         BigDecimal quantity = request.formatQuantityBigDecimal();
         logger.debug("數量: " + quantity);
-        StockTw stock = stockTwRepository.findByStockCode(stockCode).orElseThrow(() -> new RuntimeException("找不到指定的股票代碼"));
+        StockTw stock = null;
 
+        if (request.formatOperationTypeEnum() == OperationType.ADD) {
+            logger.debug("新增或更新操作");
+            stock = stockTwRepository.findByStockCode(stockCode).orElseThrow(() -> new RuntimeException("找不到指定的股票代碼"));
+            logger.debug("找到股票: " + stock);
+        }
 
         switch (request.formatOperationTypeEnum()) {
             case ADD:
@@ -175,8 +180,14 @@ public class PropertyService {
         logger.debug("描述: " + description);
         BigDecimal quantity = request.formatQuantityBigDecimal();
         logger.debug("數量: " + quantity);
-        Currency currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase()).orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
-        logger.debug("貨幣: " + currency);
+
+        Currency currency = null;
+        if (request.formatOperationTypeEnum() == OperationType.ADD) {
+            logger.debug("新增或更新操作");
+            currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase()).orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
+            logger.debug("貨幣: " + currency);
+        }
+
 
         switch (request.formatOperationTypeEnum()) {
             case ADD:
@@ -284,7 +295,13 @@ public class PropertyService {
         String cryptoTradingPair = (request.getSymbol() + "USDT").toUpperCase();
         logger.debug("加密貨幣: " + cryptoTradingPair);
 
-        CryptoTradingPair tradingPair = cryptoRepository.findByTradingPair(cryptoTradingPair).orElseThrow(() -> new RuntimeException("找不到指定的加密貨幣"));
+        CryptoTradingPair tradingPair = null;
+        if (request.formatOperationTypeEnum() == OperationType.ADD) {
+            logger.debug("新增或更新操作");
+            tradingPair = cryptoRepository.findByTradingPair(cryptoTradingPair).orElseThrow(() -> new RuntimeException("找不到指定的加密貨幣"));
+            logger.debug("虛擬貨幣: " + tradingPair);
+        }
+
         switch (request.formatOperationTypeEnum()) {
             case ADD:
                 Property propertyToAdd;

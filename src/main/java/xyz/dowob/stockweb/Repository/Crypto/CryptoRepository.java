@@ -11,7 +11,7 @@ import java.util.Optional;
 public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long> {
     Optional<CryptoTradingPair> findByTradingPair(String tradingPair);
 
-    @Query("SELECT c FROM CryptoTradingPair c WHERE COUNT(c.subscribers) > 0")
+    @Query("SELECT distinct c FROM CryptoTradingPair c join c.subscribers")
     List<CryptoTradingPair> findAllByHadSubscribed();
 
     @Query("SELECT count(c.subscribers) FROM CryptoTradingPair c")
