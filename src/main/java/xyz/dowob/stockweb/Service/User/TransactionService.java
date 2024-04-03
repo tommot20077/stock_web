@@ -11,6 +11,7 @@ import xyz.dowob.stockweb.Component.CombineMethod;
 import xyz.dowob.stockweb.Component.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.TransactionListDto;
 import xyz.dowob.stockweb.Model.Common.Asset;
+import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.Transaction;
@@ -252,10 +253,21 @@ public class TransactionService {
         recordTransaction.setAmount(transaction.formatAmountAsBigDecimal());
         logger.debug("設定交易數量 {}",transaction.formatQuantityAsBigDecimal());
         recordTransaction.setQuantity(transaction.formatQuantityAsBigDecimal());
-        logger.debug("設定交易幣別名稱 {}",user.getPreferredCurrency().getCurrency());
-        recordTransaction.setUnitCurrencyName(user.getPreferredCurrency().getCurrency());
-        logger.debug("設定交易幣別 {}",user.getPreferredCurrency());
-        recordTransaction.setUnitCurrency(user.getPreferredCurrency());
+
+        if (unitAsset instanceof Currency) {
+            logger.debug("設定交易幣別 {}",unitAsset);
+            recordTransaction.setUnitCurrency(unitAsset);
+            logger.debug("設定交易幣別名稱 {}",unit);
+            recordTransaction.setUnitCurrencyName(unit);
+        } else {
+            logger.debug("設定交易幣別為用戶預設 {}", user.getPreferredCurrency().getCurrency());
+            recordTransaction.setUnitCurrency(user.getPreferredCurrency());
+            logger.debug("設定交易幣別名稱 {}", user.getPreferredCurrency().getCurrency());
+            recordTransaction.setUnitCurrencyName(user.getPreferredCurrency().getCurrency());
+        }
+
+
+
         logger.debug("設定交易日期 {}",transaction.formatTransactionDate());
         recordTransaction.setTransactionDate(transaction.formatTransactionDate());
 

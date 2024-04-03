@@ -7,12 +7,13 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long> {
     Optional<CryptoTradingPair> findByTradingPair(String tradingPair);
 
-    @Query("SELECT c FROM CryptoTradingPair c WHERE COUNT(c.subscribers) > 0")
-    List<CryptoTradingPair> findAllByHadSubscribed();
+    @Query("SELECT distinct c FROM CryptoTradingPair c join c.subscribers")
+    Set<CryptoTradingPair> findAllByHadSubscribed();
 
     @Query("SELECT count(c.subscribers) FROM CryptoTradingPair c")
     int countAllSubscribeNumber();

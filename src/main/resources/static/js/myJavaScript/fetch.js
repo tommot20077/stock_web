@@ -337,7 +337,6 @@ function addOrUpdatePropertyForm(event) {
                     quantity: formData.get('add_property_quantity'),
                     description: formData.get('add_property_description'),
                     operationType: 'ADD'
-
                 }
                 type = formData.get('add_property_type').toLowerCase();
             } else if (submitType === 'UPDATE') {

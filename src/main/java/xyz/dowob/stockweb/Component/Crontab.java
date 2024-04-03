@@ -68,13 +68,11 @@ public class Crontab {
                 stockTwService.trackStockPrices(trackableStocks);
             } else {
                 logger.warn("沒有可以訂閱的股票");
-
             }
         }
-
     }
 
-    @Scheduled(cron = "*/5 * 9-13 * * ? ", zone = "Asia/Taipei")
+    @Scheduled(cron = "*/5 * 9-13 * * MON-FRI ", zone = "Asia/Taipei")
     public void trackPricesPeriodically() throws JsonProcessingException {
         if (!trackableStocks.isEmpty()) {
             logger.debug("已經獲取列表");
@@ -83,16 +81,13 @@ public class Crontab {
                 logger.debug("收盤時間:更新速度為10分鐘");
                 stockTwService.trackStockPrices(trackableStocks);
             } else {
-                logger.debug("收盤時間:更新速度為5秒");
+                logger.debug("開盤時間:更新速度為5秒");
                 stockTwService.trackStockPrices(trackableStocks);
             }
         } else {
             checkSubscriptions();
         }
     }
-
-
-
 
     @Scheduled(fixedRate = 60000)
     public void checkAndReconnectWebSocket() {

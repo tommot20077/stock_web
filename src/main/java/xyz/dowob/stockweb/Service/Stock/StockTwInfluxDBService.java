@@ -30,9 +30,17 @@ public class StockTwInfluxDBService {
         logger.debug("讀取即時股價數據");
         for (JsonNode msgNode : msgArray) {
             logger.debug(msgNode.toString());
-            if (!Objects.equals(msgNode.path("z").asText(), "-")) {
+            if (Objects.equals(msgNode.path("z").asText(), "-")) {
                 continue;
             }
+            logger.debug("z = " + Double.parseDouble(msgNode.path("z").asText())
+                    + ", c = " + msgNode.path("c").asText()
+                    + ", tlong = " + msgNode.path("tlong").asText()
+                    + ", o = " + Double.parseDouble(msgNode.path("o").asText())
+                    + ", h = " + Double.parseDouble(msgNode.path("h").asText())
+                    + ", l = " + Double.parseDouble(msgNode.path("l").asText())
+                    + ", v = " + Double.parseDouble(msgNode.path("v").asText())
+            );
             Double price = Double.parseDouble(msgNode.path("z").asText());
             Double high = Double.parseDouble(msgNode.path("h").asText());
             Double open = Double.parseDouble(msgNode.path("o").asText());
