@@ -1,7 +1,9 @@
-package xyz.dowob.stockweb.Component.Event;
+package xyz.dowob.stockweb.Component.Event.Crypto;
 
+import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.web.socket.WebSocketSession;
+@Getter
 public class WebSocketConnectionStatusEvent extends ApplicationEvent {
     private final boolean connected;
     private final WebSocketSession session;
@@ -12,11 +14,4 @@ public class WebSocketConnectionStatusEvent extends ApplicationEvent {
         this.session = session;
     }
 
-    public boolean isConnected() {
-        return connected;
-    }
-
-    public WebSocketSession getSession() {
-        return session;
-    }
 }

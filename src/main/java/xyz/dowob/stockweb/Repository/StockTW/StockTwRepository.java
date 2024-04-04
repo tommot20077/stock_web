@@ -1,13 +1,12 @@
 package xyz.dowob.stockweb.Repository.StockTW;
 
-import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
-import xyz.dowob.stockweb.Component.Event.StockChangeEvent;
+import xyz.dowob.stockweb.Component.Event.StockTw.StockTwChangeEvent;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 
 import java.util.List;
@@ -41,7 +40,7 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
             logger.debug("成功加入訂閱");
             save(stockTw);
 
-            eventPublisher.publishEvent(new StockChangeEvent(this, stockTw));
+            eventPublisher.publishEvent(new StockTwChangeEvent(this, stockTw));
             logger.debug("發布更新追蹤股票事件");
         } else {
             logger.debug("已經加入訂閱");
@@ -55,7 +54,7 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
         if (successRemove) {
             logger.debug("成功刪除訂閱");
             save(stockTw);
-            eventPublisher.publishEvent(new StockChangeEvent(this, stockTw));
+            eventPublisher.publishEvent(new StockTwChangeEvent(this, stockTw));
             logger.debug("發布更新追蹤股票事件");
         } else {
             logger.debug("已經刪除訂閱");

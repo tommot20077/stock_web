@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component.EventListener;
+package xyz.dowob.stockweb.Component.EventListener.StockTw;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.jetbrains.annotations.NotNull;
@@ -8,18 +8,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Crontab;
-import xyz.dowob.stockweb.Component.Event.StockChangeEvent;
+import xyz.dowob.stockweb.Component.Event.StockTw.StockTwChangeEvent;
+import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 
 
 @Component
-public class StockChangeListener implements ApplicationListener<StockChangeEvent> {
-    private final Logger logger = LoggerFactory.getLogger(StockChangeListener.class);
+public class StockTwChangeListener implements ApplicationListener<StockTwChangeEvent> {
+    private final Logger logger = LoggerFactory.getLogger(StockTwChangeListener.class);
     private final Crontab crontab;
     @Autowired
-    public StockChangeListener(Crontab crontab) {this.crontab = crontab;}
+    public StockTwChangeListener(Crontab crontab) {
+        this.crontab = crontab;
+    }
 
     @Override
-    public void onApplicationEvent(@NotNull StockChangeEvent event) {
+    public void onApplicationEvent(@NotNull StockTwChangeEvent event) {
         logger.debug("收到股票訂閱變更");
         try {
             crontab.checkSubscriptions();
@@ -28,6 +31,6 @@ public class StockChangeListener implements ApplicationListener<StockChangeEvent
             logger.error("Json轉換錯誤", e);
             throw new RuntimeException(e);
         }
-
     }
+
 }

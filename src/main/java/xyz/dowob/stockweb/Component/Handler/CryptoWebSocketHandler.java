@@ -18,8 +18,9 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.WebSocketClient;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
+import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import xyz.dowob.stockweb.Component.Event.WebSocketConnectionStatusEvent;
+import xyz.dowob.stockweb.Component.Event.Crypto.WebSocketConnectionStatusEvent;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
@@ -103,7 +104,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 releaseResources();
                 this.retryCount = 0;
                 isRunning = false;
-                this.scheduler = Executors.newSingleThreadScheduledExecutor();   // 用于重连的新的任务调度器
+                this.scheduler = Executors.newSingleThreadScheduledExecutor();
                 scheduleReconnection();
             }
         } else {
@@ -292,12 +293,13 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void reconnectAndResubscribe() {
+    public void reconnectAndResubscribe() {
         try {
             Instant scheduledTime = Instant.now().plusSeconds(retryDelay);
             taskScheduler.schedule(() -> {
                 if (!scheduler.isShutdown() && !scheduler.isTerminated()) {
                     scheduler.shutdown();
+                    isRunning = false;
                     logger.info("WebSocket連線已停止");
                     try {
                         if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -322,12 +324,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 }
 
 
-                WebSocketConnectionManager connectionManager = new WebSocketConnectionManager((WebSocketClient) taskScheduler, this, "wss://stream.binance.com:9443/stream?streams=");
+                WebSocketClient webSocketClient = new StandardWebSocketClient();
+                WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(webSocketClient, this, "wss://stream.binance.com:9443/stream?streams=");
                 connectionManager.setAutoStartup(true);
                 connectionManager.start();
                 logger.info("WebSocket重新連線成功");
                 this.connectionTime = new Date();
                 this.retryCount = 0;
+                this.isRunning = true;
                 subscribeAllPreviousTradingPair();
             }, scheduledTime);
         } catch (Exception e) {
@@ -377,6 +381,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 logger.info("WebSocket連線已關閉");
             }
             scheduler.shutdownNow();
+            isRunning = false;
             logger.info("Schedule 已停止");
         } catch (IOException e) {
             logger.error("釋放資源時發生錯誤", e);

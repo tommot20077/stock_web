@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component.Event;
+package xyz.dowob.stockweb.Component.Event.StockTw;
 
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import lombok.Getter;
@@ -6,10 +6,10 @@ import org.springframework.context.ApplicationEvent;
 
 
 @Getter
-public class StockChangeEvent extends ApplicationEvent {
+public class StockTwChangeEvent extends ApplicationEvent {
 
     private final StockTw stockTw;
-    public StockChangeEvent(Object source, StockTw stockTw) {
+    public StockTwChangeEvent(Object source, StockTw stockTw) {
         super(source);
         this.stockTw = stockTw;
     }

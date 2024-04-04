@@ -2,6 +2,8 @@ package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -24,6 +26,7 @@ public class ApiCryptoController {
 
     private final CryptoService cryptoService;
     private final UserService userService;
+    Logger logger = LoggerFactory.getLogger(ApiCryptoController.class);
     @Autowired
     public ApiCryptoController(CryptoService cryptoService, UserService userService) {
         this.cryptoService = cryptoService;
@@ -178,7 +181,11 @@ public class ApiCryptoController {
     @PostMapping("/ws/restart")//admin
     public ResponseEntity<?> restartWebSocket() {
         try {
-            cryptoService.closeConnection();
+            try {
+                cryptoService.closeConnection();
+            } catch (Exception e) {
+                logger.debug("目前沒有開啟的連線，啟動新的連線");
+            }
             cryptoService.openConnection();
             return ResponseEntity.ok().body("WebSocket已重啟");
         } catch (Exception e) {

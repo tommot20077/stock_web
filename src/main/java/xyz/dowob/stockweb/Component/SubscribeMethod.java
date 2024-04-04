@@ -12,6 +12,7 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
@@ -21,11 +22,13 @@ public class SubscribeMethod {
     Logger logger = LoggerFactory.getLogger(SubscribeMethod.class);
     private final SubscribeRepository subscribeRepository;
     private final StockTwRepository stockTwRepository;
+    private final CryptoRepository cryptoRepository;
     private final ApplicationEventPublisher eventPublisher;
     @Autowired
-    public SubscribeMethod(SubscribeRepository subscribeRepository, StockTwRepository stockTwRepository, ApplicationEventPublisher eventPublisher) {
+    public SubscribeMethod(SubscribeRepository subscribeRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher) {
         this.subscribeRepository = subscribeRepository;
         this.stockTwRepository = stockTwRepository;
+        this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -38,13 +41,13 @@ public class SubscribeMethod {
         if (subscribe != null && subscribe.isUserSubscribed()) {
             logger.debug("用戶有此資產訂閱");
             subscribeRepository.delete(subscribe);
-            if (property.getAsset() instanceof CryptoTradingPair cryptoTradingPair) {
-                if (cryptoTradingPair.checkUserIsSubscriber(user)) {
-                    cryptoTradingPair.getSubscribers().remove(user.getId());
+            if (property.getAsset() instanceof CryptoTradingPair crypto) {
+                if (crypto.checkUserIsSubscriber(user)) {
+                    removeSubscriberFromTradingPair(crypto, user.getId());
                 }
             } else if (property.getAsset() instanceof StockTw stockTw) {
                 if (stockTw.checkUserIsSubscriber(user)) {
-                    removeSubscriberFromStockTw(stockTw, user.getId());//todo 以後可以改成用asset並抓取type來做確認
+                    removeSubscriberFromStockTw(stockTw, user.getId());
                 }
             } else if (property.getAsset() instanceof Currency) {
                 logger.debug("直接刪除subscription");
@@ -87,7 +90,7 @@ public class SubscribeMethod {
                 logger.debug("訂閱加密貨幣: " + crypto.getBaseAsset());
                 subscribe.setChannel("@kline_1m");
                 if (!crypto.checkUserIsSubscriber(user)) {
-                    crypto.getSubscribers().add(user.getId());//todo 目前只有改股票
+                    addSubscriberToCryptoTradingPair(crypto, user.getId());
                     logger.debug("用戶訂閱此加密貨幣數不為 0，加密貨幣訂閱數加 1");
                 }
             } else if (property.getAsset() instanceof Currency currency) {
@@ -110,6 +113,15 @@ public class SubscribeMethod {
     private void removeSubscriberFromStockTw(StockTw stockTw, Long userId) {
         stockTwRepository.removeSubscriber(stockTw, userId, eventPublisher);
     }
+
+    private void addSubscriberToCryptoTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
+        cryptoRepository.addSubscriber(cryptoTradingPair, userId, eventPublisher);
+    }
+
+    private void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
+        cryptoRepository.removeSubscriber(cryptoTradingPair, userId, eventPublisher);
+    }
+
 
 }
 
