@@ -1,6 +1,7 @@
 package xyz.dowob.stockweb.Service.Stock;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
@@ -11,22 +12,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZonedDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 @Service
 public class StockTwInfluxDBService {
     private final InfluxDBClient StockTwInfluxDBClient;
+    private final InfluxDBClient StockTwHistoryInfluxDBClient;
     Logger logger = LoggerFactory.getLogger(StockTwInfluxDBService.class);
 
     @Autowired
-    public StockTwInfluxDBService(@Qualifier("StockTwInfluxDBClient") InfluxDBClient stockTwInfluxDBClient) {
+    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxDBClient, @Qualifier("StockTwHistoryInfluxDBClient")InfluxDBClient stockTwHistoryInfluxDBClient) {
         StockTwInfluxDBClient = stockTwInfluxDBClient;
+        StockTwHistoryInfluxDBClient = stockTwHistoryInfluxDBClient;
     }
 
-    public void writeToInflux(JsonNode msgArray) {
+    public void writeStockTwToInflux(JsonNode msgArray) {
         logger.debug("讀取即時股價數據");
         for (JsonNode msgNode : msgArray) {
             logger.debug(msgNode.toString());
@@ -59,17 +63,98 @@ public class StockTwInfluxDBService {
                     .addField("volume", volume)
                     .time(Long.parseLong(time), WritePrecision.MS);
             logger.debug("建立InfluxDB Point");
-
-            try {
-                logger.debug("連接InfluxDB成功");
-                try (WriteApi writeApi = StockTwInfluxDBClient.makeWriteApi()) {
-                    writeApi.writePoint(point);
-                    logger.debug("寫入InfluxDB成功");
-                }
-            } catch (Exception e) {
-                logger.error("寫入InfluxDB時發生錯誤", e);
-            }
+            writeToInflux(StockTwInfluxDBClient, point);
         }
     }
 
+
+    public void writeStockTwHistoryToInflux(ArrayNode dataArray, String stockCode) {
+        logger.debug("讀取歷史股價數據");
+        for (JsonNode dataEntry : dataArray) {
+            String dateStr = dataEntry.get(0).asText();
+            Long tLong = formattedROCData(dateStr);
+
+            String numberOfStocksVolume = dataEntry.get(1).asText().replace(",", "");
+            String openingPrice = dataEntry.get(3).asText();
+            String highestPrice = dataEntry.get(4).asText();
+            String lowestPrice = dataEntry.get(5).asText();
+            String closingPrice = dataEntry.get(6).asText();
+
+            logger.debug("日期: " + dateStr
+                    + ", 成交股數: " + numberOfStocksVolume
+                    + ", 開盤價: " + openingPrice
+                    + ", 最高價: " + highestPrice
+                    + ", 最低價: " + lowestPrice
+                    + ", 收盤價: " + closingPrice);
+
+            Point point = Point.measurement("kline_data")
+                    .addTag("stock_tw", stockCode)
+                    .addField("high", Double.parseDouble(highestPrice))
+                    .addField("low", Double.parseDouble(lowestPrice))
+                    .addField("open", Double.parseDouble(openingPrice))
+                    .addField("close", Double.parseDouble(closingPrice))
+                    .addField("volume", Double.parseDouble(numberOfStocksVolume))
+                    .time(tLong, WritePrecision.MS);
+            logger.debug("建立InfluxDB Point");
+            writeToInflux(StockTwHistoryInfluxDBClient, point);
+
+        }
+    }
+
+    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long todayTlong) {
+        logger.debug("讀取每日更新股價數據");
+        String stockCode = node.path("Code").asText();
+        String tradeVolume = node.path("TradeVolume").asText();
+        String openingPrice = node.path("OpeningPrice").asText();
+        String highestPrice = node.path("HighestPrice").asText();
+        String lowestPrice = node.path("LowestPrice").asText();
+        String closingPrice = node.path("ClosingPrice").asText();
+
+        logger.debug("日期(Long): " + todayTlong.toString()
+                + ", 成交股數: " + tradeVolume
+                + ", 開盤價: " + openingPrice
+                + ", 最高價: " + highestPrice
+                + ", 最低價: " + lowestPrice
+                + ", 收盤價: " + closingPrice);
+
+        Point point = Point.measurement("kline_data")
+                           .addTag("stock_tw", stockCode)
+                           .addField("high", Double.parseDouble(highestPrice))
+                           .addField("low", Double.parseDouble(lowestPrice))
+                           .addField("open", Double.parseDouble(openingPrice))
+                           .addField("close", Double.parseDouble(closingPrice))
+                           .addField("volume", Double.parseDouble(tradeVolume))
+                           .time(todayTlong, WritePrecision.MS);
+        logger.debug("建立InfluxDB Point");
+        writeToInflux(StockTwHistoryInfluxDBClient, point);
+    }
+
+
+
+
+
+
+    private void writeToInflux(InfluxDBClient Client, Point point) {
+        try {
+            logger.debug("連接InfluxDB成功");
+            try (WriteApi writeApi = Client.makeWriteApi()) {
+                writeApi.writePoint(point);
+                logger.debug("寫入InfluxDB成功");
+            }
+        } catch (Exception e) {
+            logger.error("寫入InfluxDB時發生錯誤", e);
+        }
+    }
+    private Long formattedROCData(String dateStr) {
+        String[] dateParts = dateStr.split("/");
+        int yearROC = Integer.parseInt(dateParts[0]);
+        int yearAD = yearROC + 1911;
+        String formattedDate = yearAD + "/" + dateParts[1] + "/" + dateParts[2];
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+        LocalDate localDate = LocalDate.parse(formattedDate, formatter);
+
+        Instant instant = localDate.atStartOfDay(ZoneId.of("Asia/Taipei")).toInstant();
+        return instant.toEpochMilli();
+    }
 }

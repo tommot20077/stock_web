@@ -2,11 +2,9 @@ package xyz.dowob.stockweb.Service.Currency;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.influxdb.client.InfluxDBClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -14,10 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Currency.Currency;
-import xyz.dowob.stockweb.Model.Currency.CurrencyHistory;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
-import xyz.dowob.stockweb.Repository.Currency.CurrencyHistoryRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
@@ -35,15 +31,14 @@ public class CurrencyService {
     private String API_URL;
 
     private final CurrencyRepository currencyRepository;
-    private final CurrencyHistoryRepository currencyHistoryRepository;
+
     private final SubscribeRepository subscribeRepository;
     private final CurrencyInfluxDBService currencyInfluxDBService;
     Logger logger = LoggerFactory.getLogger(CurrencyService.class);
 
     @Autowired
-    public CurrencyService(CurrencyRepository currencyRepository, CurrencyHistoryRepository currencyHistoryRepository, SubscribeRepository subscribeRepository, CurrencyInfluxDBService currencyInfluxDBService) {
+    public CurrencyService(CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, CurrencyInfluxDBService currencyInfluxDBService) {
         this.currencyRepository = currencyRepository;
-        this.currencyHistoryRepository = currencyHistoryRepository;
         this.subscribeRepository = subscribeRepository;
         this.currencyInfluxDBService = currencyInfluxDBService;
     }
@@ -89,8 +84,6 @@ public class CurrencyService {
                 logger.debug("開始寫入InfluxDB");
                 currencyInfluxDBService.writeToInflux(currency, exRate, zonedDateTime);
 
-
-
                 Optional<Currency> existingData = currencyRepository.findByCurrency(currency);
                 if (existingData.isPresent()) {
                     logger.debug(currency + "的匯率資料已存在");
@@ -101,14 +94,6 @@ public class CurrencyService {
                         data.setUpdateTime(updateTime);
                         currencyRepository.save(data);
                         logger.debug(currency + "的匯率資料更新完成");
-
-                        logger.debug("開始新增"+ currency + "的匯率歷史資料");
-                        CurrencyHistory currencyHistory = new CurrencyHistory();
-                        currencyHistory.setCurrency(currency);
-                        currencyHistory.setExchangeRate(exRate);
-                        currencyHistory.setUpdateTime(updateTime);
-                        currencyHistoryRepository.save(currencyHistory);
-                        logger.debug("新增"+ currency + "的匯率歷史資料完成");
                     } else {
                         logger.debug(currency + "的匯率資料無需更新");
                     }
@@ -121,16 +106,6 @@ public class CurrencyService {
                     currencyData.setAssetType(AssetType.CURRENCY);
                     currencyRepository.save(currencyData);
                     logger.debug(currency+ "的匯率資料新增完成");
-
-                    logger.debug("開始新增"+ currency + "的匯率歷史資料");
-                    CurrencyHistory currencyHistory = new CurrencyHistory();
-                    currencyHistory.setCurrency(currency);
-                    currencyHistory.setExchangeRate(exRate);
-                    currencyHistory.setUpdateTime(updateTime);
-                    currencyHistory.setAssetType(AssetType.CURRENCY);
-                    currencyHistoryRepository.save(currencyHistory);
-                    logger.debug("新增"+ currency + "的匯率歷史資料完成");
-
                 }
             });
             logger.info("匯率資料新增完成");
@@ -200,10 +175,6 @@ public class CurrencyService {
         } else {
             throw new RuntimeException("未訂閱過此貨幣對" + from + " <-> " + to);
         }
-    }
-
-    public List<CurrencyHistory> getCurrencyHistory(String currency) {
-        return currencyHistoryRepository.findByCurrencyOrderByUpdateTimeDesc(currency);
     }
 
     public List<String> getCurrencyList() {

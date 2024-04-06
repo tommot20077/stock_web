@@ -3,10 +3,12 @@ package xyz.dowob.stockweb.Service.Crypto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.RateLimiter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
@@ -20,10 +22,12 @@ import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
+import xyz.dowob.stockweb.Service.Common.FileSevice;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 @Service
 public class CryptoService {
@@ -32,18 +36,27 @@ public class CryptoService {
     private volatile boolean isRunning = false;
     private boolean isNeedToCheckConnection = false;
     private final CryptoWebSocketHandler cryptoWebSocketHandler;
+    private final CryptoInfluxDBService cryptoInfluxDBService;
     private WebSocketConnectionManager connectionManager;
     private final CryptoRepository cryptoRepository;
     private final ObjectMapper objectMapper;
+    private final FileSevice fileSevice;
+
+    @Value("${db.influxdb.bucket.crypto_history.detail}")
+    private String frequency;
+    private final String dataUrl = "https://data.binance.vision/data/spot/";
+    RateLimiter rateLimiter = RateLimiter.create(1.0);
 
 
 
     @Autowired
-    public CryptoService(CryptoWebSocketHandler webSocketHandler, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper) {
+    public CryptoService(CryptoWebSocketHandler webSocketHandler, CryptoInfluxDBService cryptoInfluxDBService, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper, FileSevice fileSevice) {
         this.cryptoWebSocketHandler = webSocketHandler;
+        this.cryptoInfluxDBService = cryptoInfluxDBService;
         this.connectionManager = connectionManager;
         this.cryptoRepository = cryptoRepository;
         this.objectMapper = objectMapper;
+        this.fileSevice = fileSevice;
     }
 
 
@@ -103,9 +116,9 @@ public class CryptoService {
     @Async
     public void updateSymbolList() {
         CryptoTradingPair cryptoTradingPair;
-        String CryptoListUrl = "https://api.binance.com/api/v3/exchangeInfo";
+        String cryptoListUrl = "https://api.binance.com/api/v3/exchangeInfo";
         RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> response = restTemplate.getForEntity(CryptoListUrl, String.class);
+        ResponseEntity<String> response = restTemplate.getForEntity(cryptoListUrl, String.class);
         logger.debug("更新幣種交易對列表: " + response.getBody());
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             try {
@@ -115,7 +128,7 @@ public class CryptoService {
                 if (dataArray.isArray()) {
                     logger.debug("陣列資料: " + dataArray);
                     for (JsonNode cryptoNode : dataArray) {
-                        if (cryptoNode.get("status").asText().equals("TRADING")) {
+                        if ("TRADING".equals(cryptoNode.get("status").asText())) {
                             cryptoTradingPair = cryptoRepository.findByTradingPair(cryptoNode.get("symbol").asText()).orElse(new CryptoTradingPair());
                             logger.debug("交易對象幣種: " + cryptoNode.get("baseAsset").asText());
                             cryptoTradingPair.setBaseAsset(cryptoNode.get("baseAsset").asText());
@@ -147,7 +160,7 @@ public class CryptoService {
                 logger.warn("請求過於頻繁，請在" + retryAfter + "秒後再試");
                 int waitSeconds = Integer.parseInt(retryAfter);
                 Thread.sleep(waitSeconds * 1000L);
-                throw new InterruptedException("WebSocket連線過多，請在" + retryAfter + "秒後再試");
+                throw new InterruptedException("請求過多，請在" + retryAfter + "秒後再試");
             }
         }
     }
@@ -192,5 +205,92 @@ public class CryptoService {
     }
     public boolean isNeedToCheckConnection() {
         return isNeedToCheckConnection;
+    }
+
+    @Async
+    public void trackCryptoHistoryPrices (CryptoTradingPair cryptoTradingPair) {
+        boolean hasData = true;
+        LocalDate endDate = LocalDate.parse("20230601", DateTimeFormatter.BASIC_ISO_DATE);
+        LocalDate todayDate = LocalDate.now(ZoneId.of("UTC"));
+        LocalDate getMonthlyDate = todayDate.minusMonths(2);
+        LocalDate getDailyDate = todayDate.minusMonths(1).withDayOfMonth(1);
+        DateTimeFormatter monthlyFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
+
+
+        while (hasData && (getMonthlyDate.isAfter(endDate) || getMonthlyDate.isEqual(endDate))) {
+            String formatGetMonthlyDate = getMonthlyDate.format(monthlyFormatter);
+            String fileName = String.format("%s-%s-%s.zip", cryptoTradingPair.getTradingPair(), frequency, formatGetMonthlyDate);
+            String monthlyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "monthly", cryptoTradingPair.getTradingPair(), frequency, fileName);
+            logger.debug("要追蹤歷史價格的交易對: " + cryptoTradingPair.getTradingPair());
+            logger.debug("歷史價格資料網址: " + monthlyUrl);
+            rateLimiter.acquire();
+            List<String[]> csvData = fileSevice.downloadFileAndUnzipAndRead(monthlyUrl, fileName);
+
+            if (csvData == null) {
+                logger.debug("歷史價格資料讀取失敗");
+                hasData = false;
+            } else {
+                logger.debug("歷史價格資料讀取完成");
+                cryptoInfluxDBService.writeCryptoHistoryToInflux(csvData, cryptoTradingPair.getTradingPair());
+                getMonthlyDate = getMonthlyDate.minusMonths(1);
+                logger.debug("抓取" + fileName + "的資料完成，開始處理下筆資料");
+            }
+        }
+        hasData = true;
+        endDate = todayDate.minusDays(1);
+        while (hasData && (getDailyDate.isBefore(endDate)) || getDailyDate.isEqual(endDate)) {
+            String formatGetDailyDate = getDailyDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String fileName = String.format("%s-%s-%s.zip", cryptoTradingPair.getTradingPair(), frequency,
+                                            formatGetDailyDate);
+            String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "daily", cryptoTradingPair.getTradingPair(),
+                                            frequency, fileName);
+            logger.debug("要追蹤歷史價格的交易對: " + cryptoTradingPair.getTradingPair());
+            logger.debug("歷史價格資料網址: " + dailyUrl);
+            rateLimiter.acquire();
+            List<String[]> csvData = fileSevice.downloadFileAndUnzipAndRead(dailyUrl, fileName);
+            if (csvData == null) {
+                logger.debug("沒有讀取到歷史價格");
+                hasData = false;
+            } else {
+                logger.debug("歷史價格資料讀取完成");
+                cryptoInfluxDBService.writeCryptoHistoryToInflux(csvData, cryptoTradingPair.getTradingPair());
+                getDailyDate = getDailyDate.plusDays(1);
+                logger.debug("抓取" + fileName + "的資料完成，開始處理下筆資料");
+            }
+        }
+        logger.debug("歷史價格資料抓取完成");
+    }
+
+
+    public void trackCryptoHistoryPricesWithUpdateDaily() {
+        Set<String> needToUpdateTradingPairs = cryptoRepository.findAllTradingPairBySubscribers();
+        logger.debug("要更新每日最新價格的交易對: " + needToUpdateTradingPairs);
+        if (needToUpdateTradingPairs.isEmpty()) {
+            logger.debug("沒有要更新的交易對");
+            return;
+        }
+        LocalDate trackDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
+        String formatGetDailyDate = trackDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        needToUpdateTradingPairs.forEach(tradingPair -> {
+            String fileName = String.format("%s-%s-%s.zip", tradingPair, frequency, formatGetDailyDate);
+            String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "daily", tradingPair, frequency, fileName);
+            logger.debug("要追蹤歷史價格的交易對: " + tradingPair);
+            logger.debug("歷史價格資料網址: " + dailyUrl);
+            rateLimiter.acquire();
+            List<String[]> csvData = fileSevice.downloadFileAndUnzipAndRead(dailyUrl, fileName);
+            if (csvData == null) {
+                logger.debug("沒有讀取到歷史價格");
+            } else {
+                logger.debug("歷史價格資料讀取完成");
+                cryptoInfluxDBService.writeCryptoHistoryToInflux(csvData, tradingPair);
+                logger.debug("抓取" + fileName + "的資料完成，開始處理下筆資料");
+            }
+        });
+        logger.debug("歷史價格資料抓取完成");
+    }
+
+    public CryptoTradingPair getCryptoTradingPair(String tradingPair) {
+        return cryptoRepository.findByTradingPair(tradingPair).orElseThrow(() -> new RuntimeException("找不到交易對: " + tradingPair));
     }
 }

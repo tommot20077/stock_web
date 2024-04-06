@@ -25,7 +25,10 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     int countStockTwSubscribersNumber(StockTw stockTw);
 
     @Query("SELECT DISTINCT s.stockCode, s.stockType FROM StockTw s JOIN s.subscribers subscriber")
-    Set<Object[]> findAllAssetIdsWithSubscribers();
+    Set<Object[]> findAllStockCodeAndTypeBySubscribers();
+
+    @Query("SELECT DISTINCT s.stockCode FROM StockTw s JOIN s.subscribers subscriber")
+    Set<String> findAllStockCodeBySubscribers();
 
 
 

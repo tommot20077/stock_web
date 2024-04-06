@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author tommo
+ */
 @Component
 public class Crontab {
     private final TokenService tokenService;
@@ -57,15 +60,16 @@ public class Crontab {
     public void checkSubscriptions() throws JsonProcessingException {
         logger.debug("正在檢查訂閱狀況");
         logger.debug(String.valueOf(trackableStocks));
-        Map<String, List<String>> subscriptionValidity = stockTwService.CheckSubscriptionValidity();
+        Map<String, List<String>> subscriptionValidity = stockTwService.checkSubscriptionValidity();
         if (subscriptionValidity != null) {
-            logger.debug("已經獲取列表");
+            logger.debug("成功獲取列表，加入到處理欄中");
             trackableStocks = subscriptionValidity.get("inquiry");
         } else {
             logger.debug("無法獲取列表，重新獲取");
-            trackableStocks = stockTwService.CheckSubscriptionValidity().get("inquiry");
+            trackableStocks = stockTwService.checkSubscriptionValidity().get("inquiry");
             if (trackableStocks != null && !trackableStocks.isEmpty()) {
-                stockTwService.trackStockPrices(trackableStocks);
+                logger.debug("成功獲取列表，加入到處理欄中");
+                stockTwService.trackStockNowPrices(trackableStocks);
             } else {
                 logger.warn("沒有可以訂閱的股票");
             }
@@ -79,15 +83,29 @@ public class Crontab {
             LocalTime now = LocalTime.now(ZoneId.of("Asia/Taipei"));
             if (now.isAfter(LocalTime.of(13,30)) && now.getMinute() % 10 == 0) {
                 logger.debug("收盤時間:更新速度為10分鐘");
-                stockTwService.trackStockPrices(trackableStocks);
+                stockTwService.trackStockNowPrices(trackableStocks);
             } else {
                 logger.debug("開盤時間:更新速度為5秒");
-                stockTwService.trackStockPrices(trackableStocks);
+                stockTwService.trackStockNowPrices(trackableStocks);
             }
         } else {
+            logger.warn("列表為空，嘗試獲取訂閱列表");
             checkSubscriptions();
         }
     }
+
+    @Scheduled(cron = "0 30 16 * * MON-FRI ", zone = "Asia/Taipei")
+    public void updateStockHistoryPrices() {
+        logger.debug("開始更新股票的每日最新價格");
+        stockTwService.trackStockHistoryPricesWithUpdateDaily();
+    }
+
+    @Scheduled(cron = "0 30 2 * * ? ", zone = "UTC")
+    public void updateCryptoHistoryPrices() {
+        logger.debug("開始更新加密貨幣的每日最新價格");
+        cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
+    }
+
 
     @Scheduled(fixedRate = 60000)
     public void checkAndReconnectWebSocket() {

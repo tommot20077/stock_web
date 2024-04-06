@@ -35,6 +35,9 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
     @Query("SELECT COUNT(c.subscribers) FROM CryptoTradingPair c WHERE c = :cryptoTradingPair")
     int countCryptoSubscribersNumber(CryptoTradingPair cryptoTradingPair);
 
+    @Query("SELECT DISTINCT c.tradingPair FROM CryptoTradingPair c JOIN c.subscribers subscriber")
+    Set<String> findAllTradingPairBySubscribers();
+
 
 
 

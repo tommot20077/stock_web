@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * @author tommo
+ */
 @Configuration
 public class InfluxConfig {
     @Value("${db.influxdb.url}")
@@ -20,8 +23,14 @@ public class InfluxConfig {
     @Value("${db.influxdb.bucket.crypto}")
     private String cryptoBucket;
 
+    @Value("${db.influxdb.bucket.crypto_history}")
+    private String cryptoHistoryBucket;
+
     @Value("${db.influxdb.bucket.stock}")
     private String stockBucket;
+
+    @Value("${db.influxdb.bucket.stock_history}")
+    private String stockHistoryBucket;
 
     @Value("${db.influxdb.bucket.currency}")
     private String currencyBucket;
@@ -31,22 +40,30 @@ public class InfluxConfig {
 
 
 
-    @Bean(name = "CryptoInfluxDBClient")
-    public InfluxDBClient cryptoInfluxDBClient() {
+    @Bean(name = "CryptoInfluxClient")
+    public InfluxDBClient cryptoInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
     }
 
-    @Bean(name = "StockTwInfluxDBClient")
-    public InfluxDBClient StockTwInfluxDBClient() {
+    @Bean(name = "CryptoHistoryInfluxDBClient")
+    public InfluxDBClient cryptoHistoryBucket() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoHistoryBucket);
+    }
+    @Bean(name = "StockTwInfluxClient")
+    public InfluxDBClient stockTwInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockBucket);
     }
+    @Bean(name = "StockTwHistoryInfluxDBClient")
+    public InfluxDBClient stockTwHistoryInfluxClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockHistoryBucket);
+    }
     @Bean(name = "CurrencyInfluxDBClient")
-    public InfluxDBClient CurrencyInfluxDBClient() {
+    public InfluxDBClient currencyInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, currencyBucket);
     }
 
     @Bean(name = "propertySummaryInfluxDBClient")
-    public InfluxDBClient propertySummaryInfluxDBClient() {
+    public InfluxDBClient propertySummaryInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, propertySummaryBucket);
     }
 }

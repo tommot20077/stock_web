@@ -4,11 +4,9 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionStockDto;
+import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -107,8 +105,8 @@ public class ApiStockTwController {
     @GetMapping("/getSubscriptionCurrentPrice")
     public ResponseEntity<?> getSubscriptionStocksCurrentPrice() {
         try {
-            Map<String, List<String>> result = stockTwService.CheckSubscriptionValidity();
-            stockTwService.trackStockPrices(result.get("inquiry"));
+            Map<String, List<String>> result = stockTwService.checkSubscriptionValidity();
+            stockTwService.trackStockNowPrices(result.get("inquiry"));
             result.remove("inquiry");
             return ResponseEntity.ok().body(result);
         } catch (Exception e) {
@@ -116,6 +114,18 @@ public class ApiStockTwController {
         }
 
     }
+
+    @GetMapping("/getSpecificStocksHistoryPriceByStockCode")
+    public ResponseEntity<?> getSpecificStocksHistoryPriceByStockCode(@RequestParam String stockCode) {
+        try {
+            StockTw stockTw = stockTwService.getStockTwByStockCode(stockCode);
+            stockTwService.trackStockTwHistoryPrices(stockTw);
+            return ResponseEntity.ok().body("ok");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
+        }
+    }
+
 
 
 }

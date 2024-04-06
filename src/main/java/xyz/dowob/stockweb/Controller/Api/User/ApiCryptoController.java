@@ -7,11 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionCryptoDto;
+import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -78,7 +76,7 @@ public class ApiCryptoController {
             if (session.getAttribute("currentUserId") == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            List<SubscriptionCryptoDto.Subscription> Subscriptions = request.getSubscriptions();
+            List<SubscriptionCryptoDto.Subscription> subscriptions = request.getSubscriptions();
             Long userId = (Long) session.getAttribute("currentUserId");
             User user = userService.getUserById(userId);
             if (user == null) {
@@ -87,10 +85,10 @@ public class ApiCryptoController {
 
             Map<String, String> failedSubscribes = new HashMap<>();
 
-            if (Subscriptions.isEmpty()) {
+            if (subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要取消訂閱的加密貨幣和通知通道");
             } else {
-                for (SubscriptionCryptoDto.Subscription subscription : Subscriptions) {
+                for (SubscriptionCryptoDto.Subscription subscription : subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
                     String channel = subscription.getChannel().toLowerCase();
                     try {
@@ -191,6 +189,13 @@ public class ApiCryptoController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("重啟WebSocket失敗: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/test")
+    public ResponseEntity<?> test(@RequestParam String tradingPair) {
+        CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
+        cryptoService.trackCryptoHistoryPrices(tradingPairs);
+        return ResponseEntity.ok().body("測試成功");
     }
 
 }

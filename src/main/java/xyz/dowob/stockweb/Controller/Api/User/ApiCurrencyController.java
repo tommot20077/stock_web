@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionCurrencyDto;
-import xyz.dowob.stockweb.Model.Currency.CurrencyHistory;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -45,11 +44,6 @@ public class ApiCurrencyController {
         return ResponseEntity.ok().body(result);
     }
 
-    @GetMapping("/getCurrencyHistory")
-    public ResponseEntity<?> getCurrencyHistory(@RequestParam String currency) {
-        List<CurrencyHistory> currencyHistoryList = currencyService.getCurrencyHistory(currency);
-        return ResponseEntity.ok().body(currencyHistoryList);
-    }
 
     @PostMapping("/subscribe")
     public ResponseEntity<?> subscribe(@RequestBody SubscriptionCurrencyDto request, HttpSession session) {
