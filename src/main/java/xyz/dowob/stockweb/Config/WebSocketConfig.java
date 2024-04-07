@@ -11,7 +11,7 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
-import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxDBService;
+import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 
 @Configuration
 public class WebSocketConfig {
@@ -44,9 +44,10 @@ public class WebSocketConfig {
     }
 
     @Bean
-    public CryptoWebSocketHandler cryptoWebSocketHandler(CryptoInfluxDBService cryptoInfluxDBService,
-                                                         CryptoRepository cryptoRepository,
-                                                         ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
-        return new CryptoWebSocketHandler(cryptoInfluxDBService, cryptoRepository, eventPublisher, subscribeRepository);
+    public CryptoWebSocketHandler cryptoWebSocketHandler(
+            CryptoInfluxService cryptoInfluxService,
+            CryptoRepository cryptoRepository,
+            ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
+        return new CryptoWebSocketHandler(cryptoInfluxService, cryptoRepository, eventPublisher, subscribeRepository);
     }
 }

@@ -17,12 +17,12 @@ import java.util.Map;
  * @author tommo
  */
 @Service
-public class CryptoInfluxDBService {
+public class CryptoInfluxService {
     private final InfluxDBClient cryptoInfluxDBClient;
     private final InfluxDBClient cryptoHistoryInfluxDBClient;
-    Logger logger = LoggerFactory.getLogger(CryptoInfluxDBService.class);
+    Logger logger = LoggerFactory.getLogger(CryptoInfluxService.class);
     @Autowired
-    public CryptoInfluxDBService(@Qualifier("CryptoInfluxClient")InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxDBClient") InfluxDBClient cryptoHistoryInfluxClient) {
+    public CryptoInfluxService(@Qualifier("CryptoInfluxClient")InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient) {
         this.cryptoInfluxDBClient = cryptoInfluxClient;
         this.cryptoHistoryInfluxDBClient = cryptoHistoryInfluxClient;
     }

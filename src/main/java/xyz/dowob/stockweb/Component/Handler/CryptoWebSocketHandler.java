@@ -26,7 +26,7 @@ import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
-import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxDBService;
+import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
-    private final CryptoInfluxDBService cryptoInfluxDBService;
+    private final CryptoInfluxService cryptoInfluxService;
     private final CryptoRepository cryptoRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final SubscribeRepository subscribeRepository;
@@ -57,8 +57,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     private WebSocketSession webSocketSession;
     private int retryCount = 0;
     @Autowired
-    public CryptoWebSocketHandler(CryptoInfluxDBService cryptoInfluxDBService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
-        this.cryptoInfluxDBService = cryptoInfluxDBService;
+    public CryptoWebSocketHandler(CryptoInfluxService cryptoInfluxService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
+        this.cryptoInfluxService = cryptoInfluxService;
         this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
         this.subscribeRepository = subscribeRepository;
@@ -169,8 +169,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     logger.debug("轉換的kline: " + kline);
                     if (kline != null) {
                         logger.debug("開始寫入InfluxDB");
-                        if (cryptoInfluxDBService != null) {
-                            cryptoInfluxDBService.writeToInflux(kline);
+                        if (cryptoInfluxService != null) {
+                            cryptoInfluxService.writeToInflux(kline);
                             logger.debug("寫入InfluxDB成功");
                         } else {
                             logger.debug("InfluxDB服務未初始化");

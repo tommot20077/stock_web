@@ -8,28 +8,42 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import xyz.dowob.stockweb.Dto.Common.Progress;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionCryptoDto;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.DynamicThreadPoolManager;
+import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Controller
 @RequestMapping("/api/user/crypto")
 public class ApiCryptoController {
 
     private final CryptoService cryptoService;
+    private final ProgressTracker progressTracker;
+    private final DynamicThreadPoolManager dynamicThreadPoolManager;
     private final UserService userService;
     Logger logger = LoggerFactory.getLogger(ApiCryptoController.class);
     @Autowired
-    public ApiCryptoController(CryptoService cryptoService, UserService userService) {
+    public ApiCryptoController(CryptoService cryptoService, ProgressTracker progressTracker, DynamicThreadPoolManager dynamicThreadPoolManager, UserService userService) {
         this.cryptoService = cryptoService;
+        this.progressTracker = progressTracker;
+        this.dynamicThreadPoolManager = dynamicThreadPoolManager;
         this.userService = userService;
     }
+
+
+
 
     @PostMapping("/subscribe")
     public ResponseEntity<?> subscribeSymbol(@RequestBody SubscriptionCryptoDto request, HttpSession session) {
@@ -192,10 +206,25 @@ public class ApiCryptoController {
     }
 
     @GetMapping("/test")
-    public ResponseEntity<?> test(@RequestParam String tradingPair) {
+    public CompletableFuture<?> test(@RequestParam String tradingPair) {
         CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
-        cryptoService.trackCryptoHistoryPrices(tradingPairs);
-        return ResponseEntity.ok().body("測試成功");
+        return cryptoService.trackCryptoHistoryPrices(tradingPairs)
+                            .thenApplyAsync(taskId -> ResponseEntity.ok().body("任務id: " + taskId));
+    }
+    @GetMapping("/getAllTaskProgress")
+    @ResponseBody
+    public List<Progress.ProgressDto> getAllTaskProgress() {
+        List<Progress.ProgressDto> progressList = new ArrayList<>();
+        for (Progress progress : progressTracker.getAllProgressInfo()) {
+            Progress.ProgressDto dto = new Progress.ProgressDto(
+                    progress.getTaskName(),
+                    progress.getProgressCount(),
+                    progress.getTotalTask(),
+                    progress.getProgressPercentage() * 100
+            );
+            progressList.add(dto);
+        }
+        return progressList;
     }
 
 }

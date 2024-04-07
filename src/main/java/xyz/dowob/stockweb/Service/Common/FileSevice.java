@@ -23,7 +23,7 @@ import java.util.zip.ZipInputStream;
 
 @Service
 public class FileSevice {
-    @Value("${download.path:./}")
+    @Value("${common.download.path:./}")
     private String downloadPath;
     Logger logger = LoggerFactory.getLogger(FileSevice.class);
 

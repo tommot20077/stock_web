@@ -45,7 +45,7 @@ public class InfluxConfig {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
     }
 
-    @Bean(name = "CryptoHistoryInfluxDBClient")
+    @Bean(name = "CryptoHistoryInfluxClient")
     public InfluxDBClient cryptoHistoryBucket() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoHistoryBucket);
     }
