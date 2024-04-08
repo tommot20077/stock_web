@@ -30,13 +30,13 @@ public class CryptoTradingPair extends Asset {
     @Column(name = "user_id")
     private Set<Long> subscribers = new HashSet<>();
 
+    @Column(name = "has_any_subscribed", nullable = false)
+    private boolean hasAnySubscribed = false;
+
     public boolean checkUserIsSubscriber(User user) {
         return subscribers.contains(user.getId());
     }
-/*
-    @Column(name = "subscribe_number", nullable = false)
-    private int subscribeNumber = 0;
- */
+
 
 
 

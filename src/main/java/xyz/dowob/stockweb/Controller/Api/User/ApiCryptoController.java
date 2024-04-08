@@ -31,14 +31,12 @@ public class ApiCryptoController {
 
     private final CryptoService cryptoService;
     private final ProgressTracker progressTracker;
-    private final DynamicThreadPoolManager dynamicThreadPoolManager;
     private final UserService userService;
     Logger logger = LoggerFactory.getLogger(ApiCryptoController.class);
     @Autowired
-    public ApiCryptoController(CryptoService cryptoService, ProgressTracker progressTracker, DynamicThreadPoolManager dynamicThreadPoolManager, UserService userService) {
+    public ApiCryptoController(CryptoService cryptoService, ProgressTracker progressTracker, UserService userService) {
         this.cryptoService = cryptoService;
         this.progressTracker = progressTracker;
-        this.dynamicThreadPoolManager = dynamicThreadPoolManager;
         this.userService = userService;
     }
 

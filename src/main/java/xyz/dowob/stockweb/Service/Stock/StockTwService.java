@@ -15,9 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Enum.AssetType;
+import xyz.dowob.stockweb.Enum.TaskStatusType;
+import xyz.dowob.stockweb.Model.Common.Task;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.Common.TaskRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
@@ -33,6 +36,7 @@ public class StockTwService {
     private final StockTwRepository stockTwRepository;
     private final SubscribeRepository subscribeRepository;
     private final StockTwInfluxDBService stockTwInfluxDBService;
+    private final TaskRepository taskRepository;
     private final ObjectMapper objectMapper;
     private final String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
     private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
@@ -43,10 +47,11 @@ public class StockTwService {
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxDBService, ObjectMapper objectMapper) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxDBService, TaskRepository taskRepository, ObjectMapper objectMapper) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
         this.stockTwInfluxDBService = stockTwInfluxDBService;
+        this.taskRepository = taskRepository;
         this.objectMapper = objectMapper;
     }
     @Transactional(rollbackFor = Exception.class)
@@ -124,7 +129,6 @@ public class StockTwService {
     }
 
     public Map<String, List<String>> checkSubscriptionValidity() {
-        //TODO: 收盤數處處理
         Set<Object[]> subscribeList = stockTwRepository.findAllStockCodeAndTypeBySubscribers();
         List<String> checkSuccessList = new ArrayList<>();
         List<String> checkFailList = new ArrayList<>();
@@ -189,27 +193,42 @@ public class StockTwService {
         boolean hasData = true;
         LocalDate endDate = LocalDate.parse("20110101", DateTimeFormatter.BASIC_ISO_DATE);
         LocalDate date = LocalDate.now(ZoneId.of("Asia/Taipei"));
+        Task task = new Task(UUID.randomUUID().toString(), "獲取" + stockTw.getStockCode() + "歷史資料", 1);
+        taskRepository.save(task);
+        try {
+            while (hasData && (date.isAfter(endDate) || date.isEqual(endDate))) {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMM01");
+                String formattedDate = date.format(formatter);
+                String url = String.format("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=%s&stockNo=%s",
+                                           formattedDate, stockTw.getStockCode());
+                logger.debug("要追蹤價格的股票: " + stockTw.getStockCode());
+                logger.debug("查詢網址: " + url);
 
-        while (hasData && (date.isAfter(endDate) || date.isEqual(endDate))) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMM01");
-            String formattedDate = date.format(formatter);
-            String url = String.format("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=%s&stockNo=%s", formattedDate, stockTw.getStockCode());
-            logger.debug("要追蹤價格的股票: " + stockTw.getStockCode());
-            logger.debug("查詢網址: " + url);
-
-            rateLimiter.acquire();
-            JsonNode rootNode = getJsonNodeByUrl(url);
-            int total = rootNode.path("total").asInt();
-            if (total > 0) {
-                logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") +  " 有資料，開始處理資料");
-                ArrayNode dataArray = (ArrayNode) rootNode.path("data");
-                stockTwInfluxDBService.writeStockTwHistoryToInflux(dataArray, stockTw.getStockCode());
-                date = date.minusMonths(1);
-            } else {
-                logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") +  " 沒有資料");
-                hasData = false;
+                rateLimiter.acquire();
+                JsonNode rootNode = getJsonNodeByUrl(url);
+                int total = rootNode.path("total").asInt();
+                if (total > 0) {
+                    logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path(
+                            "date") + " 有資料，開始處理資料");
+                    ArrayNode dataArray = (ArrayNode) rootNode.path("data");
+                    stockTwInfluxDBService.writeStockTwHistoryToInflux(dataArray, stockTw.getStockCode());
+                    date = date.minusMonths(1);
+                } else {
+                    logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") + " 沒有資料");
+                    hasData = false;
+                }
             }
+            logger.debug("完成獲取歷史股價: " + stockTw.getStockCode());
+            task.completeTask(TaskStatusType.SUCCESS, "完成獲取歷史股價: " + stockTw.getStockCode());
+            stockTw.setHasAnySubscribed(true);
+            stockTwRepository.save(stockTw);
+            logger.debug("任務用時: " + task.getTaskUsageTime());
+        } catch (Exception e) {
+            logger.error("獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
+            task.completeTask(TaskStatusType.FAILED, "獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
         }
+        taskRepository.save(task);
+
     }
     @Async
     public void trackStockHistoryPricesWithUpdateDaily() {
@@ -219,31 +238,45 @@ public class StockTwService {
             logger.debug("沒有要更新的股票");
             return;
         }
-
+        Task task = new Task(UUID.randomUUID().toString(), "更新每日最新價格", 1);
+        taskRepository.save(task);
         LocalDateTime dateTime = LocalDate.now(ZoneId.of("Asia/Taipei")).atTime(16, 30);
         Instant instant = dateTime.atZone(ZoneId.of("Asia/Taipei")).toInstant();
         long tLongForToday = instant.toEpochMilli();
         logger.debug("更新時間設定為每日16:30，本次設定時間: " + dateTime);
 
-        String url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
-        JsonNode rootNode = getJsonNodeByUrl(url);
-        if (rootNode.isArray()) {
-            for (JsonNode node : rootNode) {
-                String stockCode = node.path("Code").asText();
-                if (!needToUpdateStockCodes.contains(stockCode)) {
-                    logger.debug("沒有要更新的股票: " + stockCode + " , 跳過");
-                    continue;
+        try {
+            String url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
+            JsonNode rootNode = getJsonNodeByUrl(url);
+            if (rootNode.isArray()) {
+                for (JsonNode node : rootNode) {
+                    String stockCode = node.path("Code").asText();
+                    if (!needToUpdateStockCodes.contains(stockCode)) {
+                        logger.debug("沒有要更新的股票: " + stockCode + " , 跳過");
+                        continue;
+                    }
+                    logger.debug("查詢到需要更新的股票代號: " + stockCode);
+                    stockTwInfluxDBService.writeUpdateDailyStockTwHistoryToInflux(node, tLongForToday);
                 }
-                logger.debug("查詢到需要更新的股票代號: " + stockCode);
-                stockTwInfluxDBService.writeUpdateDailyStockTwHistoryToInflux(node, tLongForToday);
+                logger.debug("更新每日最新價格的股票完成");
+                task.completeTask(TaskStatusType.SUCCESS, "更新每日最新價格的股票完成");
             }
-            logger.debug("更新每日最新價格的股票完成");
+        } catch (Exception e) {
+            logger.error("更新每日最新價格時發生錯誤", e);
+            task.completeTask(TaskStatusType.FAILED, "更新每日最新價格時發生錯誤");
         }
+        taskRepository.save(task);
     }
 
-
-
-
+    public void removeStockTwPricesDataByStockCode(String stockCode) {
+        try {
+            logger.debug("要刪除的股票資料代號: " + stockCode);
+            stockTwInfluxDBService.deleteDataByStockCode(stockCode);
+            logger.debug("刪除股票資料完成");
+        } catch (Exception e) {
+            logger.error("刪除股票資料時發生錯誤", e);
+        }
+    }
 
     public List<Object[]> getAllStockData() {
         return stockTwRepository.findDistinctStockCodeAndName();

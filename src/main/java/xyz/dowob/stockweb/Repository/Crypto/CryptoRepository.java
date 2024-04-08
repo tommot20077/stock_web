@@ -5,15 +5,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import xyz.dowob.stockweb.Component.Event.Crypto.CryptoChangeEvent;
-import xyz.dowob.stockweb.Component.Event.StockTw.StockTwChangeEvent;
+import xyz.dowob.stockweb.Component.Event.Crypto.CryptoHistoryDataChangeEvent;
+import xyz.dowob.stockweb.Component.Event.Crypto.CryptoSubscriberChangeEvent;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
-import xyz.dowob.stockweb.Model.Stock.StockTw;
-import xyz.dowob.stockweb.Model.User.Transaction;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,8 +30,8 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
     List<String> findAllBaseAssetByOrderByBaseAssetAsc();
 
 
-    @Query("SELECT COUNT(c.subscribers) FROM CryptoTradingPair c WHERE c = :cryptoTradingPair")
-    int countCryptoSubscribersNumber(CryptoTradingPair cryptoTradingPair);
+    @Query("SELECT COUNT(sub) FROM CryptoTradingPair c join c.subscribers sub WHERE c = :cryptoTradingPair")
+    int countCryptoSubscribersNumber(@Param("cryptoTradingPair") CryptoTradingPair cryptoTradingPair);
 
     @Query("SELECT DISTINCT c.tradingPair FROM CryptoTradingPair c JOIN c.subscribers subscriber")
     Set<String> findAllTradingPairBySubscribers();
@@ -45,26 +43,42 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
 
     Logger logger = LoggerFactory.getLogger(CryptoRepository.class);
     @Transactional
-    default void addSubscriber(CryptoTradingPair cryptoTradingPair, Long userId, ApplicationEventPublisher eventPublisher) {
+    default void addAndCheckSubscriber(CryptoTradingPair cryptoTradingPair, Long userId, ApplicationEventPublisher eventPublisher) {
+        boolean trackHistoryData = false;
+        if (countCryptoSubscribersNumber(cryptoTradingPair) > 0) {
+            logger.debug("已經有用戶訂閱過此資產，不須獲取此資產歷史資料");
+        } else {
+            logger.debug("沒有用戶訂閱過此資產，獲取此資產歷史資料");
+            cryptoTradingPair.setHasAnySubscribed(true);
+            trackHistoryData = true;
+        }
+
         Set<Long> subscribers = cryptoTradingPair.getSubscribers();
         boolean successAdd = subscribers.add(userId);
         if (successAdd) {
             logger.debug("成功加入訂閱");
             save(cryptoTradingPair);
+            boolean finalTrackHistoryData = trackHistoryData;
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     logger.debug("發布更新追蹤虛擬貨幣事件");
-                    eventPublisher.publishEvent(new CryptoChangeEvent(this, cryptoTradingPair));
+                    eventPublisher.publishEvent(new CryptoSubscriberChangeEvent(this, cryptoTradingPair));
+                    if (finalTrackHistoryData) {
+                        logger.debug("發布新增歷史資料事件");
+                        eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair, "add"));
+                    }
                 }
             });
-        } else {
-            logger.debug("已經加入訂閱");
         }
     }
 
     @Transactional
-    default void removeSubscriber(CryptoTradingPair cryptoTradingPair, Long userId, ApplicationEventPublisher eventPublisher) {
+    default void removeAndCheckSubscriber(CryptoTradingPair cryptoTradingPair, Long userId, ApplicationEventPublisher eventPublisher) {
+        if (countCryptoSubscribersNumber(cryptoTradingPair) <= 1 ) {
+            cryptoTradingPair.setHasAnySubscribed(false);
+        }
+
         Set<Long> subscribers = cryptoTradingPair.getSubscribers();
         boolean successRemove = subscribers.remove(userId);
         if (successRemove) {
@@ -74,13 +88,13 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
                 @Override
                 public void afterCommit() {
                     logger.debug("發布更新追蹤虛擬貨幣事件");
-                    eventPublisher.publishEvent(new CryptoChangeEvent(this, cryptoTradingPair));
+                    eventPublisher.publishEvent(new CryptoSubscriberChangeEvent(this, cryptoTradingPair));
+                    if (!cryptoTradingPair.isHasAnySubscribed()) {
+                        logger.debug("已經刪除所有訂閱，刪除歷史資料");
+                        eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair, "remove"));
+                    }
                 }
             });
-        } else {
-            logger.debug("已經刪除訂閱");
         }
     }
-
-
 }

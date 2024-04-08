@@ -8,21 +8,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Crontab;
-import xyz.dowob.stockweb.Component.Event.StockTw.StockTwChangeEvent;
-import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
+import xyz.dowob.stockweb.Component.Event.StockTw.StockTwSubscriberChangeEvent;
 
 
 @Component
-public class StockTwChangeListener implements ApplicationListener<StockTwChangeEvent> {
-    private final Logger logger = LoggerFactory.getLogger(StockTwChangeListener.class);
+public class StockTwSubscriberChangeListener
+        implements ApplicationListener<StockTwSubscriberChangeEvent> {
+    Logger logger = LoggerFactory.getLogger(StockTwSubscriberChangeListener.class);
     private final Crontab crontab;
     @Autowired
-    public StockTwChangeListener(Crontab crontab) {
+    public StockTwSubscriberChangeListener(Crontab crontab) {
         this.crontab = crontab;
     }
 
     @Override
-    public void onApplicationEvent(@NotNull StockTwChangeEvent event) {
+    public void onApplicationEvent(@NotNull StockTwSubscriberChangeEvent event) {
         logger.debug("收到股票訂閱變更");
         try {
             crontab.checkSubscriptions();

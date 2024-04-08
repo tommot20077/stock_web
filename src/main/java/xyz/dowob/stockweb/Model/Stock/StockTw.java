@@ -28,14 +28,14 @@ public class StockTw extends Asset {
 
     @Column(name = "industry_category")
     private String industryCategory;
-/*
-    @Column(name = "subscribe_number", nullable = false)
-    private int subscribeNumber = 0;
-*/
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "stock_subscribers", joinColumns = @JoinColumn(name = "asset_id"))
     @Column(name = "user_id")
     private Set<Long> subscribers = new HashSet<>();
+
+    @Column(name = "has_any_subscribed", nullable = false)
+    private boolean hasAnySubscribed = false;
 
     @Column(name = "update_time")
     private LocalDate updateTime;

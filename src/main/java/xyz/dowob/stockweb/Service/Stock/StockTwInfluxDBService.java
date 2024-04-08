@@ -10,11 +10,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
@@ -23,12 +22,23 @@ public class StockTwInfluxDBService {
     private final InfluxDBClient StockTwInfluxDBClient;
     private final InfluxDBClient StockTwHistoryInfluxDBClient;
     Logger logger = LoggerFactory.getLogger(StockTwInfluxDBService.class);
+    private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
+    private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
     public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxDBClient, @Qualifier("StockTwHistoryInfluxDBClient")InfluxDBClient stockTwHistoryInfluxDBClient) {
         StockTwInfluxDBClient = stockTwInfluxDBClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxDBClient;
     }
+
+    @Value("${db.influxdb.org}")
+    private String org;
+
+    @Value("${db.influxdb.bucket.stock}")
+    private String stockBucket;
+
+    @Value("${db.influxdb.bucket.stock_history}")
+    private String stockHistoryBucket;
 
     public void writeStockTwToInflux(JsonNode msgArray) {
         logger.debug("讀取即時股價數據");
@@ -157,4 +167,25 @@ public class StockTwInfluxDBService {
         Instant instant = localDate.atStartOfDay(ZoneId.of("Asia/Taipei")).toInstant();
         return instant.toEpochMilli();
     }
+
+
+
+    public void deleteDataByStockCode(String stockCode) {
+        String predicate = String.format("_measurement=\"kline_data\" AND stock_tw=\"%s\"", stockCode);
+        logger.debug("刪除" + stockCode + "的歷史資料");
+        try {
+            logger.debug("連接InfluxDB成功");
+            StockTwInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockBucket, org);
+            StockTwHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockHistoryBucket, org);
+            logger.debug("刪除資料成功");
+        } catch (Exception e) {
+            logger.error("刪除資料時發生錯誤", e);
+        }
+    }
+
+
+
+
+
+
 }

@@ -14,7 +14,6 @@ import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
-import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
 @Component
@@ -106,20 +105,20 @@ public class SubscribeMethod {
 
 
 
-    private void addSubscriberToStockTw(StockTw stockTw, Long userId) {
-        stockTwRepository.addSubscriber(stockTw, userId, eventPublisher);
+    private void addSubscriberToStockTw(StockTw stockTw, Long userId) {;
+        stockTwRepository.addAndCheckSubscriber(stockTw, userId, eventPublisher);
     }
 
     private void removeSubscriberFromStockTw(StockTw stockTw, Long userId) {
-        stockTwRepository.removeSubscriber(stockTw, userId, eventPublisher);
+        stockTwRepository.removeAndCheckSubscriber(stockTw, userId, eventPublisher);
     }
 
     private void addSubscriberToCryptoTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
-        cryptoRepository.addSubscriber(cryptoTradingPair, userId, eventPublisher);
+        cryptoRepository.addAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
     }
 
     private void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
-        cryptoRepository.removeSubscriber(cryptoTradingPair, userId, eventPublisher);
+        cryptoRepository.removeAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
     }
 
 

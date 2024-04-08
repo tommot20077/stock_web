@@ -64,8 +64,8 @@ public class DynamicThreadPoolManager {
         try {
             if (!executorService.awaitTermination(timeout, unit)) {
                 List<Runnable> tasks = executorService.shutdownNow();
-                logger.warn("Executor did not terminate in the specified time.");
-                logger.info("Remaining tasks: " + tasks.size());
+                logger.warn("任務關閉超過預定時間，強制關閉");
+                logger.info("剩餘任務: " + tasks.size());
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

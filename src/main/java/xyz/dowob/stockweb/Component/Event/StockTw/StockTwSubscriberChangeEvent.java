@@ -6,10 +6,11 @@ import org.springframework.context.ApplicationEvent;
 
 
 @Getter
-public class StockTwChangeEvent extends ApplicationEvent {
+public class StockTwSubscriberChangeEvent
+        extends ApplicationEvent {
 
     private final StockTw stockTw;
-    public StockTwChangeEvent(Object source, StockTw stockTw) {
+    public StockTwSubscriberChangeEvent(Object source, StockTw stockTw) {
         super(source);
         this.stockTw = stockTw;
     }

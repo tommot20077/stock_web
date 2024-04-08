@@ -268,7 +268,7 @@ public class TransactionService {
 
 
 
-        logger.debug("設定交易日期 {}",transaction.formatTransactionDate());
+        logger.debug("設定交易日期 {}", transaction.formatTransactionDate());
         recordTransaction.setTransactionDate(transaction.formatTransactionDate());
 
         if (transaction.getDescription() == null) {

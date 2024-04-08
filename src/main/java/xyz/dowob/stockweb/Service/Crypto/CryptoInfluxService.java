@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Service.Crypto;
 
+import com.influxdb.client.DeleteApi;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
@@ -8,8 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.text.Format;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -21,11 +27,28 @@ public class CryptoInfluxService {
     private final InfluxDBClient cryptoInfluxDBClient;
     private final InfluxDBClient cryptoHistoryInfluxDBClient;
     Logger logger = LoggerFactory.getLogger(CryptoInfluxService.class);
+
+    private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
+    private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
+
+
+
+
+
     @Autowired
     public CryptoInfluxService(@Qualifier("CryptoInfluxClient")InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient) {
         this.cryptoInfluxDBClient = cryptoInfluxClient;
         this.cryptoHistoryInfluxDBClient = cryptoHistoryInfluxClient;
     }
+
+    @Value("${db.influxdb.bucket.crypto}")
+    private String cryptoBucket;
+
+    @Value("${db.influxdb.bucket.crypto_history}")
+    private String cryptoHistoryBucket;
+
+    @Value("${db.influxdb.org}")
+    private String org;
 
     public void writeToInflux(Map<String, Object> kline) {
         logger.debug("讀取kline數據");
@@ -91,6 +114,20 @@ public class CryptoInfluxService {
             } catch (Exception e) {
                 logger.error("寫入InfluxDB時發生錯誤", e);
             }
+        }
+    }
+
+
+    public void deleteDataByTradingPair(String tradingPair) {
+        String predicate = String.format("_measurement=\"kline_data\" AND tradingPair=\"%s\"", tradingPair);
+        logger.debug("刪除" + tradingPair + "的歷史資料");
+        try {
+            logger.debug("連接InfluxDB成功");
+            cryptoInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoBucket, org);
+            cryptoHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoHistoryBucket, org);
+            logger.debug("刪除資料成功");
+        } catch (Exception e) {
+            logger.error("刪除資料時發生錯誤", e);
         }
     }
 }

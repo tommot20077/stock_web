@@ -47,7 +47,7 @@ public class TransactionListDto {
         }
 
         public LocalDateTime formatTransactionDate() {
-            return LocalDateTime.parse(date.replace("T", " "), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+            return LocalDateTime.parse(date.replace("T", " "), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         }
     }
 }

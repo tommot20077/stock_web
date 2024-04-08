@@ -18,9 +18,6 @@ public class ProgressTracker implements DisposableBean {
     private final TaskRepository taskRepository;
     private final DynamicThreadPoolManager dynamicThreadPoolManager;
 
-
-    //todo 方法來刪除已完成任務的進度數據或確定任務數據何時刪除可能也是必要的
-    //todo 獲得所有任務id
     private final ConcurrentHashMap<String, Progress> progressMap = new ConcurrentHashMap<>();
 
     public ProgressTracker(TaskRepository taskRepository, DynamicThreadPoolManager dynamicThreadPoolManager) {this.taskRepository = taskRepository;
