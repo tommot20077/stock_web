@@ -40,7 +40,7 @@ public class StockTwService {
     private final ObjectMapper objectMapper;
     private final String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
     private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
-    RateLimiter rateLimiter = RateLimiter.create(1.0);
+    RateLimiter rateLimiter = RateLimiter.create(0.5);
 
     @Value(value = "${stock.tw.finmind.token}")
     private  String finMindToken;

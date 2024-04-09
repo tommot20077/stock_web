@@ -77,18 +77,7 @@ public class UserController {
     }
 
 
-
-
-    @GetMapping("/")
-    public String index (HttpSession session, Model model) {
-        if (session.getAttribute("currentUserId") != null) {
-            User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
-            model.addAttribute(user);
-        }
-        return "index";
-    }
-
-    @GetMapping("/index")
+    @GetMapping({"/index", "/"})
     public String index2 (HttpSession session, Model model) {
         if (session.getAttribute("currentUserId") != null) {
             User user = userService.getUserById((Long) session.getAttribute("currentUserId"));

@@ -290,13 +290,19 @@ public class TransactionService {
         Asset asset;
 
         asset = cryptoRepository.findByTradingPair(keyCrypto).orElse(null);
-        if (asset != null) return asset;
+        if (asset != null) {
+            return asset;
+        }
 
         asset = currencyRepository.findByCurrency(key).orElse(null);
-        if (asset != null) return asset;
+        if (asset != null) {
+            return asset;
+        }
 
         asset = stockTwRepository.findByStockCode(key).orElse(null);
-        if (asset != null) return asset;
+        if (asset != null) {
+            return asset;
+        }
 
         throw new IllegalArgumentException("找不到可以轉換的資產: " + symbol);
     }

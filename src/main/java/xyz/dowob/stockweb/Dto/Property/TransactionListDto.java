@@ -47,7 +47,16 @@ public class TransactionListDto {
         }
 
         public LocalDateTime formatTransactionDate() {
-            return LocalDateTime.parse(date.replace("T", " "), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String dateTimeFormat;
+            if (date.length() == "yyyy-MM-dd HH:mm:ss".length()) {
+                dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+            } else if (date.length() == "yyyy-MM-dd HH:mm".length()) {
+                dateTimeFormat = "yyyy-MM-dd HH:mm";
+            } else {
+                throw new IllegalArgumentException("不支援的格式: " + date);
+            }
+            LocalDateTime ldt = LocalDateTime.parse(date.replace("T", " "), DateTimeFormatter.ofPattern(dateTimeFormat));
+            return ldt.withSecond(0);
         }
     }
 }

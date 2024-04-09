@@ -38,3 +38,4 @@ build/
 /.mvn/wrapper/maven-wrapper.properties
 /.mvn/wrapper/maven-wrapper.jar
 /src/main/resources/rebel.xml
+/src/main/resources/application-prod.properties

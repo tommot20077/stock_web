@@ -20,12 +20,12 @@ import xyz.dowob.stockweb.Service.User.UserService;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    private final UserService userService;
+
     private final TokenService tokenService;
 
     @Autowired
-    public SecurityConfig(UserService userService, TokenService tokenService) {
-        this.userService = userService;
+    public SecurityConfig(TokenService tokenService) {
+
 
         this.tokenService = tokenService;
     }
@@ -60,7 +60,7 @@ public class SecurityConfig {
                         .accessDeniedPage("/login")
                 ).authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers ("/api/user/common/login","/api/user/common/register","/api/user/common/verifyEmail","/login","/login_p", "/register","/error").permitAll()
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "favicon", "/assets/**").permitAll()
+                        .requestMatchers("/static/**").permitAll()
                         .requestMatchers("/api/admin/updateCurrencyData").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 ).logout((logout) -> logout
