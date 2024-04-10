@@ -2,9 +2,12 @@ package xyz.dowob.stockweb.Dto.Property;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Model.User.Property;
+import xyz.dowob.stockweb.Service.User.PropertyService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -13,6 +16,7 @@ import java.util.List;
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PropertyListDto {
+
     private List<PropertyDto> propertyList;
 
     @Data
@@ -60,9 +64,10 @@ public class PropertyListDto {
         private AssetType assetType;
         private String assetName;
         private BigDecimal quantity;
+        private String currentPrice;
+        private String currentTotalPrice;
         private String description;
-
-        public getAllPropertiesDto(Property property) {
+        public getAllPropertiesDto(Property property, String currentPrice, String currentTotalPrice) {
             this.preferredCurrency = property.getUser().getPreferredCurrency().getCurrency();
             this.preferredCurrencyRate = property.getUser().getPreferredCurrency().getExchangeRate();
             this.propertyId = property.getId();
@@ -71,10 +76,12 @@ public class PropertyListDto {
             this.assetName = property.getAssetName();
             this.quantity = property.getQuantity();
             this.description = property.getDescription();
+            this.currentPrice = currentPrice;
+            this.currentTotalPrice = currentTotalPrice;
         }
 
 
 
-    }
 
+    }
 }

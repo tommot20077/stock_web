@@ -79,24 +79,31 @@ public class SubscribeMethod {
             subscribe.setUserSubscribed(true);
             logger.debug("用戶訂閱數量加 1");
             logger.debug("訂閱資產類型: " + property.getAsset().getAssetType());
-            if (property.getAsset() instanceof StockTw stockTw) {
-                logger.debug("訂閱股票: " + stockTw.getStockCode());
-                if (!stockTw.checkUserIsSubscriber(user)) {
-                    addSubscriberToStockTw(stockTw, user.getId());
-                    logger.debug("用戶訂閱此股票數不為 0，股票訂閱數加 1");
+            switch (property.getAsset()) {
+                case StockTw stockTw -> {
+                    logger.debug("訂閱股票: " + stockTw.getStockCode());
+                    if (!stockTw.checkUserIsSubscriber(user)) {
+                        addSubscriberToStockTw(stockTw, user.getId());
+                        logger.debug("用戶訂閱此股票數不為 0，股票訂閱數加 1");
+                    }
                 }
-            } else if (property.getAsset() instanceof CryptoTradingPair crypto) {
-                logger.debug("訂閱加密貨幣: " + crypto.getBaseAsset());
-                subscribe.setChannel("@kline_1m");
-                if (!crypto.checkUserIsSubscriber(user)) {
-                    addSubscriberToCryptoTradingPair(crypto, user.getId());
-                    logger.debug("用戶訂閱此加密貨幣數不為 0，加密貨幣訂閱數加 1");
+                case CryptoTradingPair crypto -> {
+                    logger.debug("訂閱加密貨幣: " + crypto.getBaseAsset());
+                    subscribe.setChannel("@kline_1m");
+                    if (!crypto.checkUserIsSubscriber(user)) {
+                        addSubscriberToCryptoTradingPair(crypto, user.getId());
+                        logger.debug("用戶訂閱此加密貨幣數不為 0，加密貨幣訂閱數加 1");
+                    }
                 }
-            } else if (property.getAsset() instanceof Currency currency) {
-                logger.debug("訂閱匯率: " + currency.getCurrency() + "-" + user.getPreferredCurrency());
-                subscribe.setChannel(user.getPreferredCurrency().getCurrency());
-            } else {
-                logger.debug("錯誤的資產類型");
+                case Currency currency -> {
+                    if (currency == user.getPreferredCurrency()) {
+                        logger.debug("此資產為預設幣別，不須訂閱");
+                        return;
+                    }
+                    logger.debug("訂閱匯率: " + currency.getCurrency() + "-" + user.getPreferredCurrency());
+                    subscribe.setChannel(user.getPreferredCurrency().getCurrency());
+                }
+                case null, default -> logger.debug("錯誤的資產類型");
             }
             subscribeRepository.save(subscribe);
         }

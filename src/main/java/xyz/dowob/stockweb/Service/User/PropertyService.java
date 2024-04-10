@@ -10,10 +10,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.AssetInfluxMethod;
+import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
@@ -27,6 +31,7 @@ import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.TransactionRepository;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,16 +44,20 @@ public class PropertyService {
     private final CryptoRepository cryptoRepository;
     private final TransactionRepository transactionRepository;
     private final SubscribeMethod subscribeMethod;
+    private final AssetInfluxMethod assetInfluxMethod;
+    private final AssetHandler assetHandler;
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod) {
+    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, AssetHandler assetHandler) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
         this.cryptoRepository = cryptoRepository;
         this.transactionRepository = transactionRepository;
         this.subscribeMethod = subscribeMethod;
+        this.assetInfluxMethod = assetInfluxMethod;
+        this.assetHandler = assetHandler;
     }
 
     @Transactional(rollbackOn = Exception.class)
@@ -92,7 +101,7 @@ public class PropertyService {
                     propertyToAdd.setAsset(stock);
                     propertyToAdd.setQuantity(quantity);
 
-                    if (!symbol.contains("-")) {
+                    if (!symbol.contains("-") && Objects.requireNonNull(stock).getStockName() != null) {
                         logger.debug("不包含 '-'，使用股票代碼 + 股票名稱作為名稱");
                         propertyToAdd.setAssetName(stock.getStockCode() + "-" + stock.getStockName());
                     } else {
@@ -204,7 +213,7 @@ public class PropertyService {
                     propertyToAdd = new Property();
                     propertyToAdd.setUser(user);
                     propertyToAdd.setAsset(currency);
-                    propertyToAdd.setAssetName(currency.getCurrency());
+                    propertyToAdd.setAssetName(Objects.requireNonNull(currency).getCurrency());
                     propertyToAdd.setQuantity(quantity);
                 } else {
                     logger.debug("已經有持有此貨幣");
@@ -447,10 +456,24 @@ public class PropertyService {
                             return existing;
                         })
                 );
-        List<Property> combinedProperties = new ArrayList<>(propertyMap.values());
-        List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto = combinedProperties.stream()
-                .map(PropertyListDto.getAllPropertiesDto::new)
-                .collect(Collectors.toList());
+        List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto = new ArrayList<>(propertyMap.values()).stream()
+                .map(property -> {
+                    BigDecimal currentPrice = getCurrentPrice(property.getAsset());
+                    BigDecimal exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user);
+
+                    String currentTotalPrice;
+                    String currentPropertyValue;
+                    if (exchangeRate.compareTo(BigDecimal.valueOf(-1)) == 0) {
+                        currentPropertyValue = "沒有當前價格資料";
+                        currentTotalPrice = "沒有當前價格資料";
+                    } else {
+                        BigDecimal quantity = property.getQuantity();
+                        currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(4, RoundingMode.HALF_UP).toPlainString();
+                        currentTotalPrice = exchangeRate.multiply(quantity).setScale(4, RoundingMode.HALF_UP).toString();
+                    }
+                    return new PropertyListDto.getAllPropertiesDto(property, currentPropertyValue, currentTotalPrice);
+                }).collect(Collectors.toList());
+
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
@@ -477,7 +500,7 @@ public class PropertyService {
                 for (Object[] stock : stocks) {
                     String stockCode = (String) stock[0];
                     String stockName = (String) stock[1];
-                    if (stockName != null && stockCode != null) {
+                    if (stockName != null && stockCode != null && stockCode.matches(".*\\d+.*")) {
                         map.put(stockCode, stockName);
                     }
                 }
@@ -506,5 +529,17 @@ public class PropertyService {
         }
         logger.debug("取得名稱: " + map);
         return map;
+    }
+
+
+
+    public BigDecimal getCurrentPrice(Asset asset) {
+        return switch (asset) {
+            case StockTw stockTw -> assetInfluxMethod.getLatestPrice(stockTw);
+            case CryptoTradingPair crypto -> assetInfluxMethod.getLatestPrice(crypto);
+            case Currency currency -> assetInfluxMethod.getLatestPrice(currency);
+            case null, default -> throw new IllegalArgumentException("不支援的資產類型");
+        };
+
     }
 }

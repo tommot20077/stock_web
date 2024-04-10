@@ -49,7 +49,6 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
             logger.debug("已經有用戶訂閱過此資產，不須獲取此資產歷史資料");
         } else {
             logger.debug("沒有用戶訂閱過此資產，獲取此資產歷史資料");
-            cryptoTradingPair.setHasAnySubscribed(true);
             trackHistoryData = true;
         }
 

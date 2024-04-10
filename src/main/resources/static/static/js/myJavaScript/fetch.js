@@ -20,6 +20,7 @@ function getUserDetails() {
             document.querySelector('.welcome-text > a').textContent = " (" + getRole(role) + ")";
         }
         if (document.getElementById("userProfileForm")) {
+            fetchPropertyName("preferred_currency", "CURRENCY")
             displayProfileForm();
         }
         if (document.getElementById("transaction_unit")) {
@@ -93,6 +94,7 @@ function updateUserProfile() {
             let email = document.getElementById('email').value;
             let gender = getGender(document.getElementById('gender').value);
             let timeZone = document.getElementById('timeZone').value;
+            let preferredCurrency = document.getElementById('preferred_currency').value;
 
 
             if (newPassword.trim().length > 0 && newPassword.trim() !== newRePassword.trim()) {
@@ -124,7 +126,8 @@ function updateUserProfile() {
                     lastName: lastName,
                     email: email,
                     gender: gender,
-                    timeZone: timeZone
+                    timeZone: timeZone,
+                    preferredCurrency: preferredCurrency
                 }
 
                 if (newPassword.trim().length > 0) {
@@ -205,7 +208,7 @@ function sendVerificationEmail() {
 async function getUserAllProperties() {
     const tableBody = document.getElementById('propertyTableBody');
     tableBody.innerHTML =
-        `<td colspan="7"">
+        `<td colspan="9">
             <div class="loadingio-spinner-dual-ball-l2u3038qtw8">
                 <div class="ldio-4pqo44ipw4">
                     <div></div><div></div><div></div>

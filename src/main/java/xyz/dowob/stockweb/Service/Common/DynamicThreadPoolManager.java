@@ -42,7 +42,8 @@ public class DynamicThreadPoolManager {
             this.executorService.setCorePoolSize(Math.max(corePoolSize - 1, 1));
             logger.debug("線程池減少一個線程");
         }
-        logger.debug("線程池現在有" + corePoolSize + "個線程");
+        logger.debug("線程池現在有" + activeTaskCount + "個線程");
+        //todo 檢查
     }
 
     public void onTaskStart() {
@@ -72,7 +73,4 @@ public class DynamicThreadPoolManager {
             executorService.shutdownNow();
         }
     }
-
-
-    //todo 可能需要管理線程池的其他方法
 }

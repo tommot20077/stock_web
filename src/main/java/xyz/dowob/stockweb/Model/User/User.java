@@ -121,10 +121,10 @@ public class User {
             @Override
             protected boolean accept(Field f) {
                 return super.accept(f)
-                        && !f.getName().equals("token")
-                        && !f.getName().equals("subscriptions")
-                        && !f.getName().equals("property")
-                        && !f.getName().equals("propertySummary");
+                        && !"token".equals(f.getName())
+                        && !"subscriptions".equals(f.getName())
+                        && !"property".equals(f.getName())
+                        && !"propertySummary".equals(f.getName());
             }
         }).toString();
     }

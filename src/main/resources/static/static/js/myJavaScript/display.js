@@ -11,7 +11,8 @@ async function displayPropertyTable() {
                 <td>${getAssetType(item.assetType)}</td>
                 <td>${item.assetName}</td>
                 <td>${item.quantity}</td>
-                <td>$0</td>
+                <td style="text-align: right">${item.currentPrice}</td>
+                <td style="text-align: right">${item.currentTotalPrice}</td>
                 <td>${item.description}</td>
                 <td><a href="#" style="color: blue" onclick="displayEditProperty(this)">編輯</a>&nbsp&nbsp&nbsp<a id="deleteButton" data-property-type="${item.assetType}" data-property-id="${item.propertyId}" href="#" style="color: red" onclick="deleteProperty(this, this)">刪除</a></td>
             </tr>`;
@@ -70,6 +71,7 @@ async function displayTransactionTable() {
         let tableBody = document.getElementById("TransactionTableBody");
         tableBody.innerHTML = "";
         data.forEach(function (item) {
+            item.date = item.date.replace(" ", "\u00A0\u00A0\u00A0");
             let row = `
             <tr>
                 <td>${item.id}</td>

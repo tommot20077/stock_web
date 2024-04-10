@@ -2,6 +2,7 @@ package xyz.dowob.stockweb.Service.Currency;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,15 +34,16 @@ public class CurrencyService {
     private final CurrencyRepository currencyRepository;
 
     private final SubscribeRepository subscribeRepository;
-    private final CurrencyInfluxDBService currencyInfluxDBService;
+    private final CurrencyInfluxDBService currencyInfluxService;
     Logger logger = LoggerFactory.getLogger(CurrencyService.class);
 
     @Autowired
-    public CurrencyService(CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, CurrencyInfluxDBService currencyInfluxDBService) {
+    public CurrencyService(CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, CurrencyInfluxDBService currencyInfluxService) {
         this.currencyRepository = currencyRepository;
         this.subscribeRepository = subscribeRepository;
-        this.currencyInfluxDBService = currencyInfluxDBService;
+        this.currencyInfluxService = currencyInfluxService;
     }
+
 
 
 
@@ -82,7 +84,7 @@ public class CurrencyService {
                 ZonedDateTime zonedDateTime = updateTime.atZone(TimeZone.getTimeZone("UTC").toZoneId());
 
                 logger.debug("開始寫入InfluxDB");
-                currencyInfluxDBService.writeToInflux(currency, exRate, zonedDateTime);
+                currencyInfluxService.writeToInflux(currency, exRate, zonedDateTime);
 
                 Optional<Currency> existingData = currencyRepository.findByCurrency(currency);
                 if (existingData.isPresent()) {
