@@ -209,11 +209,13 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     logger.warn("已訂閱過" + tradingPair + channel + "交易對");
                     throw new Exception("已訂閱過" + tradingPair + channel + "交易對");
                 } else {
+                    logger.debug("用戶主動訂閱，此訂閱設定可刪除");
                     Subscribe subscribe = new Subscribe();
                     subscribe.setUser(user);
                     subscribe.setAsset(cryptoTradingPairSymbol);
                     subscribe.setChannel(channel);
                     subscribe.setUserSubscribed(true);
+                    subscribe.setRemoveAble(true);
                     subscribeRepository.save(subscribe);
                     logger.info("已訂閱" + tradingPair + channel + "交易對");
 
@@ -248,7 +250,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 if (subscribe == null) {
                     logger.warn("尚未訂閱過" + tradingPair + channel + "交易對");
                     throw new Exception("尚未訂閱過" + tradingPair + channel + "交易對");
-                } else {
+                } else if (subscribe.isRemoveAble()) {
                     subscribeRepository.delete(subscribe);
                     if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
                         cryptoTradingPairSymbol.getSubscribers().remove(user.getId());
@@ -279,6 +281,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                         logger.warn("CryptoRepository未初始化");
                         throw new Exception("CryptoRepository未初始化");
                     }
+                } else {
+                    logger.warn("此訂閱: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+                    throw new Exception("此資產: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
                 }
             }
         }

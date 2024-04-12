@@ -26,7 +26,7 @@ public class StockTwInfluxDBService {
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
-    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxDBClient, @Qualifier("StockTwHistoryInfluxDBClient")InfluxDBClient stockTwHistoryInfluxDBClient) {
+    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxDBClient, @Qualifier("StockTwHistoryInfluxClient")InfluxDBClient stockTwHistoryInfluxDBClient) {
         StockTwInfluxDBClient = stockTwInfluxDBClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxDBClient;
     }

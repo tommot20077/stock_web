@@ -11,6 +11,5 @@ public class SubscriptionCryptoDto {
     @Data
     public static class Subscription {
         private String tradingPair;
-        private String channel;
     }
 }

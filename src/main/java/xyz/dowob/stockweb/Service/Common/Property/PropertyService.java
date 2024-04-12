@@ -455,7 +455,8 @@ public class PropertyService {
 
     public List<PropertyListDto.getAllPropertiesDto> getUserAllProperties(User user, boolean isFormattedToPreferredCurrency) {
         List<Property> propertyList = propertyRepository.findAllByUser(user);
-        Currency Usd = currencyRepository.findByCurrency("USD").orElse(null);
+        logger.debug("格式資料: " + propertyList);
+        Currency Usd = currencyRepository.findByCurrency("USD").orElseThrow(() -> new RuntimeException("系統找不到 USD 貨幣兌，請聯繫管理員"));
         Map<String, Property> propertyMap = propertyList.stream()
                 .collect(Collectors.toMap(
                         property -> property.getAsset().getId().toString(),
@@ -468,13 +469,13 @@ public class PropertyService {
         return new ArrayList<>(propertyMap.values()).stream()
                 .map(property -> {
                     BigDecimal currentPrice = getCurrentPrice(property.getAsset());
+                    logger.debug("目前價格: " + currentPrice);
                     BigDecimal exchangeRate;
                     if (isFormattedToPreferredCurrency) {
                         exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user.getPreferredCurrency());
                     } else {
                         exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, Usd);
                     }
-
 
                     BigDecimal currentTotalPrice;
                     BigDecimal currentPropertyValue;

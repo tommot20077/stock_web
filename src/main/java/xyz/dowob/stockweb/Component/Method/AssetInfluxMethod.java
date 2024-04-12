@@ -3,14 +3,18 @@ package xyz.dowob.stockweb.Component.Method;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -20,6 +24,7 @@ public class AssetInfluxMethod {
     private final InfluxDBClient stockTwInfluxClient;
     private final InfluxDBClient cryptoInfluxClient;
     private final InfluxDBClient currencyInfluxClient;
+    private final CurrencyRepository currencyRepository;
 
     @Value("${db.influxdb.bucket.crypto}")
     private String cryptoBucket;
@@ -32,14 +37,16 @@ public class AssetInfluxMethod {
 
     @Value("${db.influxdb.org}")
     private String org;
+    Logger logger = LoggerFactory.getLogger(AssetInfluxMethod.class);
 
     @Autowired
     public AssetInfluxMethod(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
                              @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
-                             @Qualifier("CurrencyInfluxDBClient") InfluxDBClient currencyInfluxClient) {
+                             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, CurrencyRepository currencyRepository) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
+        this.currencyRepository = currencyRepository;
     }
 
 
@@ -82,8 +89,18 @@ public class AssetInfluxMethod {
     }
 
     public BigDecimal getLatestPrice(Asset asset) {
+        logger.debug("取得最新價格" + asset);
         List<FluxTable> tables = queryLatestPrice(asset);
+        logger.debug("取得最新價格結果: " + tables);
         if (tables.isEmpty() || tables.getFirst().getRecords().isEmpty()) {
+            if (asset.getAssetType() == AssetType.CURRENCY) {
+                logger.debug("可能貨幣資料對更新時間太久，改以從MySQL取得: " + asset);
+                Currency currency = (Currency) asset;
+                if (currency.getExchangeRate() != null) {
+                    return currency.getExchangeRate();
+                }
+            }
+            logger.debug("取得最新價格失敗 + " + asset);
             return BigDecimal.valueOf(-1);
         }
         FluxRecord record = tables.getFirst().getRecords().getFirst();
@@ -92,6 +109,7 @@ public class AssetInfluxMethod {
         if(value instanceof Number) {
             return BigDecimal.valueOf(((Number) value).doubleValue());
         } else {
+            logger.debug("取得最新價格失敗 + " + asset);
             return BigDecimal.valueOf(-1);
         }
     }

@@ -60,15 +60,14 @@ public class ApiCryptoController {
 
 
             if (subscriptions.isEmpty()) {
-                return ResponseEntity.badRequest().body("請選擇要訂閱的加密貨幣和通知通道");
+                return ResponseEntity.badRequest().body("請選擇要訂閱的加密貨幣");
             } else {
                 for (SubscriptionCryptoDto.Subscription subscription : subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
-                    String channel = subscription.getChannel().toLowerCase();
                     try {
                         cryptoService.subscribeTradingPair(tradingPair, "@kline_1m", user);
                     } catch (Exception e) {
-                        failedSubscribes.put(tradingPair + channel, e.getMessage());
+                        failedSubscribes.put(tradingPair + "@kline_1m", e.getMessage());
                     }
                 }
             }
@@ -102,11 +101,10 @@ public class ApiCryptoController {
             } else {
                 for (SubscriptionCryptoDto.Subscription subscription : subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
-                    String channel = subscription.getChannel().toLowerCase();
                     try {
                         cryptoService.unsubscribeTradingPair(tradingPair, "@kline_1m", user);
                     } catch (Exception e) {
-                        failedSubscribes.put(tradingPair + channel, e.getMessage());
+                        failedSubscribes.put(tradingPair + "@kline_1m", e.getMessage());
                     }
                 }
             }

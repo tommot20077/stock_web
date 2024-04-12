@@ -69,11 +69,12 @@ public class StockTwService {
         }
         stock.setAssetType(AssetType.STOCK_TW);
         stockTwRepository.save(stock);
-
+        logger.debug("用戶主動訂閱，此訂閱設定可刪除");
         Subscribe subscribe = new Subscribe();
         subscribe.setUser(user);
         subscribe.setAsset(stock);
         subscribe.setUserSubscribed(true);
+        subscribe.setRemoveAble(true);
         subscribeRepository.save(subscribe);
     }
 
@@ -83,9 +84,14 @@ public class StockTwService {
         Long assetId = stock.getId();
         Subscribe subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId).orElseThrow(() -> new RuntimeException("沒有找到指定的訂閱"));
         if (subscribe.isUserSubscribed()) {
-            if (stock.checkUserIsSubscriber(user)) {
-                stock.getSubscribers().remove(user.getId());
-                logger.debug("取消訂閱成功");
+            if (subscribe.isRemoveAble()) {
+                if (stock.checkUserIsSubscriber(user)) {
+                    stock.getSubscribers().remove(user.getId());
+                    logger.debug("取消訂閱成功");
+                }
+            } else {
+                logger.warn("此訂閱: " + stock.getStockCode() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+                throw new RuntimeException("此訂閱: " + stock.getStockCode() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
             }
             stockTwRepository.save(stock);
             subscribeRepository.delete(subscribe);
