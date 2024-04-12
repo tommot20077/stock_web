@@ -2,7 +2,6 @@ package xyz.dowob.stockweb.Service.Currency;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,9 +67,9 @@ public class CurrencyService {
             jsonNode.fields().forEachRemaining(entry -> {
                 String currency;
                 String key = entry.getKey();
-                if(entry.getKey().equals("USD")) {
+                if("USD".equals(entry.getKey())) {
                     currency = "USD";
-                }else if(entry.getKey().equals("USDUSD")) {
+                }else if("USDUSD".equals(entry.getKey())) {
                     return;
                 }
                 else if(key.startsWith("USD") && !Character.isDigit(key.charAt(3))) {
@@ -151,32 +150,45 @@ public class CurrencyService {
         Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
 
-        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).ifPresent(subscribe -> {
+        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency()).ifPresent(subscribe -> {
             throw new RuntimeException("已訂閱過此貨幣對" + from + " <-> " + to);
         });
+        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency()).ifPresent(subscribe -> {
+            throw new RuntimeException("已訂閱過此貨幣對" + from + " <-> " + to);
+        });
+
+
+        logger.debug("用戶主動訂閱，此訂閱設定可刪除");
         Subscribe subscribe = new Subscribe();
         subscribe.setUser(user);
         subscribe.setAsset(toCurrency);
-        subscribe.setChannel(fromCurrency.getId().toString());
+        subscribe.setChannel(fromCurrency.getCurrency());
         subscribe.setUserSubscribed(true);
+        subscribe.setRemoveAble(true);
         subscribeRepository.save(subscribe);
         logger.info(user.getUsername() + "訂閱" + from + " <-> " + to);
 
     }
 
-    public void unsubscribeCurrency(String from, String to, User user) {
+    public void unsubscribeCurrency(String from, String to, User user) throws Exception {
         if (from.equals(to)) {
             throw new RuntimeException("取消訂閱貨幣不可相同");
         }
         Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
-        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getId().toString()).orElse(null);
-        if (subscribe != null) {
+        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency()).orElse(null);
+        if (subscribe == null) {
+            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency())
+                    .orElseThrow(() -> new RuntimeException("未訂閱過此貨幣對" + from + " <-> " + to));
+        }
+        if (subscribe.isRemoveAble()) {
             subscribeRepository.delete(subscribe);
             logger.info(user.getUsername() + "取消訂閱" + from + " <-> " + to);
         } else {
-            throw new RuntimeException("未訂閱過此貨幣對" + from + " <-> " + to);
+            logger.warn("此訂閱: " + fromCurrency.getCurrency() + " <-> " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+            throw new Exception("此訂閱: " + fromCurrency.getCurrency() + " <-> " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
         }
+
     }
 
     public List<String> getCurrencyList() {

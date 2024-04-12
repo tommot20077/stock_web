@@ -8,13 +8,10 @@ import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Currency.Currency;
-import xyz.dowob.stockweb.Model.User.Property;
-import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Objects;
+
 
 @Component
 public class AssetHandler {
@@ -41,8 +38,8 @@ public class AssetHandler {
 
 
 
-    public BigDecimal exrateToPreferredCurrency(Asset asset, BigDecimal assetExrate, Currency PreferredCurrency) {
-        BigDecimal preferredCurrencyRate = PreferredCurrency.getExchangeRate();
+    public BigDecimal exrateToPreferredCurrency(Asset asset, BigDecimal assetExrate, Currency preferredCurrency) {
+        BigDecimal preferredCurrencyRate = preferredCurrency.getExchangeRate();
         if (asset.getAssetType() == AssetType.CURRENCY) {
             return preferredCurrencyRate.divide(assetExrate, 8, RoundingMode.HALF_UP);
         } else if (asset.getAssetType() == AssetType.CRYPTO) {

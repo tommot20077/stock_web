@@ -13,6 +13,7 @@ import java.util.Optional;
 
 public interface PropertyRepository extends JpaRepository<Property, Long> {
 
+    @Override
     @NotNull
     Optional<Property> findById(@NotNull Long id);
     List<Property> findByAssetAndUser(Asset asset, User user);

@@ -16,13 +16,11 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.Transaction;
 import xyz.dowob.stockweb.Model.User.User;
-import xyz.dowob.stockweb.Repository.Common.AssetRepository;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.TransactionRepository;
-
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +37,7 @@ public class TransactionService {
     private final CombineMethod combineMethod;
     Logger logger = LoggerFactory.getLogger(TransactionService.class);
     @Autowired
-    public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, AssetRepository assetRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod) {
+    public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod) {
         this.transactionRepository = transactionRepository;
         this.currencyRepository = currencyRepository;
         this.cryptoRepository = cryptoRepository;

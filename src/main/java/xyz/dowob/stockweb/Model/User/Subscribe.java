@@ -34,4 +34,7 @@ public class Subscribe {
     @Column(columnDefinition = "varchar(100)")
     private String channel;
 
+    @Column(columnDefinition = "boolean default false")
+    private boolean removeAble = false;
+
 }

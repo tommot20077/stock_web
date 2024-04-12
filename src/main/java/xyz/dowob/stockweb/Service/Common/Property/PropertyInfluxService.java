@@ -16,13 +16,9 @@ import xyz.dowob.stockweb.Model.User.User;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static xyz.dowob.stockweb.Enum.AssetType.*;
 
 /**
  * @author tommo
@@ -34,7 +30,7 @@ public class PropertyInfluxService {
     Logger logger = LoggerFactory.getLogger(PropertyInfluxService.class);
 
     @Autowired
-    public PropertyInfluxService(@Qualifier("propertySummaryInfluxDBClient")InfluxDBClient propertySummaryInfluxClient) {
+    public PropertyInfluxService(@Qualifier("propertySummaryInfluxClient")InfluxDBClient propertySummaryInfluxClient) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
     }
 

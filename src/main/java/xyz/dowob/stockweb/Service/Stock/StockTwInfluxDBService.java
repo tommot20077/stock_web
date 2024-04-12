@@ -26,9 +26,9 @@ public class StockTwInfluxDBService {
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
-    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxDBClient, @Qualifier("StockTwHistoryInfluxDBClient")InfluxDBClient stockTwHistoryInfluxDBClient) {
-        StockTwInfluxDBClient = stockTwInfluxDBClient;
-        StockTwHistoryInfluxDBClient = stockTwHistoryInfluxDBClient;
+    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient")InfluxDBClient stockTwHistoryInfluxClient) {
+        StockTwInfluxDBClient = stockTwInfluxClient;
+        StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
     }
 
     @Value("${db.influxdb.org}")
@@ -82,7 +82,7 @@ public class StockTwInfluxDBService {
         logger.debug("讀取歷史股價數據");
         for (JsonNode dataEntry : dataArray) {
             String dateStr = dataEntry.get(0).asText();
-            Long tLong = formattedROCData(dateStr);
+            Long tLong = formattedRocData(dateStr);
 
             String numberOfStocksVolume = dataEntry.get(1).asText().replace(",", "");
             String openingPrice = dataEntry.get(3).asText();
@@ -144,10 +144,10 @@ public class StockTwInfluxDBService {
 
 
 
-    private void writeToInflux(InfluxDBClient Client, Point point) {
+    private void writeToInflux(InfluxDBClient client, Point point) {
         try {
             logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = Client.makeWriteApi()) {
+            try (WriteApi writeApi = client.makeWriteApi()) {
                 writeApi.writePoint(point);
                 logger.debug("寫入InfluxDB成功");
             }
@@ -155,11 +155,11 @@ public class StockTwInfluxDBService {
             logger.error("寫入InfluxDB時發生錯誤", e);
         }
     }
-    private Long formattedROCData(String dateStr) {
+    private Long formattedRocData(String dateStr) {
         String[] dateParts = dateStr.split("/");
-        int yearROC = Integer.parseInt(dateParts[0]);
-        int yearAD = yearROC + 1911;
-        String formattedDate = yearAD + "/" + dateParts[1] + "/" + dateParts[2];
+        int yearRoc = Integer.parseInt(dateParts[0]);
+        int yearAd = yearRoc + 1911;
+        String formattedDate = yearAd + "/" + dateParts[1] + "/" + dateParts[2];
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
         LocalDate localDate = LocalDate.parse(formattedDate, formatter);

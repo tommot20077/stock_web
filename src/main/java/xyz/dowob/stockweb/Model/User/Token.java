@@ -74,14 +74,18 @@ public class Token {
         return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
             @Override
             protected boolean accept(java.lang.reflect.Field f) {
-                return super.accept(f) && !f.getName().equals("user");
+                return super.accept(f) && !"user".equals(f.getName());
             }
         }).toString();
     }
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         Token token = (Token) o;
         return Objects.equals(id, token.id);
     }

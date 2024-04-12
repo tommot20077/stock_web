@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Component.Event.Crypto;
 
 import lombok.Getter;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.context.ApplicationEvent;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 @Getter

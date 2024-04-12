@@ -65,8 +65,8 @@ public class UserService {
             throw new RuntimeException("此信箱已經被註冊");
         }
         user.setEmail(userDto.getEmail());
-        user.setFirstName(userDto.getFirst_name());
-        user.setLastName(userDto.getLast_name());
+        user.setFirstName(userDto.getFirstName());
+        user.setLastName(userDto.getLastName());
         user.setUsername(user.extractUsernameFromEmail(userDto.getEmail()));
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(()-> new RuntimeException("貨幣資料更新中，請稍後再嘗試一次，若是狀況持續發生，請聯繫管理員")));
@@ -95,7 +95,7 @@ public class UserService {
                 throw new RuntimeException("帳號或密碼錯誤");
             }
 
-            if (userDto.isRemember_me()) {
+            if (userDto.isRememberMe()) {
                 tokenService.generateRememberMeToken(re, user);
             }
             return user;

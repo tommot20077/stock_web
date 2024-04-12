@@ -39,7 +39,7 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(encodedSecret);
     }
 
-    public Claims getClaimsFromJWT(String token) {
+    public Claims getClaimsFromJwt(String token) {
 
         return Jwts.parser()
                 .verifyWith(key)
@@ -50,9 +50,9 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String authToken) {
         try {
-            Claims claims = getClaimsFromJWT(authToken);
-            Long UserId = Long.parseLong(claims.getSubject());
-            User user = userRepository.findById(UserId).orElseThrow(() -> new RuntimeException("找不到使用者"));
+            Claims claims = getClaimsFromJwt(authToken);
+            Long userId = Long.parseLong(claims.getSubject());
+            User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("找不到使用者"));
             Integer tokenVersionInDb = user.getToken().getJwtApiCount();
             Integer tokenVersionInToken = claims.get("token_version", Integer.class);
             return tokenVersionInDb.equals(tokenVersionInToken);

@@ -1,13 +1,9 @@
 package xyz.dowob.stockweb.Model.Common;
 
-import jakarta.annotation.PreDestroy;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
-import xyz.dowob.stockweb.Repository.Common.TaskRepository;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 

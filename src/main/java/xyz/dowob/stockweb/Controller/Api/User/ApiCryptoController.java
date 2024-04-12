@@ -12,18 +12,15 @@ import xyz.dowob.stockweb.Dto.Common.Progress;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionCryptoDto;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.User;
-import xyz.dowob.stockweb.Service.Common.DynamicThreadPoolManager;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.UserService;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+
 
 @Controller
 @RequestMapping("/api/user/crypto")
@@ -60,15 +57,14 @@ public class ApiCryptoController {
 
 
             if (subscriptions.isEmpty()) {
-                return ResponseEntity.badRequest().body("請選擇要訂閱的加密貨幣和通知通道");
+                return ResponseEntity.badRequest().body("請選擇要訂閱的加密貨幣");
             } else {
                 for (SubscriptionCryptoDto.Subscription subscription : subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
-                    String channel = subscription.getChannel().toLowerCase();
                     try {
                         cryptoService.subscribeTradingPair(tradingPair, "@kline_1m", user);
                     } catch (Exception e) {
-                        failedSubscribes.put(tradingPair + channel, e.getMessage());
+                        failedSubscribes.put(tradingPair + "@kline_1m", e.getMessage());
                     }
                 }
             }
@@ -102,11 +98,10 @@ public class ApiCryptoController {
             } else {
                 for (SubscriptionCryptoDto.Subscription subscription : subscriptions) {
                     String tradingPair = subscription.getTradingPair().toUpperCase();
-                    String channel = subscription.getChannel().toLowerCase();
                     try {
                         cryptoService.unsubscribeTradingPair(tradingPair, "@kline_1m", user);
                     } catch (Exception e) {
-                        failedSubscribes.put(tradingPair + channel, e.getMessage());
+                        failedSubscribes.put(tradingPair + "@kline_1m", e.getMessage());
                     }
                 }
             }

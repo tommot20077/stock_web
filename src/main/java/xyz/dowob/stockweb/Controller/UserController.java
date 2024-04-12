@@ -47,7 +47,7 @@ public class UserController {
         try {
             User user = userService.loginUser(loginUserDto, response);
             Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(auth);;
+            SecurityContextHolder.getContext().setAuthentication(auth);
             session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
             session.setAttribute("currentUserId", user.getId());
 

@@ -16,11 +16,10 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 @Configuration
 public class WebSocketConfig {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
-    private final ThreadPoolTaskScheduler taskScheduler;
 
     public WebSocketConfig() {
-        this.taskScheduler = new ThreadPoolTaskScheduler();
-        this.taskScheduler.initialize();
+        ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
+        taskScheduler.initialize();
     }
 
 

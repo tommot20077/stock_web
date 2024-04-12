@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +35,7 @@ public class TokenService {
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
     @Autowired
-    public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, ApplicationEventPublisher applicationEventPublisher, UserService userService) {
+    public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, UserService userService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
@@ -110,7 +109,7 @@ public class TokenService {
     public void deleteRememberMeCookie(HttpServletResponse response, HttpSession session, Cookie[] cookies){
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (cookie.getName().equals("REMEMBER_ME")) {
+                if ("REMEMBER_ME".equals(cookie.getName())) {
                     User user  = userService.getUserById((Long) session.getAttribute("currentUserId"));
                     Token userToken = user.getToken();
                     if (userToken.getRememberMeToken() != null) {
@@ -144,9 +143,9 @@ public class TokenService {
     public void removeExpiredTokens () {
         logger.info("開始清理過期的token");
         try {
-            OffsetDateTime ExpiredOverDay = OffsetDateTime.now().minusDays(1);
-            List<Token> tokens = tokenRepository.findAllByEmailApiTokenExpiryTimeIsBefore(ExpiredOverDay);
-            List<Token> tokens2 = tokenRepository.findAllByRememberMeTokenExpireTimeIsBefore(ExpiredOverDay);
+            OffsetDateTime expiredOverDay = OffsetDateTime.now().minusDays(1);
+            List<Token> tokens = tokenRepository.findAllByEmailApiTokenExpiryTimeIsBefore(expiredOverDay);
+            List<Token> tokens2 = tokenRepository.findAllByRememberMeTokenExpireTimeIsBefore(expiredOverDay);
             for (Token token : tokens) {
                 token.setEmailApiToken(null);
                 token.setEmailApiTokenExpiryTime(null);

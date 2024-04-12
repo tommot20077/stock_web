@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Component.EventListener.Crypto;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,8 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Event.Crypto.CryptoHistoryDataChangeEvent;
-import xyz.dowob.stockweb.Enum.AssetType;
-import xyz.dowob.stockweb.Repository.Common.TaskRepository;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 

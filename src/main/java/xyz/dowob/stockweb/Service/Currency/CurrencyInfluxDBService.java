@@ -11,17 +11,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.Map;
 
 @Service
 public class CurrencyInfluxDBService {
     private final InfluxDBClient currencyDBClient;
     Logger logger = LoggerFactory.getLogger(CurrencyInfluxDBService.class);
     @Autowired
-    public CurrencyInfluxDBService(@Qualifier("CurrencyInfluxDBClient")InfluxDBClient CurrencyDBClient) {
-        this.currencyDBClient = CurrencyDBClient;
+    public CurrencyInfluxDBService(@Qualifier("CurrencyInfluxClient")InfluxDBClient currencyClient) {
+        this.currencyDBClient = currencyClient;
     }
 
     public void writeToInflux(String currency, BigDecimal rate, ZonedDateTime zonedDateTime) {

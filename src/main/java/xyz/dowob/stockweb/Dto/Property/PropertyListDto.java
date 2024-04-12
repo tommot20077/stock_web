@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.OperationType;
-import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.Property;
-import xyz.dowob.stockweb.Model.User.User;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;

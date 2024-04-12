@@ -26,16 +26,14 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Common.TaskRepository;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Service.Common.DynamicThreadPoolManager;
-import xyz.dowob.stockweb.Service.Common.FileSevice;
+import xyz.dowob.stockweb.Service.Common.FileService;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -50,7 +48,7 @@ public class CryptoService {
     private WebSocketConnectionManager connectionManager;
     private final CryptoRepository cryptoRepository;
     private final ObjectMapper objectMapper;
-    private final FileSevice fileSevice;
+    private final FileService fileService;
     private final ProgressTracker progressTracker;
     private final DynamicThreadPoolManager dynamicThreadPoolManager;
     @Value("${db.influxdb.bucket.crypto_history.detail}")
@@ -63,14 +61,14 @@ public class CryptoService {
 
 
     @Autowired
-    public CryptoService(CryptoWebSocketHandler webSocketHandler, TaskRepository taskRepository, CryptoInfluxService cryptoInfluxService, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper, FileSevice fileSevice, ProgressTracker progressTracker, DynamicThreadPoolManager dynamicThreadPoolManager) {
+    public CryptoService(CryptoWebSocketHandler webSocketHandler, TaskRepository taskRepository, CryptoInfluxService cryptoInfluxService, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper, FileService fileService, ProgressTracker progressTracker, DynamicThreadPoolManager dynamicThreadPoolManager) {
         this.cryptoWebSocketHandler = webSocketHandler;
         this.taskRepository = taskRepository;
         this.cryptoInfluxService = cryptoInfluxService;
         this.connectionManager = connectionManager;
         this.cryptoRepository = cryptoRepository;
         this.objectMapper = objectMapper;
-        this.fileSevice = fileSevice;
+        this.fileService = fileService;
         this.progressTracker = progressTracker;
         this.dynamicThreadPoolManager = dynamicThreadPoolManager;
     }
@@ -259,7 +257,7 @@ public class CryptoService {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     dynamicThreadPoolManager.onTaskStart();
                     rateLimiter.acquire();
-                    List<String[]> csvData = fileSevice.downloadFileAndUnzipAndRead(monthlyUrl, fileName);
+                    List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(monthlyUrl, fileName);
                     if (csvData == null) {
                         logger.debug("資料讀取失敗");
                         endDate[0] = getMonthlyDate[0];
@@ -293,7 +291,7 @@ public class CryptoService {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     dynamicThreadPoolManager.onTaskStart();
                     rateLimiter.acquire();
-                    List<String[]> csvData = fileSevice.downloadFileAndUnzipAndRead(dailyUrl, fileName);
+                    List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dailyUrl, fileName);
                     if (csvData == null) {
                         logger.debug("資料讀取失敗: " + fileName);
                     } else {
@@ -379,7 +377,7 @@ public class CryptoService {
                     dynamicThreadPoolManager.onTaskStart();
                     rateLimiter.acquire();
                     try {
-                        List<String[]> csvData = fileSevice.downloadFileAndUnzipAndRead(dailyUrl, fileName);
+                        List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dailyUrl, fileName);
                         if (csvData != null) {
                             logger.debug("歷史價格資料讀取完成");
                             cryptoInfluxService.writeCryptoHistoryToInflux(csvData, tradingPair);

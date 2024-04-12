@@ -1,6 +1,6 @@
 package xyz.dowob.stockweb.Service.Crypto;
 
-import com.influxdb.client.DeleteApi;
+
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
@@ -11,8 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import java.text.Format;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;

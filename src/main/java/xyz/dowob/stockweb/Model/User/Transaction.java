@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.NonNull;
 import xyz.dowob.stockweb.Enum.TransactionType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
