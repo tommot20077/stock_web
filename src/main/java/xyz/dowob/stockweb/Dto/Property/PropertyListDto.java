@@ -2,12 +2,11 @@ package xyz.dowob.stockweb.Dto.Property;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.OperationType;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.Property;
-import xyz.dowob.stockweb.Service.User.PropertyService;
+import xyz.dowob.stockweb.Model.User.User;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -57,6 +56,7 @@ public class PropertyListDto {
 
     @Data
     public static class getAllPropertiesDto {
+        private Long userId;
         private String preferredCurrency;
         private BigDecimal preferredCurrencyRate;
         private Long propertyId;
@@ -64,10 +64,11 @@ public class PropertyListDto {
         private AssetType assetType;
         private String assetName;
         private BigDecimal quantity;
-        private String currentPrice;
-        private String currentTotalPrice;
+        private BigDecimal currentPrice;
+        private BigDecimal currentTotalPrice;
         private String description;
-        public getAllPropertiesDto(Property property, String currentPrice, String currentTotalPrice) {
+        public getAllPropertiesDto(Property property, BigDecimal currentPrice, BigDecimal currentTotalPrice) {
+            this.userId = property.getId();
             this.preferredCurrency = property.getUser().getPreferredCurrency().getCurrency();
             this.preferredCurrencyRate = property.getUser().getPreferredCurrency().getExchangeRate();
             this.propertyId = property.getId();
@@ -79,9 +80,27 @@ public class PropertyListDto {
             this.currentPrice = currentPrice;
             this.currentTotalPrice = currentTotalPrice;
         }
+    }
 
+    @Data
+    public static class writeToInfluxPropertyDto {
+        private Long userId;
+        private Long assetId;
+        private AssetType assetType;
+        private Long timeMillis;
+        private BigDecimal quantity;
+        private BigDecimal currentPrice;
+        private BigDecimal currentTotalPrice;
 
-
+        public writeToInfluxPropertyDto(Long userId, Long assetId, AssetType assetType, Long timeMillis, BigDecimal currentPrice,BigDecimal quantity, BigDecimal currentTotalPrice) {
+            this.userId = userId;
+            this.assetId = assetId;
+            this.assetType = assetType;
+            this.timeMillis = timeMillis;
+            this.currentPrice = currentPrice;
+            this.quantity = quantity;
+            this.currentTotalPrice = currentTotalPrice;
+        }
 
     }
 }

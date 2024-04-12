@@ -19,7 +19,7 @@ public class Property {
     private Long id;
 
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIdentityInfo(
             generator = ObjectIdGenerators.PropertyGenerator.class,

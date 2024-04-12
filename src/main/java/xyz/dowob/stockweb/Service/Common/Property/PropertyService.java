@@ -1,18 +1,20 @@
-package xyz.dowob.stockweb.Service.User;
+package xyz.dowob.stockweb.Service.Common.Property;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.influxdb.query.FluxRecord;
+import com.influxdb.query.FluxTable;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import xyz.dowob.stockweb.Component.AssetInfluxMethod;
+import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
-import xyz.dowob.stockweb.Component.SubscribeMethod;
+import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.OperationType;
@@ -24,6 +26,7 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.Transaction;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.Common.AssetRepository;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
@@ -32,6 +35,7 @@ import xyz.dowob.stockweb.Repository.User.TransactionRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -45,11 +49,13 @@ public class PropertyService {
     private final TransactionRepository transactionRepository;
     private final SubscribeMethod subscribeMethod;
     private final AssetInfluxMethod assetInfluxMethod;
+    private final PropertyInfluxService propertyInfluxService;
     private final AssetHandler assetHandler;
+    private final AssetRepository assetRepository;
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, AssetHandler assetHandler) {
+    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, AssetRepository assetRepository) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
@@ -57,7 +63,9 @@ public class PropertyService {
         this.transactionRepository = transactionRepository;
         this.subscribeMethod = subscribeMethod;
         this.assetInfluxMethod = assetInfluxMethod;
+        this.propertyInfluxService = propertyInfluxService;
         this.assetHandler = assetHandler;
+        this.assetRepository = assetRepository;
     }
 
     @Transactional(rollbackOn = Exception.class)
@@ -445,8 +453,9 @@ public class PropertyService {
     }
 
 
-    public String getUserAllProperties(User user) {
+    public List<PropertyListDto.getAllPropertiesDto> getUserAllProperties(User user, boolean isFormattedToPreferredCurrency) {
         List<Property> propertyList = propertyRepository.findAllByUser(user);
+        Currency Usd = currencyRepository.findByCurrency("USD").orElse(null);
         Map<String, Property> propertyMap = propertyList.stream()
                 .collect(Collectors.toMap(
                         property -> property.getAsset().getId().toString(),
@@ -456,25 +465,47 @@ public class PropertyService {
                             return existing;
                         })
                 );
-        List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto = new ArrayList<>(propertyMap.values()).stream()
+        return new ArrayList<>(propertyMap.values()).stream()
                 .map(property -> {
                     BigDecimal currentPrice = getCurrentPrice(property.getAsset());
-                    BigDecimal exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user);
+                    BigDecimal exchangeRate;
+                    if (isFormattedToPreferredCurrency) {
+                        exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user.getPreferredCurrency());
+                    } else {
+                        exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, Usd);
+                    }
 
-                    String currentTotalPrice;
-                    String currentPropertyValue;
+
+                    BigDecimal currentTotalPrice;
+                    BigDecimal currentPropertyValue;
                     if (exchangeRate.compareTo(BigDecimal.valueOf(-1)) == 0) {
-                        currentPropertyValue = "沒有當前價格資料";
-                        currentTotalPrice = "沒有當前價格資料";
+                        currentPropertyValue = BigDecimal.valueOf(0);
+                        currentTotalPrice = BigDecimal.valueOf(0);
                     } else {
                         BigDecimal quantity = property.getQuantity();
-                        currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(4, RoundingMode.HALF_UP).toPlainString();
-                        currentTotalPrice = exchangeRate.multiply(quantity).setScale(4, RoundingMode.HALF_UP).toString();
+                        currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
+                        currentTotalPrice = exchangeRate.multiply(quantity).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
                     }
                     return new PropertyListDto.getAllPropertiesDto(property, currentPropertyValue, currentTotalPrice);
                 }).collect(Collectors.toList());
 
+    }
 
+    public List<PropertyListDto.writeToInfluxPropertyDto> convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(List<PropertyListDto.getAllPropertiesDto> getUserAllProperties) {
+        return getUserAllProperties.stream()
+                .map(prop -> new PropertyListDto.writeToInfluxPropertyDto(
+                        prop.getUserId(),
+                        prop.getAssetId(),
+                        prop.getAssetType(),
+                        0L,
+                        prop.getCurrentPrice(),
+                        prop.getQuantity(),
+                        prop.getCurrentTotalPrice())
+                ).toList();
+
+
+    }
+    public String writeAllPropertiesToJson (List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto) {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new Hibernate5JakartaModule());
@@ -487,6 +518,15 @@ public class PropertyService {
         }
         logger.debug("取得 JSON 格式資料: " + json);
         return json;
+    }
+
+
+    public void writeAllPropertiesToInflux (List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
+        boolean success = propertyInfluxService.writeToInflux(writeToInfluxPropertyDto, user);
+        if (!success) {
+            logger.error("寫入 InfluxDB 失敗");
+            throw new RuntimeException("寫入 InfluxDB 失敗");
+        }
     }
 
     public Map<String, String> getAllNameByPropertyType (String propertyType) {
@@ -540,6 +580,5 @@ public class PropertyService {
             case Currency currency -> assetInfluxMethod.getLatestPrice(currency);
             case null, default -> throw new IllegalArgumentException("不支援的資產類型");
         };
-
     }
 }

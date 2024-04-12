@@ -26,6 +26,7 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import xyz.dowob.stockweb.Repository.User.TokenRepository;
 import xyz.dowob.stockweb.Repository.User.UserRepository;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -165,7 +166,9 @@ public class UserService {
     public User getUserById(Long id) {
         return userRepository.findById(id).orElse(null);
     }
-
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
 
 
     private void validatePassword(String userPassword) {

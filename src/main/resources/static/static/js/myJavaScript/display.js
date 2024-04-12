@@ -30,7 +30,7 @@ function displayEditProperty(editButton) {
     var assetType = currentRow.cells[1].textContent;
     var assetName = currentRow.cells[2].textContent;
     var quantity = currentRow.cells[3].textContent;
-    var description = currentRow.cells[5].textContent;
+    var description = currentRow.cells[6].textContent;
 
     document.getElementById('edit_property_id').value = assetId;
     document.getElementById('edit_property_type').value = assetType;

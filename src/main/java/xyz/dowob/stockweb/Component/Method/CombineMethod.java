@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Method;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

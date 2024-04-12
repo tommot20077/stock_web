@@ -11,9 +11,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Enum.AssetType;
-import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.User;
-import xyz.dowob.stockweb.Service.User.PropertyService;
+import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.util.HashMap;
@@ -152,8 +151,10 @@ public class ApiPropertyController {
                 return ResponseEntity.status(401).body("請先登入");
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            List<PropertyListDto.getAllPropertiesDto> allProperties = propertyService.getUserAllProperties(user, true);
+            String json = propertyService.writeAllPropertiesToJson(allProperties);
 
-            return ResponseEntity.ok().body(propertyService.getUserAllProperties(user));
+            return ResponseEntity.ok().body(json);
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }

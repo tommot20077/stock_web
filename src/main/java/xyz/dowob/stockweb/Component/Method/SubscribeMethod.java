@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Method;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.dowob.stockweb.Component.Event.Crypto.CryptoHistoryDataChangeEvent;
+import xyz.dowob.stockweb.Component.Event.StockTw.StockTwHistoryDataChangeEvent;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
@@ -15,6 +18,9 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
+
+import java.util.List;
+import java.util.Set;
 
 @Component
 public class SubscribeMethod {
@@ -126,6 +132,22 @@ public class SubscribeMethod {
 
     private void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.removeAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
+    }
+
+
+    public void CheckSubscribedAssets() {
+        Set<Asset> userSubscribed = subscribeRepository.findAllAsset();
+        for (Asset asset : userSubscribed) {
+            if (asset instanceof StockTw stockTw && !stockTw.isHasAnySubscribed()) {
+                logger.debug("資產" + asset.getId() + "有訂閱但無歷史資料，重新抓取資料");
+                eventPublisher.publishEvent(new StockTwHistoryDataChangeEvent(this, stockTw, "add"));
+            } else if (asset instanceof CryptoTradingPair cryptoTradingPair && !cryptoTradingPair.isHasAnySubscribed()) {
+                logger.debug("資產" + asset.getId() + "有訂閱但無歷史資料，重新抓取資料");
+                eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair, "add"));
+            } else {
+                logger.debug("資產" + asset.getId() + "有訂閱且有歷史資料，不須重新抓取資料");
+            }
+        }
     }
 
 

@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Method;
 
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.query.FluxRecord;

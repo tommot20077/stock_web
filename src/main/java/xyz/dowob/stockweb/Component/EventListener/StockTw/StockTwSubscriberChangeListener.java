@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
-import xyz.dowob.stockweb.Component.Crontab;
+import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Component.Event.StockTw.StockTwSubscriberChangeEvent;
 
 
@@ -15,18 +15,18 @@ import xyz.dowob.stockweb.Component.Event.StockTw.StockTwSubscriberChangeEvent;
 public class StockTwSubscriberChangeListener
         implements ApplicationListener<StockTwSubscriberChangeEvent> {
     Logger logger = LoggerFactory.getLogger(StockTwSubscriberChangeListener.class);
-    private final Crontab crontab;
+    private final CrontabMethod crontabMethod;
     @Autowired
-    public StockTwSubscriberChangeListener(Crontab crontab) {
-        this.crontab = crontab;
+    public StockTwSubscriberChangeListener(CrontabMethod crontabMethod) {
+        this.crontabMethod = crontabMethod;
     }
 
     @Override
     public void onApplicationEvent(@NotNull StockTwSubscriberChangeEvent event) {
         logger.debug("收到股票訂閱變更");
         try {
-            crontab.checkSubscriptions();
-            crontab.trackPricesPeriodically();
+            crontabMethod.checkSubscriptions();
+            crontabMethod.trackPricesPeriodically();
         } catch (JsonProcessingException e) {
             logger.error("Json轉換錯誤", e);
             throw new RuntimeException(e);

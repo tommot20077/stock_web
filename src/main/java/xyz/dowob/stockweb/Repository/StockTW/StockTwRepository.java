@@ -46,7 +46,7 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
         if (countStockTwSubscribersNumber(stockTw) > 0) {
             logger.debug("已經有用戶訂閱過此資產，不須獲取此資產歷史資料");
         } else {
-            logger.debug("沒有用戶訂閱過此資產，獲取此資產歷史資料");
+            logger.debug("此資產沒有用戶訂閱過或是歷史資料，獲取此資產歷史資料");
             trackHistoryData = true;
         }
 

@@ -41,8 +41,8 @@ public class AssetHandler {
 
 
 
-    public BigDecimal exrateToPreferredCurrency(Asset asset, BigDecimal assetExrate, User user) {
-        BigDecimal preferredCurrencyRate = user.getPreferredCurrency().getExchangeRate();
+    public BigDecimal exrateToPreferredCurrency(Asset asset, BigDecimal assetExrate, Currency PreferredCurrency) {
+        BigDecimal preferredCurrencyRate = PreferredCurrency.getExchangeRate();
         if (asset.getAssetType() == AssetType.CURRENCY) {
             return preferredCurrencyRate.divide(assetExrate, 8, RoundingMode.HALF_UP);
         } else if (asset.getAssetType() == AssetType.CRYPTO) {
@@ -53,8 +53,6 @@ public class AssetHandler {
             throw new IllegalArgumentException("不支援的資產類型");
         }
     }
-
-
 
     private BigDecimal getTwdCurrency() {
         if (twdCurrency == null) {

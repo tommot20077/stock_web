@@ -1,10 +1,10 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Method;
 
 import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-public class CustomArgon2PasswordEncoder implements PasswordEncoder {
+public class CustomArgon2PasswordEncoderMethod implements PasswordEncoder {
     private final Argon2 argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id);
 
     @Override

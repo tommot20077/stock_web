@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Method;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
@@ -6,11 +6,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
+import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
+import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.TokenService;
+import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -22,23 +27,29 @@ import java.util.Map;
  * @author tommo
  */
 @Component
-public class Crontab {
+public class CrontabMethod {
     private final TokenService tokenService;
     private final CurrencyService currencyService;
     private final StockTwService stockTwService;
     private final CryptoService cryptoService;
+    private final UserService userService;
+    private final PropertyService propertyService;
     private final CryptoWebSocketHandler cryptoWebSocketHandler;
+    private final SubscribeMethod subscribeMethod;
     @Autowired
-    public Crontab(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, CryptoWebSocketHandler cryptoWebSocketHandler) {
+    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService , CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod) {
         this.tokenService = tokenService;
         this.currencyService = currencyService;
         this.stockTwService = stockTwService;
         this.cryptoService = cryptoService;
+        this.userService = userService;
+        this.propertyService = propertyService;
         this.cryptoWebSocketHandler = cryptoWebSocketHandler;
+        this.subscribeMethod = subscribeMethod;
     }
 
     private List<String> trackableStocks = new ArrayList<>();
-    Logger logger = LoggerFactory.getLogger(Crontab.class);
+    Logger logger = LoggerFactory.getLogger(CrontabMethod.class);
 
 
     @Scheduled(cron = "0 0 1 * * ?")
@@ -104,6 +115,28 @@ public class Crontab {
     public void updateCryptoHistoryPrices() {
         logger.debug("開始更新加密貨幣的每日最新價格");
         cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
+    }
+
+    @Scheduled(cron = "0 30 */4 * * ? ", zone = "UTC")
+    public void checkHistoryData() {
+        logger.debug("開始檢查資產的歷史數據");
+        subscribeMethod.CheckSubscribedAssets();
+    }
+
+    @Scheduled(cron = "0 */5 * * * ? ", zone = "UTC")
+    public void recordUserPropertySummary() {
+        logger.debug("開始記錄使用者的資產總價");
+        List<User> users = userService.getAllUsers();
+        try {
+            for (User user : users) {
+                List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(user, false);
+                List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(getAllPropertiesDtoList);
+                propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, user);
+            }
+            logger.debug("記錄完成");
+        } catch (Exception e) {
+            logger.error("記錄失敗", e);
+        }
     }
 
 
