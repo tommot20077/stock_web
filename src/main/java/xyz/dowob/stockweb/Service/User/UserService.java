@@ -1,5 +1,7 @@
 package xyz.dowob.stockweb.Service.User;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
@@ -13,12 +15,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
+import xyz.dowob.stockweb.Dto.Subscription.UserSubscriptionDto;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
+import xyz.dowob.stockweb.Model.Common.Asset;
+import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
+import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Token;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
@@ -26,6 +32,7 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import xyz.dowob.stockweb.Repository.User.TokenRepository;
 import xyz.dowob.stockweb.Repository.User.UserRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -143,7 +150,7 @@ public class UserService {
             }
 
             Currency currency = currencyRepository.findByCurrency(userInfo.get("preferredCurrency")).orElse(null);
-            if (currency != null) {
+            if (currency != null && !currency.getCurrency().equals(user.getPreferredCurrency().getCurrency())) {
                 user.setPreferredCurrency(currency);
                 logger.warn("用戶 " + user.getEmail() + " 更改預設幣別");
                 subscribeRepository.findAllByUserAndAssetAssetType(user, AssetType.CURRENCY).forEach(subscribe -> {
@@ -198,6 +205,40 @@ public class UserService {
             }
         }
         return getUserById(userId);
+    }
+
+    public String getChannelAndAssetAndRemoveAbleByUserId(User user) {
+        List<UserSubscriptionDto> subscriptionDtoList = new ArrayList<>();
+        subscribeRepository.getChannelAndAssetAndRemoveAbleByUserId(user).forEach(objects -> {
+            String channel = null;
+            if (objects[0] != null) {
+                channel = objects[0].toString();
+            }
+            Asset asset = (Asset) objects[1];
+            boolean removeAble = (boolean) objects[2];
+            String subscribeName = switch (asset.getAssetType()) {
+                case STOCK_TW -> {
+                    StockTw stockTw = (StockTw) asset;
+                    yield stockTw.getStockCode() + "⎯" + stockTw.getStockName();
+                }
+                case CURRENCY -> {
+                    Currency currency = (Currency) asset;
+                    yield currency.getCurrency() + " ⇄ " + channel;
+                }
+                case CRYPTO -> {
+                    CryptoTradingPair cryptoTradingPair = (CryptoTradingPair) asset;
+                    yield cryptoTradingPair.getTradingPair();
+                }
+            };
+            subscriptionDtoList.add(new UserSubscriptionDto(asset.getId().toString(), asset.getAssetType().toString(), subscribeName, removeAble));
+        });
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(subscriptionDtoList);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("轉換Json時發生錯誤: " + e.getMessage());
+        }
     }
 
 }

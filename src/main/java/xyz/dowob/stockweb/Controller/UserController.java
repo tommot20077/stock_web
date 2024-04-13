@@ -113,6 +113,11 @@ public class UserController {
         return "transactionInfo";
     }
 
+    @GetMapping("/user_subscribe")
+    public String userSubscribe () {
+        return "subscribeInfo";
+    }
+
 
 
 }

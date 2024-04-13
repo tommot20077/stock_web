@@ -206,16 +206,7 @@ function sendVerificationEmail() {
 }
 
 async function getUserAllProperties() {
-    const tableBody = document.getElementById('propertyTableBody');
-    tableBody.innerHTML =
-        `<td colspan="9">
-            <div class="loadingio-spinner-dual-ball-l2u3038qtw8">
-                <div class="ldio-4pqo44ipw4">
-                    <div></div><div></div><div></div>
-                </div>
-            </div>
-        </td>`;
-    tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
+    loadingInColumn("propertyTableBody", 9);
     try {
         let response = await fetch("/api/user/property/getUserAllProperty",{
             method: 'GET',
@@ -233,6 +224,26 @@ async function getUserAllProperties() {
         console.error('請求錯誤: ', error);
     }
 }
+async function getUserAllSubscribes() {
+    loadingInColumn("subscribeTableBody", 5);
+    try {
+        let response = await fetch("/api/user/common/getUserSubscriptionsList",{
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.ok) {
+            return await response.json();
+        } else {
+            new Error('錯誤的請求: ' + response.status +'' + response.statusText);
+        }
+    } catch (error) {
+        console.error('請求錯誤: ', error);
+    }
+}
+
+
 
 function getPropertyType(type_id){
     if (document.getElementById(type_id)) {
@@ -555,17 +566,158 @@ function addTransaction(event) {
             displayError(error, "fail_message");
         })
     }
-
 }
 
+function addSubscription(event) {
+    let form = document.getElementById("add_subscribe_form");
+    if (form) {
+        this.disabled = true;
+        event.preventDefault();
+        showSpinner(true);
+        hideById("success_add_message")
+        hideById("fail_add_message")
+        hideById("confirmCard");
+        hideById("success_message");
+        hideById("fail_message");
+        let formData = new FormData(form);
 
+        let type = formData.get("add_subscribe_type");
+        let name = formData.get("add_subscribe_name");
+        let channel = formData.get("add_subscribe_compare_name");
+        if (!type || type === "") {
+            displayError('必須選擇類型', "fail_add_message");
+            hideSpinner();
+            this.disabled = false;
+            return;
+        }
 
+        let subscriptionDto = {};
+        let fetchUrl = '';
 
+        if (type === "CURRENCY") {
+            fetchUrl = '/api/user/currency/subscribe';
+            subscriptionDto = {
+                from: channel,
+                to: name
+            }
+        } else if (type === "CRYPTO") {
+            fetchUrl = '/api/user/crypto/subscribe';
+            subscriptionDto = {
+                tradingPair: name+channel
+            }
+        } else if (type === "STOCK_TW") {
+            fetchUrl = '/api/user/stock/tw/subscribe';
+            subscriptionDto = name
+        }
 
+        let subscriptionDtoList = {
+            subscriptions: [subscriptionDto]
+        }
+        let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+        let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
 
+        fetch(fetchUrl, {
+            method: 'POST',
+            headers: {
+                [csrfHeader]: csrfToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscriptionDtoList)
+        }).then(response => {
+            if (response.ok) {
+                return response.text().then(data => {
+                    hideSpinner();
+                    showFlexById("success_add_message");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                });
+            } else {
+                return response.text().then(data => {
+                    throw new Error(data);
+                });
+            }
+        }).catch(error => {
+            hideSpinner();
+            displayError(error, "fail_add_message");
+            this.disabled = false;
+        })
+    }
+}
 
+function deleteSubscription(event, elementId) {
+    this.disabled = true;
+    showSpinner(false);
+    hideById("success_add_message")
+    hideById("fail_add_message")
+    hideById("success_message");
+    hideById("fail_message");
+    let subscribeName = elementId.getAttribute('data-subscribe-name');
+    let subscribeType = elementId.getAttribute('data-subscribe-type');
+    let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+    let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+    let fetchUrl = '';
+    let subscriptionDto = {};
 
+    document.getElementById('cancel_delete_subscribe').addEventListener("click", ()=> {
+        this.disabled = true;
+        hideSpinner();
+    });
+    document.getElementById('confirm_delete_subscribe').addEventListener("click", ()=> {
+        hideById("confirmCard");
+        showSpinner(true);
 
+        if (subscribeType === "CURRENCY") {
+            fetchUrl = '/api/user/currency/unsubscribe';
+            subscriptionDto = {
+                from: subscribeName.split("⇄")[0].trim(),
+                to: subscribeName.split("⇄")[1].trim()
+            }
+        } else if (subscribeType === "CRYPTO") {
+            fetchUrl = '/api/user/crypto/unsubscribe';
+            subscriptionDto = {
+                tradingPair: subscribeName
+            }
+        } else if (subscribeType === "STOCK_TW") {
+            fetchUrl = '/api/user/stock/tw/unsubscribe';
+            subscriptionDto = subscribeName.split("⎯")[0]
+        }
+
+        let subscriptionDtoList = {
+            subscriptions: [subscriptionDto]
+        }
+        console.log(JSON.stringify(subscriptionDtoList));
+        fetch(fetchUrl, {
+            method: 'POST',
+            headers: {
+                [csrfHeader]: csrfToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscriptionDtoList)
+        }).then(response =>{
+            if (response.ok) {
+                return response.text().then(data => {
+                    showSpinner(false);
+                    hideById("fail_message")
+                    showFlexById("confirmCard")
+                    showFlexById("success_message");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                });
+            } else {
+                return response.text().then(data => {
+                    throw new Error(data);
+                });
+            }
+        }).catch(error => {
+            showSpinner(false);
+            hideById("success_message")
+            showFlexById("confirmCard")
+            displayError(error, "fail_message");
+        })
+    })
+}
 
 
 
@@ -575,6 +727,7 @@ function hideById(id) {
         document.getElementById(id).style.display = 'none';
     }
 }
+
 function showFlexById(id) {
     if (document.getElementById(id)) {
         document.getElementById(id).style.display = 'flex';
@@ -589,6 +742,7 @@ function showSpinner(showRings) {
         document.getElementById('lds-ring').style.display = 'flex';
     }
 }
+
 function hideSpinner() {
     document.getElementById('loading-spinner').style.display = 'none';
 }
@@ -669,4 +823,17 @@ function validateTransaction(formData) {
     }
 
     return true;
+}
+
+function loadingInColumn(TableBody, column) {
+    const tableBody = document.getElementById(TableBody);
+    tableBody.innerHTML =
+        `<td colspan="${column}">
+            <div class="loadingio-spinner-dual-ball-l2u3038qtw8">
+                <div class="ldio-4pqo44ipw4">
+                    <div></div><div></div><div></div>
+                </div>
+            </div>
+        </td>`;
+    tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
 }

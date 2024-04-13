@@ -5,5 +5,5 @@ import lombok.Data;
 import java.util.List;
 @Data
 public class SubscriptionStockDto {
-    private List<String> stockId;
+    private List<String> subscriptions;
 }

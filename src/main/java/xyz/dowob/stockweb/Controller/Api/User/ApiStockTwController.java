@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Controller
-@RequestMapping("/api/stock/tw")
+@RequestMapping("/api/user/stock/tw")
 public class ApiStockTwController {
     private final StockTwService stockTwService;
     private final UserService userService;
@@ -30,7 +30,7 @@ public class ApiStockTwController {
     }
 
     @PostMapping("/subscribe")
-    public ResponseEntity<?> addNewStock(@RequestBody SubscriptionStockDto stockIds, HttpSession session) {
+    public ResponseEntity<?> addNewStock(@RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
         if(session.getAttribute("currentUserId") == null){
             return ResponseEntity.status(401).body("請先登入");
         }
@@ -38,7 +38,7 @@ public class ApiStockTwController {
         User user = userService.getUserById(userId);
 
         Map<String, String> failedSubscribes = new HashMap<>();
-        for (String stockId : stockIds.getStockId()) {
+        for (String stockId : subscriptionStockDto.getSubscriptions()) {
             try {
                 stockTwService.addStockSubscribeToUser(stockId, user);
             } catch (Exception e) {
@@ -53,7 +53,7 @@ public class ApiStockTwController {
     }
 
     @PostMapping("/unsubscribe")
-    public ResponseEntity<?> removeStock(@RequestBody SubscriptionStockDto stockIds, HttpSession session) {
+    public ResponseEntity<?> removeStock(@RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
         if(session.getAttribute("currentUserId") == null){
             return ResponseEntity.status(401).body("請先登入");
         }
@@ -61,7 +61,7 @@ public class ApiStockTwController {
         User user = userService.getUserById(userId);
 
         Map<String, String> failedSubscribes = new HashMap<>();
-        for (String stockId : stockIds.getStockId()) {
+        for (String stockId : subscriptionStockDto.getSubscriptions()) {
             try {
                 stockTwService.removeStockSubscribeToUser(stockId, user);
             } catch (Exception e) {

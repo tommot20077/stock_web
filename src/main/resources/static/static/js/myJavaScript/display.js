@@ -23,6 +23,34 @@ async function displayPropertyTable() {
     }
 }
 
+async function displaySubscribeTable() {
+    let data = await getUserAllSubscribes();
+    if(data && Array.isArray(data)){
+        let tableBody = document.getElementById("subscribeTableBody");
+        tableBody.innerHTML = "";
+        data.forEach(function (item) {
+            if (item.removeAble === true) {
+                item.removeAble = '可以取消訂閱';
+            } else if (item.removeAble === false) {
+                item.removeAble = '此為用戶資產，由伺服器訂閱';
+            }
+
+
+            let row = `
+            <tr>
+                <td>${item.assetId}</td>
+                <td>${getAssetType(item.assetType)}</td>
+                <td>${item.subscribeName}</td>
+                <td>${item.removeAble}</td>
+                <td><a id="deleteButton" data-subscribe-name="${item.subscribeName}" data-subscribe-type="${item.assetType}" href="#" style="color: red" onclick="deleteSubscription(this, this)">刪除</a></td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        })
+    }
+}
+
+
+
 function displayEditProperty(editButton) {
     var currentRow = editButton.closest('tr');
 

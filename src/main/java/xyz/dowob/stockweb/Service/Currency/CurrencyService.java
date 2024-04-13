@@ -151,10 +151,10 @@ public class CurrencyService {
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
 
         subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency()).ifPresent(subscribe -> {
-            throw new RuntimeException("已訂閱過此貨幣對" + from + " <-> " + to);
+            throw new RuntimeException("已訂閱過此貨幣對" + from + "  ⇄  " + to);
         });
         subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency()).ifPresent(subscribe -> {
-            throw new RuntimeException("已訂閱過此貨幣對" + from + " <-> " + to);
+            throw new RuntimeException("已訂閱過此貨幣對" + from + "  ⇄  " + to);
         });
 
 
@@ -166,7 +166,7 @@ public class CurrencyService {
         subscribe.setUserSubscribed(true);
         subscribe.setRemoveAble(true);
         subscribeRepository.save(subscribe);
-        logger.info(user.getUsername() + "訂閱" + from + " <-> " + to);
+        logger.info(user.getUsername() + "訂閱" + from + "  ⇄  " + to);
 
     }
 
@@ -179,14 +179,14 @@ public class CurrencyService {
         Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency()).orElse(null);
         if (subscribe == null) {
             subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency())
-                    .orElseThrow(() -> new RuntimeException("未訂閱過此貨幣對" + from + " <-> " + to));
+                    .orElseThrow(() -> new RuntimeException("未訂閱過此貨幣對" + from + "  ⇄  " + to));
         }
         if (subscribe.isRemoveAble()) {
             subscribeRepository.delete(subscribe);
-            logger.info(user.getUsername() + "取消訂閱" + from + " <-> " + to);
+            logger.info(user.getUsername() + "取消訂閱" + from + "  ⇄  " + to);
         } else {
-            logger.warn("此訂閱: " + fromCurrency.getCurrency() + " <-> " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
-            throw new Exception("此訂閱: " + fromCurrency.getCurrency() + " <-> " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+            logger.warn("此訂閱: " + fromCurrency.getCurrency() + "  ⇄  " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+            throw new Exception("此訂閱: " + fromCurrency.getCurrency() + "  ⇄  " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
         }
 
     }

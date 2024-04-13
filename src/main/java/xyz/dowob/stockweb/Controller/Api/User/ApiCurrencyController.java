@@ -69,7 +69,7 @@ public class ApiCurrencyController {
                     try {
                         currencyService.subscribeCurrency(from, to, user);
                     } catch (Exception e) {
-                        failedSubscribes.put(from + "<->" + to, e.getMessage());
+                        failedSubscribes.put(from + " ⇄ " + to, e.getMessage());
                     }
                 }
                 if (!failedSubscribes.isEmpty()) {
@@ -106,7 +106,7 @@ public class ApiCurrencyController {
                     try {
                         currencyService.unsubscribeCurrency(from, to, user);
                     } catch (Exception e) {
-                        failedSubscribes.put(from + " <-> " + to, e.getMessage());
+                        failedSubscribes.put(from + "  ⇄  " + to, e.getMessage());
                     }
                 }
                 if (!failedSubscribes.isEmpty()) {

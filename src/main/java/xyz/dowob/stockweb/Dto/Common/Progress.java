@@ -33,10 +33,10 @@ public class Progress {
 
     @Data
     public static class ProgressDto {
-        private String taskName;
-        private AtomicInteger progressCount;
-        private int totalTask;
-        private float progressPercentage;
+        private final String taskName;
+        private final AtomicInteger progressCount;
+        private final int totalTask;
+        private final float progressPercentage;
     }
 }
 

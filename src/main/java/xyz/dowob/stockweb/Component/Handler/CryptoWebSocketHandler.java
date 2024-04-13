@@ -262,7 +262,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
                     if (cryptoRepository != null && eventPublisher != null) {
                         cryptoRepository.save(cryptoTradingPairSymbol);
-                        if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0) {
+                        if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0 && webSocketSession != null && webSocketSession.isOpen()) {
                             String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
                             logger.debug("取消訂閱訊息: " + message);
                             webSocketSession.sendMessage(new TextMessage(message));

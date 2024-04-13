@@ -47,10 +47,10 @@ public class StockTwService {
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxDBService, TaskRepository taskRepository, ObjectMapper objectMapper) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
-        this.stockTwInfluxDBService = stockTwInfluxDBService;
+        this.stockTwInfluxDBService = stockTwInfluxService;
         this.taskRepository = taskRepository;
         this.objectMapper = objectMapper;
     }

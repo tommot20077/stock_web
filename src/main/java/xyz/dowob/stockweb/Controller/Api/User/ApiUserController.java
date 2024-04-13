@@ -1,14 +1,18 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
+import io.jsonwebtoken.security.Request;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
@@ -138,4 +142,27 @@ public class ApiUserController {
     }
 
 
+    @GetMapping("/getCsrfToken")
+    public ResponseEntity<?> getCsrfToken(HttpServletRequest request) {
+        try {
+            CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            return ResponseEntity.ok().body(csrfToken);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+        }
+    }
+
+    @GetMapping("/getUserSubscriptionsList")
+    public ResponseEntity<?> getUserSubscriptionsList(HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user != null) {
+                return ResponseEntity.ok().body(userService.getChannelAndAssetAndRemoveAbleByUserId(user));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+        }
+    }
 }
