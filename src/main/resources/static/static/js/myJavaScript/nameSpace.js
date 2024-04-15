@@ -1,0 +1,1 @@
+window.INDEX_NAMESPACE = {};

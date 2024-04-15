@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.influxdb.query.FluxTable;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
+import xyz.dowob.stockweb.Component.Method.ChartMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Enum.OperationType;
@@ -45,10 +47,11 @@ public class PropertyService {
     private final AssetInfluxMethod assetInfluxMethod;
     private final PropertyInfluxService propertyInfluxService;
     private final AssetHandler assetHandler;
+    private final ChartMethod chartMethod;
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler) {
+    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
@@ -58,6 +61,7 @@ public class PropertyService {
         this.assetInfluxMethod = assetInfluxMethod;
         this.propertyInfluxService = propertyInfluxService;
         this.assetHandler = assetHandler;
+        this.chartMethod = chartMethod;
     }
 
     @Transactional(rollbackOn = Exception.class)
@@ -574,4 +578,22 @@ public class PropertyService {
             case null, default -> throw new IllegalArgumentException("不支援的資產類型");
         };
     }
+
+    public String getPropertySummary(User user) {
+        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryUserPropertySum(user);
+        logger.debug("取得 InfluxDB 的資料: " + userSummary);
+        Map<String, List<Map<String, Object>>>formatToChartData = chartMethod.formatToChartData(userSummary);
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            String json = mapper.writeValueAsString(formatToChartData);
+            logger.debug("轉換成 JSON 的資料: " + json);
+            return json;
+        } catch (JsonProcessingException e) {
+            logger.error("轉換 JSON 時發生錯誤", e);
+            throw new RuntimeException("轉換 JSON 時發生錯誤", e);
+        }
+    }
+
 }

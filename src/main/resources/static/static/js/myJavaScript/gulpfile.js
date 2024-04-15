@@ -154,7 +154,7 @@ gulp.task('buildBaseVendorStyles', function() {
 
 /*Scripts for addons*/
 gulp.task('copyAddonsScripts', function() {
-    var aScript1 = gulp.src(['node_modules/chart.js/dist/Chart.min.js'])
+    var aScript1 = gulp.src(['node_modules/chart.js/dist/chart.min.js'])
         .pipe(gulp.dest('./vendors/chart.js'));
     var aScript2 = gulp.src(['node_modules/jquery-bar-rating/dist/jquery.barrating.min.js'])
         .pipe(gulp.dest('./vendors/jquery-bar-rating'));

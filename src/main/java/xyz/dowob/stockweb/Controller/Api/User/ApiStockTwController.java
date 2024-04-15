@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionStockDto;
-import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -75,17 +74,6 @@ public class ApiStockTwController {
         }
     }
 
-    @PostMapping("/updateStockList")
-    public ResponseEntity<?> updateStockData() {
-        try {
-            stockTwService.updateStockList();
-            return ResponseEntity.ok().body("股票列表更新成功");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
-        }
-
-    }
-
     @GetMapping("/getAllStock")
     public ResponseEntity<?> getAllStockData() {
         try {
@@ -102,29 +90,8 @@ public class ApiStockTwController {
         }
     }
 
-    @GetMapping("/getSubscriptionCurrentPrice")
-    public ResponseEntity<?> getSubscriptionStocksCurrentPrice() {
-        try {
-            Map<String, List<String>> result = stockTwService.checkSubscriptionValidity();
-            stockTwService.trackStockNowPrices(result.get("inquiry"));
-            result.remove("inquiry");
-            return ResponseEntity.ok().body(result);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
-        }
 
-    }
 
-    @GetMapping("/getSpecificStocksHistoryPriceByStockCode")
-    public ResponseEntity<?> getSpecificStocksHistoryPriceByStockCode(@RequestParam String stockCode) {
-        try {
-            StockTw stockTw = stockTwService.getStockTwByStockCode(stockCode);
-            stockTwService.trackStockTwHistoryPrices(stockTw);
-            return ResponseEntity.ok().body("ok");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
-        }
-    }
 
 
 

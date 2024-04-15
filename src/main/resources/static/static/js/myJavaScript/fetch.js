@@ -1,4 +1,7 @@
 let userPreferredCurrency;
+let INDEX_NAMESPACE = window.INDEX_NAMESPACE || {};
+
+
 function getUserDetails() {
     fetch("/api/user/common/getUserDetail")
         .then(response => {
@@ -686,7 +689,7 @@ function deleteSubscription(event, elementId) {
         let subscriptionDtoList = {
             subscriptions: [subscriptionDto]
         }
-        console.log(JSON.stringify(subscriptionDtoList));
+
         fetch(fetchUrl, {
             method: 'POST',
             headers: {
@@ -717,6 +720,52 @@ function deleteSubscription(event, elementId) {
             displayError(error, "fail_message");
         })
     })
+}
+
+
+
+INDEX_NAMESPACE.fetchUserPropertySummary = function () {
+    let summaryData = null;
+    function fetchUserPropertySummary() {
+        const cachedData = localStorage.getItem('userPropertySummary');
+        if (cachedData) {
+            const parsedData = JSON.parse(cachedData);
+            const {data, timestamp} = parsedData;
+
+            const isExpired = Date.now() - timestamp > 60 * 60 * 1000;
+            if (!isExpired && data) {
+                return data;
+            }
+        }
+
+        if (!summaryData) {
+            summaryData = fetch("/api/user/property/getPropertySummary/history", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                }
+            }).then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.text().then(data => {
+                        throw new Error("無法獲取歷史資產變化資料" + data);
+                    })
+                }
+            }).then(data => {
+                localStorage.setItem('userPropertySummary', JSON.stringify({
+                    data: data,
+                    timestamp: Date.now()
+                }));
+                return data;
+            }).catch(error =>{
+                summaryData = null;
+                throw error;
+            });
+        }
+        return summaryData;
+    }
+    return fetchUserPropertySummary();
 }
 
 

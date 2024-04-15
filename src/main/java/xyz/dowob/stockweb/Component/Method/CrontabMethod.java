@@ -123,7 +123,7 @@ public class CrontabMethod {
         subscribeMethod.CheckSubscribedAssets();
     }
 
-    @Scheduled(cron = "0 */5 * * * ? ", zone = "UTC")
+    @Scheduled(cron = "0 0 */1 * * ? ", zone = "UTC")
     public void recordUserPropertySummary() {
         logger.debug("開始記錄使用者的資產總價");
         List<User> users = userService.getAllUsers();

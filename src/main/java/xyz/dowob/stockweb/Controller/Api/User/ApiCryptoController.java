@@ -27,17 +27,14 @@ import java.util.concurrent.CompletableFuture;
 public class ApiCryptoController {
 
     private final CryptoService cryptoService;
-    private final ProgressTracker progressTracker;
+
     private final UserService userService;
     Logger logger = LoggerFactory.getLogger(ApiCryptoController.class);
     @Autowired
-    public ApiCryptoController(CryptoService cryptoService, ProgressTracker progressTracker, UserService userService) {
+    public ApiCryptoController(CryptoService cryptoService, UserService userService) {
         this.cryptoService = cryptoService;
-        this.progressTracker = progressTracker;
         this.userService = userService;
     }
-
-
 
 
     @PostMapping("/subscribe")
@@ -115,16 +112,7 @@ public class ApiCryptoController {
         }
     }
 
-    @PostMapping("/updateCryptoList")//admin
-    public ResponseEntity<?> updateCryptoList(HttpServletResponse response) {
-        try {
-            cryptoService.tooManyRequest(response);
-            cryptoService.updateSymbolList();
-            return ResponseEntity.ok().body("更新加密貨幣清單成功");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("更新加密貨幣清單失敗: " + e.getMessage());
-        }
-    }
+
 
     @GetMapping("/getAllTradingPairs")
     public ResponseEntity<?> getAllTradingPairs() {
@@ -136,42 +124,9 @@ public class ApiCryptoController {
         }
     }
 
-    @GetMapping("/getServerTradingPairs")//admin
-    public ResponseEntity<?> getServerTradingPairs() {
-        try {
-            String subscriptions = cryptoService.getServerTradingPairs();
-            return ResponseEntity.ok().body(subscriptions);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("取得伺服器加密貨幣清單失敗: " + e.getMessage());
-        }
-    }
 
 
-
-
-
-    @PostMapping("/ws/start")//admin
-    public ResponseEntity<?> startWebSocket() {
-        try {
-            cryptoService.openConnection();
-            return ResponseEntity.ok().body("WebSocket已啟動");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("啟動WebSocket失敗: " + e.getMessage());
-        }
-    }
-
-
-    @PostMapping("/ws/stop")//admin
-    public ResponseEntity<?> stopWebSocket() {
-        try {
-            cryptoService.closeConnection();
-            return ResponseEntity.ok().body("WebSocket已停止");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("停止WebSocket失敗: " + e.getMessage());
-        }
-    }
-
-    @PostMapping("/ws/status")
+    @GetMapping("/ws/status")
     public ResponseEntity<?> webSocketStatus() {
         try {
             if (cryptoService.isConnectionOpen()) {
@@ -183,42 +138,7 @@ public class ApiCryptoController {
             return ResponseEntity.badRequest().body("取得WebSocket狀態失敗: " + e.getMessage());
         }
     }
-    @PostMapping("/ws/restart")//admin
-    public ResponseEntity<?> restartWebSocket() {
-        try {
-            try {
-                cryptoService.closeConnection();
-            } catch (Exception e) {
-                logger.debug("目前沒有開啟的連線，啟動新的連線");
-            }
-            cryptoService.openConnection();
-            return ResponseEntity.ok().body("WebSocket已重啟");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("重啟WebSocket失敗: " + e.getMessage());
-        }
-    }
 
-    @GetMapping("/test")
-    public CompletableFuture<?> test(@RequestParam String tradingPair) {
-        CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
-        return cryptoService.trackCryptoHistoryPrices(tradingPairs)
-                            .thenApplyAsync(taskId -> ResponseEntity.ok().body("任務id: " + taskId));
-    }
-    @GetMapping("/getAllTaskProgress")
-    @ResponseBody
-    public List<Progress.ProgressDto> getAllTaskProgress() {
-        List<Progress.ProgressDto> progressList = new ArrayList<>();
-        for (Progress progress : progressTracker.getAllProgressInfo()) {
-            Progress.ProgressDto dto = new Progress.ProgressDto(
-                    progress.getTaskName(),
-                    progress.getProgressCount(),
-                    progress.getTotalTask(),
-                    progress.getProgressPercentage() * 100
-            );
-            progressList.add(dto);
-        }
-        return progressList;
-    }
 
 }
 

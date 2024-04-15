@@ -134,7 +134,7 @@ public class CurrencyService {
         for (String currency : currencies) {
             Currency currencyData = currencyRepository.findByCurrency(currency).orElse(null);
             if (currencyData != null) {
-                rates.put("USD"+currency, currencyData.getExchangeRate());
+                rates.put("USD" + currency, currencyData.getExchangeRate());
             } else {
                 rates.put("USD"+currency, BigDecimal.ZERO);
                 logger.warn("無法取得"+ currency +"的匯率資料");

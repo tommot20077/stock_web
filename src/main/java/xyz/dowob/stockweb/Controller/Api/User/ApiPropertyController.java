@@ -181,17 +181,17 @@ public class ApiPropertyController {
         }
     }
 
-/*
-    @GetMapping("/getPropertySummary/now")
-    public ResponseEntity<?> getPropertySummary(HttpSession session) {
+
+    @GetMapping("/getPropertySummary/history")
+    public ResponseEntity<?> getPropertyHistorySummary(HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
-
-            return ResponseEntity.ok().body(propertyService.getPropertySummary(user));
+            String json = propertyService.getPropertySummary(user);
+            return ResponseEntity.ok().body(json);
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }
@@ -201,5 +201,5 @@ public class ApiPropertyController {
     //TODO: 取得用戶資產歷史，從influxdb取資料
     //@GetMapping("/getPropertySummary/history")
 
-*/
+
 }

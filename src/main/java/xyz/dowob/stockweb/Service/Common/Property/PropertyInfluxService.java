@@ -112,20 +112,19 @@ public class PropertyInfluxService {
 
     public Map<String, List<FluxTable>>queryUserPropertySum(User user) {
         Map<String, List<FluxTable>> userPropertyTablesMap = new HashMap<>();
-        String specificPredicate = createPredicate(propertySummaryBucket, "specific_property", user.getId().toString());
-        String summaryPredicate = createPredicate(propertySummaryBucket, "summary_property", user.getId().toString());
-        userPropertyTablesMap.put("specific_property",propertySummaryInfluxClient.getQueryApi().query(specificPredicate, org));
+        String summaryPredicate = createHistorySummaryPredicate(propertySummaryBucket, "summary_property", user.getId().toString(), "7d");
         userPropertyTablesMap.put("summary_property",propertySummaryInfluxClient.getQueryApi().query(summaryPredicate, org));
         return userPropertyTablesMap;
     }
 
 
-    private String createPredicate(String propertySummaryBucket, String measurement, String userId) {
+    private String createHistorySummaryPredicate(String propertySummaryBucket, String measurement, String userId, String dateRange) {
         return String.format(
                 "from(bucket: \"%s\")" +
+                        " |> range(start: -%s)" +
                         " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" +
                         " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
-                propertySummaryBucket, measurement, userId
+                propertySummaryBucket, dateRange, measurement, userId
         );
     }
 }
