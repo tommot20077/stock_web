@@ -3,6 +3,8 @@ package xyz.dowob.stockweb.Repository.Crypto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +30,9 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
 
     @Query("SELECT c.baseAsset FROM CryptoTradingPair c ORDER BY c.baseAsset")
     List<String> findAllBaseAssetByOrderByBaseAssetAsc();
+
+    @Query("SELECT c.tradingPair FROM CryptoTradingPair c")
+    Page<String> findAllTradingPairByPage(Pageable pageable);
 
 
     @Query("SELECT COUNT(sub) FROM CryptoTradingPair c join c.subscribers sub WHERE c = :cryptoTradingPair")

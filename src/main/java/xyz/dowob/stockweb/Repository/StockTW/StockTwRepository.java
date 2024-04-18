@@ -3,6 +3,8 @@ package xyz.dowob.stockweb.Repository.StockTW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +26,9 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     List<Object[]> findDistinctStockCodeAndName();
     @Query("SELECT s.stockCode, s.stockName FROM StockTw s ORDER BY s.stockCode")
     List<Object[]> findAllByOrderByStockCode();
+
+    @Query("SELECT s.stockCode FROM StockTw s")
+    Page<String> findAllStockCodeByPage(Pageable pageable);
 
     @Query("SELECT COUNT(sub) FROM StockTw s JOIN s.subscribers sub WHERE s = :stockTw")
     int countStockTwSubscribersNumber(@Param("stockTw") StockTw stockTw);

@@ -1,6 +1,7 @@
 package xyz.dowob.stockweb.Component.Method;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -17,6 +19,8 @@ import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -36,8 +40,9 @@ public class CrontabMethod {
     private final PropertyService propertyService;
     private final CryptoWebSocketHandler cryptoWebSocketHandler;
     private final SubscribeMethod subscribeMethod;
+    private final PropertyInfluxService propertyInfluxService;
     @Autowired
-    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService , CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod) {
+    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService , CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
         this.tokenService = tokenService;
         this.currencyService = currencyService;
         this.stockTwService = stockTwService;
@@ -46,6 +51,7 @@ public class CrontabMethod {
         this.propertyService = propertyService;
         this.cryptoWebSocketHandler = cryptoWebSocketHandler;
         this.subscribeMethod = subscribeMethod;
+        this.propertyInfluxService = propertyInfluxService;
     }
 
     private List<String> trackableStocks = new ArrayList<>();
@@ -69,6 +75,7 @@ public class CrontabMethod {
 
     @Scheduled(cron = "0 30 8 * * ? ", zone = "Asia/Taipei")
     public void checkSubscriptions() throws JsonProcessingException {
+
         logger.debug("正在檢查訂閱狀況");
         logger.debug(String.valueOf(trackableStocks));
         Map<String, List<String>> subscriptionValidity = stockTwService.checkSubscriptionValidity();
@@ -137,6 +144,33 @@ public class CrontabMethod {
         } catch (Exception e) {
             logger.error("記錄失敗", e);
         }
+    }
+
+    @Scheduled(cron = "0 10 */4 * * ? ", zone = "UTC")
+    public void updateUserCashFlow() {
+        logger.debug("開始更新使用者的現金流");
+        List<User> users = userService.getAllUsers();
+        try {
+            for (User user : users) {
+                propertyInfluxService.writeNetFlowToInflux(BigDecimal.ZERO, user);
+            }
+            logger.debug("更新完成");
+        } catch (Exception e) {
+            logger.error("更新失敗", e);
+        }
+    }
+
+    @Scheduled(cron = "0 40 */4 * * ? ", zone = "UTC")
+    public void updateUserRoiData() {
+        logger.debug("開始更新使用者的 ROI");
+        Long time = Instant.now().toEpochMilli();
+        List<User> users = userService.getAllUsers();
+        for (User user : users) {
+            List<String>roiResult = propertyService.prepareRoiDataAndCalculate(user);
+            ObjectNode roiObject = propertyService.formatToObjectNode(roiResult);
+            propertyInfluxService.writeUserRoiDataToInflux(roiObject, user, time);
+        }
+        logger.debug("更新完成");
     }
 
 

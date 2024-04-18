@@ -5,15 +5,15 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
+import com.influxdb.query.FluxTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+
+import java.time.*;
 import java.util.List;
 import java.util.Map;
 
@@ -127,5 +127,23 @@ public class CryptoInfluxService {
         } catch (Exception e) {
             logger.error("刪除資料時發生錯誤", e);
         }
+    }
+
+    public LocalDate getLastDateByTradingPair(String tradingPair) {
+        String query = String.format(
+                "from(bucket: \"%s\") |> range(start: -14d)" +
+                        " |> filter(fn: (r) => r._measurement == \"kline_data\")" +
+                        " |> filter(fn: (r) => r.tradingPair == \"%s\")" +
+                        " |> last()",
+                cryptoHistoryBucket, tradingPair
+        );
+        FluxTable result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast();
+        if (!result.getRecords().isEmpty()) {
+            Instant lastRecordTime = result.getRecords().getFirst().getTime();
+            if (lastRecordTime != null) {
+                return LocalDateTime.ofInstant(lastRecordTime, ZoneId.of("UTC")).toLocalDate();
+            }
+        }
+        return null;
     }
 }

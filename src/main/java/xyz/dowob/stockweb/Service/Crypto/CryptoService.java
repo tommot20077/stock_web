@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
+import xyz.dowob.stockweb.Component.Event.Asset.AssetHistoryDataFetchCompleteEvent;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Component.Event.Crypto.WebSocketConnectionStatusEvent;
 import xyz.dowob.stockweb.Enum.AssetType;
@@ -29,6 +31,7 @@ import xyz.dowob.stockweb.Service.Common.DynamicThreadPoolManager;
 import xyz.dowob.stockweb.Service.Common.FileService;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -51,6 +54,9 @@ public class CryptoService {
     private final FileService fileService;
     private final ProgressTracker progressTracker;
     private final DynamicThreadPoolManager dynamicThreadPoolManager;
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+
     @Value("${db.influxdb.bucket.crypto_history.detail}")
     private String frequency;
     @Value("${db.influxdb.bucket.crypto_history.dateline}")
@@ -61,7 +67,7 @@ public class CryptoService {
 
 
     @Autowired
-    public CryptoService(CryptoWebSocketHandler webSocketHandler, TaskRepository taskRepository, CryptoInfluxService cryptoInfluxService, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper, FileService fileService, ProgressTracker progressTracker, DynamicThreadPoolManager dynamicThreadPoolManager) {
+    public CryptoService(CryptoWebSocketHandler webSocketHandler, TaskRepository taskRepository, CryptoInfluxService cryptoInfluxService, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper, FileService fileService, ProgressTracker progressTracker, DynamicThreadPoolManager dynamicThreadPoolManager, ApplicationEventPublisher applicationEventPublisher) {
         this.cryptoWebSocketHandler = webSocketHandler;
         this.taskRepository = taskRepository;
         this.cryptoInfluxService = cryptoInfluxService;
@@ -71,6 +77,7 @@ public class CryptoService {
         this.fileService = fileService;
         this.progressTracker = progressTracker;
         this.dynamicThreadPoolManager = dynamicThreadPoolManager;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
 
@@ -331,6 +338,7 @@ public class CryptoService {
                 if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
                     dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
                 }
+                applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, true, cryptoTradingPair));
             });
             return CompletableFuture.completedFuture(taskId);
         } catch (Exception e) {
@@ -341,6 +349,7 @@ public class CryptoService {
             if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
                 dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
             }
+            applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, cryptoTradingPair));
             return CompletableFuture.completedFuture(taskId);
         }
     }
@@ -349,13 +358,16 @@ public class CryptoService {
     public void trackCryptoHistoryPricesWithUpdateDaily() {
         Set<String> needToUpdateTradingPairs = cryptoRepository.findAllTradingPairBySubscribers();
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
+        Map<String, LocalDate> hadTrackHistoryData = new HashMap<>();
         logger.debug("要更新每日最新價格的交易對: " + needToUpdateTradingPairs);
         if (needToUpdateTradingPairs.isEmpty()) {
             logger.debug("沒有要更新的交易對");
             return;
         }
-        LocalDate trackDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
-        String formatGetDailyDate = trackDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDate startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
+        LocalDate expectedLastUpdateDate = startDate.minusDays(1);
+        String formatGetDailyDate = startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
         ExecutorService executorService = dynamicThreadPoolManager.getExecutorService();
         logger.debug("總計需取得: " + needToUpdateTradingPairs.size() + "筆資料");
         String taskId = progressTracker.createAndTrackNewTask(needToUpdateTradingPairs.size(), "dailyUpdateCryptoHistoryPrices");
@@ -363,9 +375,13 @@ public class CryptoService {
         Task task = new Task(taskId, "更新每日虛擬貨幣的最新價格", needToUpdateTradingPairs.size());
         taskRepository.save(task);
         try {
-
-
             needToUpdateTradingPairs.forEach(tradingPair -> {
+                LocalDate lastUpdateDate = cryptoInfluxService.getLastDateByTradingPair(tradingPair);
+                if (!lastUpdateDate.equals(expectedLastUpdateDate)) {
+                    logger.warn("歷史價格資料交易對: " + tradingPair + ", 資料有缺失，最後更新日期: " + lastUpdateDate+ " 加入到待處理列表");
+                    hadTrackHistoryData.put(tradingPair, lastUpdateDate);
+                }
+
                 String fileName = String.format("%s-%s-%s.zip", tradingPair, frequency, formatGetDailyDate);
                 String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "daily", tradingPair, frequency,
                                                 fileName);
@@ -396,7 +412,7 @@ public class CryptoService {
                 futureList.add(future);
             });
 
-            CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenComplete((result, ex) -> {
+            CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenCompleteAsync((result, ex) -> {
                 if (ex != null) {
                     logger.error("歷史價格資料抓取失敗: " + ex.getMessage());
                     task.completeTask(TaskStatusType.FAILED, "歷史價格資料抓取失敗: " + ex.getMessage());
@@ -408,8 +424,60 @@ public class CryptoService {
                 taskRepository.save(task);
                 progressTracker.deleteProgress(taskId);
                 logger.debug("任務用時: " + task.getTaskUsageTime());
-                if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
-                    dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
+
+                if (!hadTrackHistoryData.isEmpty()) {
+                    logger.warn("歷史價格資料有缺失，開始處理");
+                    int totalBackFillCount = 0;
+                    for (Map.Entry<String, LocalDate> entry : hadTrackHistoryData.entrySet()) {
+                        LocalDate lastUpdateDate = entry.getValue();
+                        LocalDate trackStartDate = lastUpdateDate.plusDays(1);
+                        totalBackFillCount += Period.between(trackStartDate, startDate).getDays();
+                    }
+                    logger.debug("總計需取得: " + totalBackFillCount + "筆資料");
+                    String trackBackTaskId = progressTracker.createAndTrackNewTask(totalBackFillCount, "trackMissHistoryPriceData");
+                    Task trackBackTask = new Task(taskId, "追蹤缺失的虛擬貨幣的價格資料", totalBackFillCount);
+                    taskRepository.save(trackBackTask);
+
+                    try {
+                        hadTrackHistoryData.forEach((tradingPair, lastUpdateDate) -> {
+                            logger.warn("歷史價格資料交易對: " + tradingPair + ", 資料有缺失，最後更新日期: " + lastUpdateDate);
+                            LocalDate trackStartDate = lastUpdateDate.plusDays(1);
+
+                            while (trackStartDate.isBefore(expectedLastUpdateDate) || trackStartDate.isEqual(
+                                    expectedLastUpdateDate)) {
+                                String formatTrackStartDate = trackStartDate.format(
+                                        DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                                String fileName = String.format("%s-%s-%s.zip", tradingPair, frequency,
+                                                                formatTrackStartDate);
+                                String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "daily", tradingPair,
+                                                                frequency, fileName);
+                                logger.debug("要追蹤歷史價格的交易對: " + tradingPair);
+                                logger.debug("歷史價格資料網址: " + dailyUrl);
+                                dynamicThreadPoolManager.onTaskStart();
+                                rateLimiter.acquire();
+                                try {
+                                    List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dailyUrl, fileName);
+                                    if (csvData != null) {
+                                        logger.debug("歷史價格資料讀取完成");
+                                        cryptoInfluxService.writeCryptoHistoryToInflux(csvData, tradingPair);
+                                        logger.debug("抓取" + fileName + "的資料完成");
+                                    }
+                                } catch (Exception e) {
+                                    logger.error("抓取" + fileName + "的資料失敗: " + e.getMessage());
+                                } finally {
+                                    progressTracker.incrementProgress(trackBackTaskId);
+                                }
+                                dynamicThreadPoolManager.onTaskComplete();
+                                trackStartDate = trackStartDate.plusDays(1);
+                            }
+                        });
+                    } catch (Exception e) {
+                        logger.error("歷史價格資料抓取失敗: " + e.getMessage());
+                        trackBackTask.completeTask(TaskStatusType.FAILED, "歷史價格資料抓取失敗: " + e.getMessage());
+                        taskRepository.save(trackBackTask);
+                        progressTracker.deleteProgress(trackBackTaskId);
+                        logger.debug("任務用時: " + task.getTaskUsageTime());
+                    }
                 }
             });
         } catch (Exception e) {
@@ -418,6 +486,7 @@ public class CryptoService {
             taskRepository.save(task);
             progressTracker.deleteProgress(taskId);
             logger.debug("任務用時: " + task.getTaskUsageTime());
+        } finally {
             if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
                 dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
             }
