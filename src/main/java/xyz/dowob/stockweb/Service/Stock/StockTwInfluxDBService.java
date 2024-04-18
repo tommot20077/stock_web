@@ -6,6 +6,7 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
+import com.influxdb.query.FluxTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -183,9 +184,24 @@ public class StockTwInfluxDBService {
         }
     }
 
-
-
-
-
-
+    //todo 視情況刪除
+/*
+    public LocalDate queryLastDataDateFromInfluxByStockCode(String stockCode) {
+        String query = String.format(
+                "from(bucket: \"%s\") |> range(start: -14d)" +
+                        " |> filter(fn: (r) => r._measurement == \"kline_data\")" +
+                        " |> filter(fn: (r) => r.stock_tw == \"%s\")" +
+                        " |> last()",
+                stockHistoryBucket, stockCode
+        );
+        FluxTable result = StockTwHistoryInfluxDBClient.getQueryApi().query(query, org).getLast();
+        if (!result.getRecords().isEmpty()) {
+            Instant lastRecordTime = result.getRecords().getFirst().getTime();
+            if (lastRecordTime != null) {
+                return LocalDateTime.ofInstant(lastRecordTime, ZoneId.of("UTC")).toLocalDate();
+            }
+        }
+        return null;
+    }
+    */
 }

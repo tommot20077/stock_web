@@ -2,20 +2,27 @@ package xyz.dowob.stockweb.Service.Common.Property;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.Method.ChartMethod;
+import xyz.dowob.stockweb.Component.Method.EventCacheMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Dto.Property.RoiDataDto;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
 import xyz.dowob.stockweb.Model.Common.Asset;
@@ -30,10 +37,14 @@ import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.TransactionRepository;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,10 +59,11 @@ public class PropertyService {
     private final PropertyInfluxService propertyInfluxService;
     private final AssetHandler assetHandler;
     private final ChartMethod chartMethod;
+    private final EventCacheMethod eventCacheMethod;
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod) {
+    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod, EventCacheMethod eventCacheMethod) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
@@ -62,7 +74,14 @@ public class PropertyService {
         this.propertyInfluxService = propertyInfluxService;
         this.assetHandler = assetHandler;
         this.chartMethod = chartMethod;
+        this.eventCacheMethod = eventCacheMethod;
     }
+    @Value("${db.influxdb.bucket.property_summary}")
+    private String propertySummaryBucket;
+
+    @Value("${db.influxdb.org}")
+    private String org;
+
 
     @Transactional(rollbackOn = Exception.class)
     public void modifyStock(User user, PropertyListDto.PropertyDto request) {
@@ -121,9 +140,18 @@ public class PropertyService {
                 }
 
                 propertyRepository.save(propertyToAdd);
-                logger.debug("新增成功");
-                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
                 subscribeMethod.subscribeProperty(propertyToAdd, user);
+                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
+
+                if (stock != null && stock.isHasAnySubscribed()) {
+                    logger.debug("寫入 InfluxDB");
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, stock);
+                    propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                } else {
+                    logger.debug("等待事件監聽器回傳，存入事件緩存");
+                    eventCacheMethod.addEventCache(propertyToAdd, quantity);
+                }
+                logger.debug("新增成功");
                 break;
 
             case REMOVE:
@@ -139,10 +167,22 @@ public class PropertyService {
                     logger.debug("無法刪除其他人的持有股票");
                     throw new RuntimeException("無法刪除其他人的持有股票");
                 }
-                subscribeMethod.unsubscribeProperty(propertyToRemove, user);
-                recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
-                propertyRepository.delete(propertyToRemove);
-                logger.debug("刪除成功");
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(propertyToRemove.getQuantity().negate(), propertyToRemove.getAsset());
+                    propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                });
+                future.whenComplete((f, e) -> {
+                    if (e != null) {
+                        logger.error("寫入 InfluxDB 時發生錯誤", e);
+                        throw new RuntimeException("寫入 InfluxDB 時發生錯誤");
+                    } else {
+                        logger.debug("寫入 InfluxDB 成功");
+                        subscribeMethod.unsubscribeProperty(propertyToRemove, user);
+                        recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
+                        propertyRepository.delete(propertyToRemove);
+                        logger.debug("刪除成功");
+                    }
+                });
                 break;
 
             case UPDATE:
@@ -173,9 +213,13 @@ public class PropertyService {
                     propertyToUpdate.setDescription("");
                 }
 
+
+
+                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()), propertyToUpdate.getAsset());
+                propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 propertyRepository.save(propertyToUpdate);
-                logger.debug("更新成功");
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
+                logger.debug("更新成功");
                 break;
 
             default:
@@ -200,7 +244,7 @@ public class PropertyService {
             currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase()).orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
             logger.debug("貨幣: " + currency);
         }
-
+        BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, currency);
 
         switch (request.formatOperationTypeEnum()) {
             case ADD:
@@ -235,8 +279,11 @@ public class PropertyService {
 
                 propertyRepository.save(propertyToAdd);
                 subscribeMethod.subscribeProperty(propertyToAdd, user);
-                logger.debug("新增成功");
                 recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
+
+                propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                logger.debug("新增成功");
+
                 break;
 
             case REMOVE:
@@ -252,10 +299,13 @@ public class PropertyService {
                     logger.debug("無法刪除其他人的持有貨幣");
                     throw new RuntimeException("無法刪除其他人的持有貨幣");
                 }
+                propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+
                 recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
                 subscribeMethod.unsubscribeProperty(propertyToRemove, user);
                 propertyRepository.delete(propertyToRemove);
                 logger.debug("刪除成功");
+
                 break;
 
             case UPDATE:
@@ -286,9 +336,16 @@ public class PropertyService {
                     logger.debug("沒有備註，使用預設值");
                     propertyToUpdate.setDescription("");
                 }
+
+                if (quantity.subtract(propertyToUpdate.getQuantity()).compareTo(BigDecimal.ZERO) > 0){
+                    propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                } else {
+                    propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                }
+
                 propertyRepository.save(propertyToUpdate);
-                logger.debug("更新成功");
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
+                logger.debug("更新成功");
                 break;
 
             default:
@@ -347,9 +404,18 @@ public class PropertyService {
                     propertyToAdd.setDescription("");
                 }
                 propertyRepository.save(propertyToAdd);
-                logger.debug("新增成功");
-                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
                 subscribeMethod.subscribeProperty(propertyToAdd, user);
+                recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
+
+                if (tradingPair != null && tradingPair.isHasAnySubscribed()){
+                    logger.debug("寫入InfluxDB");
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, tradingPair);
+                    propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                } else {
+                    logger.debug("等待事件監聽器回傳，存入事件緩存");
+                    eventCacheMethod.addEventCache(propertyToAdd, quantity);
+                }
+                logger.debug("新增成功");
                 break;
 
             case REMOVE:
@@ -365,11 +431,23 @@ public class PropertyService {
                     logger.debug("無法刪除其他人的持有加密貨幣");
                     throw new RuntimeException("無法刪除其他人的持有加密貨幣");
                 }
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(propertyToRemove.getQuantity().negate(), propertyToRemove.getAsset());
+                    propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                });
 
-                subscribeMethod.unsubscribeProperty(propertyToRemove, user);
-                recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
-                propertyRepository.delete(propertyToRemove);
-                logger.debug("刪除成功");
+                future.whenComplete((f, e) -> {
+                    if (e != null) {
+                        logger.error("寫入InfluxDB時發生錯誤", e);
+                        throw new RuntimeException("寫入InfluxDB時發生錯誤");
+                    } else {
+                        logger.debug("寫入InfluxDB成功");
+                        subscribeMethod.unsubscribeProperty(propertyToRemove, user);
+                        recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
+                        propertyRepository.delete(propertyToRemove);
+                        logger.debug("刪除成功");
+                    }
+                });
                 break;
 
             case UPDATE:
@@ -402,6 +480,8 @@ public class PropertyService {
                     propertyToUpdate.setDescription("");
                 }
 
+                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()), propertyToUpdate.getAsset());
+                propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 propertyRepository.save(propertyToUpdate);
                 logger.debug("更新成功");
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
@@ -519,7 +599,7 @@ public class PropertyService {
 
 
     public void writeAllPropertiesToInflux (List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
-        boolean success = propertyInfluxService.writeToInflux(writeToInfluxPropertyDto, user);
+        boolean success = propertyInfluxService.writePropertyDataToInflux(writeToInfluxPropertyDto, user);
         if (!success) {
             logger.error("寫入 InfluxDB 失敗");
             throw new RuntimeException("寫入 InfluxDB 失敗");
@@ -580,7 +660,7 @@ public class PropertyService {
     }
 
     public String getPropertySummary(User user) {
-        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryUserPropertySum(user);
+        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket, "summary_property", user, "7d", false);
         logger.debug("取得 InfluxDB 的資料: " + userSummary);
         Map<String, List<Map<String, Object>>>formatToChartData = chartMethod.formatToChartData(userSummary);
 
@@ -595,5 +675,136 @@ public class PropertyService {
             throw new RuntimeException("轉換 JSON 時發生錯誤", e);
         }
     }
+    public List<String> prepareRoiDataAndCalculate(User user) {
+        List<LocalDateTime> localDateList = getRoiDate();
+        List<String> roiResult = new ArrayList<>();
+        List<String> fields = new ArrayList<>();
+        List<RoiDataDto> roiDataDtoList = new ArrayList<>();
+        Map<LocalDateTime, BigDecimal> netCashFlowMap = new TreeMap<>();
+        Map<LocalDateTime, BigDecimal> totalSumMap = new TreeMap<>();
+        fields.add("total_sum");
+
+
+        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = propertyInfluxService.queryByTimeAndUser(propertySummaryBucket, "net_cash_flow", new ArrayList<>(), user, localDateList, 12, true);
+        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = propertyInfluxService.queryByTimeAndUser(propertySummaryBucket, "summary_property", fields, user, localDateList, 12, true);
+        logger.debug("取得 InfluxDB 的淨流量資料: " + netCashFlowResult);
+        logger.debug("取得 InfluxDB 的資產量資料: " + netPropertySumResult);
+
+
+        for (Map.Entry<LocalDateTime, List<FluxTable>> entry : netCashFlowResult.entrySet()) {
+            for (FluxTable table : entry.getValue()) {
+                for (FluxRecord record : table.getRecords()) {
+                    logger.debug("取得淨流量資料: " + record);
+                    netCashFlowMap.put(entry.getKey(), (BigDecimal) record.getValueByKey("net_flow"));
+                }
+            }
+        }
+        for (Map.Entry<LocalDateTime, List<FluxTable>> entry : netPropertySumResult.entrySet()) {
+            for (FluxTable table : entry.getValue()) {
+                for (FluxRecord record : table.getRecords()) {
+                    logger.debug("取得總資產的資料: " + record);
+                    totalSumMap.put(entry.getKey(), (BigDecimal) record.getValueByKey("total_sum"));
+                }
+            }
+        }
+
+        Duration maxDifference = Duration.ofHours(3);
+        for (LocalDateTime time : netCashFlowMap.keySet()) {
+            BigDecimal netCashFlowValue = netCashFlowMap.get(time);
+            BigDecimal propertySumValue = BigDecimal.ZERO;
+            LocalDateTime closestTime = findClosestTime(netPropertySumResult.keySet(), time, maxDifference);
+            if (closestTime != null) {
+                propertySumValue = totalSumMap.get(closestTime);
+            }
+            RoiDataDto roiDataDto = new RoiDataDto(time, netCashFlowValue, propertySumValue);
+            roiDataDtoList.add(roiDataDto);
+        }
+        roiDataDtoList.sort(Comparator.comparing(RoiDataDto::getDate));
+
+        if (roiDataDtoList.size() >= 2) {
+            RoiDataDto todayDto = roiDataDtoList.getLast();
+            for (int i = roiDataDtoList.size() - 2; i >= 0; i--) {
+                RoiDataDto historyDto = roiDataDtoList.get(i);
+                BigDecimal summaryIncrease = (todayDto.getTotalSum().subtract(historyDto.getTotalSum()));
+                BigDecimal cashFlowDecrease = (todayDto.getNetCashFlow().subtract(historyDto.getNetCashFlow()));
+                if (historyDto.getTotalSum().compareTo(BigDecimal.ZERO) != 0) {
+                    BigDecimal roi = (summaryIncrease.subtract(cashFlowDecrease)).divide(historyDto.getTotalSum(), 4,RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+                    logger.debug("Roi: {}%", roi);
+                    roiResult.add(roi.toString());
+                } else {
+                    roiResult.add("數據不足");
+                    logger.debug("數據不足");
+                }
+            }
+        } else {
+            roiResult.add("數據不足");
+            logger.debug("數據不足");
+        }
+        logger.debug("ROI 結果: " + roiResult);
+        return roiResult;
+    }
+
+    public String getUserRoiData(User user) throws JsonProcessingException {
+        Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
+        logger.debug("取得 InfluxDB 的 ROI 資料: " + roiDataTable);
+
+        Map<String, String> roiResult = new HashMap<>();
+        FluxRecord record = roiDataTable.get("roi").getFirst().getRecords().getFirst();
+        logger.debug("取得 ROI 資料: " + record);
+        String dayRoi = Optional.ofNullable(record.getValueByKey("day")).map(Object::toString).orElse("數據不足");
+        String weekRoi = Optional.ofNullable(record.getValueByKey("week")).map(Object::toString).orElse("數據不足");
+        String monthRoi = Optional.ofNullable(record.getValueByKey("month")).map(Object::toString).orElse("數據不足");
+        String yearRoi = Optional.ofNullable(record.getValueByKey("year")).map(Object::toString).orElse("數據不足");
+        roiResult.put("day", dayRoi);
+        roiResult.put("week", weekRoi);
+        roiResult.put("month", monthRoi);
+        roiResult.put("year", yearRoi);
+
+        logger.debug("ROI 結果: " + roiResult);
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.writeValueAsString(roiResult);
+    }
+
+    public ObjectNode formatToObjectNode(List<String> roiResult) {
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode objectNode = mapper.createObjectNode();
+        String day = !roiResult.isEmpty() ? roiResult.get(0) : "數據不足";
+        String week = roiResult.size() > 1 ? roiResult.get(1) : "數據不足";
+        String month = roiResult.size() > 2 ? roiResult.get(2) : "數據不足";
+        String year = roiResult.size() > 3 ? roiResult.get(3) : "數據不足";
+
+        objectNode.put("day", day);
+        objectNode.put("week", week);
+        objectNode.put("month", month);
+        objectNode.put("year", year);
+        logger.debug("返回結果: " + objectNode);
+        return objectNode;
+    }
+    private List<LocalDateTime> getRoiDate() {
+        LocalDateTime today = LocalDateTime.now();
+        List<LocalDateTime> localDateTime = new ArrayList<>();
+        localDateTime.add(today);
+        localDateTime.add(today.minusDays(1));
+        localDateTime.add(today.minusWeeks(1));
+        localDateTime.add(today.minusMonths(1));
+        localDateTime.add(today.minusYears(1));
+        return localDateTime;
+    }
+
+    public LocalDateTime findClosestTime(Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference) {
+        LocalDateTime closestTime = null;
+        long smallestDifference = maxDifference.toMinutes();
+
+        for (LocalDateTime time :times) {
+            long difference = Duration.between(time, targetTime).toMinutes();
+            if (difference < smallestDifference) {
+                smallestDifference = difference;
+                closestTime = time;
+            }
+        }
+        return closestTime;
+    }
+
 
 }

@@ -9,11 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import xyz.dowob.stockweb.Component.Event.Asset.AssetHistoryDataFetchCompleteEvent;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
 import xyz.dowob.stockweb.Model.Common.Task;
@@ -38,6 +40,8 @@ public class StockTwService {
     private final StockTwInfluxDBService stockTwInfluxDBService;
     private final TaskRepository taskRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
+
     private final String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
     private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
     RateLimiter rateLimiter = RateLimiter.create(0.5);
@@ -47,12 +51,13 @@ public class StockTwService {
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
         this.stockTwInfluxDBService = stockTwInfluxService;
         this.taskRepository = taskRepository;
         this.objectMapper = objectMapper;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
     @Transactional(rollbackFor = Exception.class)
     public void addStockSubscribeToUser(String stockId, User user) {
@@ -229,9 +234,11 @@ public class StockTwService {
             stockTw.setHasAnySubscribed(true);
             stockTwRepository.save(stockTw);
             logger.debug("任務用時: " + task.getTaskUsageTime());
+            applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, true, stockTw));
         } catch (Exception e) {
             logger.error("獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
             task.completeTask(TaskStatusType.FAILED, "獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
+            applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, stockTw));
         }
         taskRepository.save(task);
 

@@ -19,6 +19,8 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
+import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
+
 import java.util.Set;
 
 @Component
@@ -34,46 +36,6 @@ public class SubscribeMethod {
         this.stockTwRepository = stockTwRepository;
         this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
-    }
-
-
-    @Transactional(rollbackFor = Exception.class)
-    public void unsubscribeProperty(Property property, User user) {
-        logger.debug("取消訂閱資產ID: " + property.getId());
-        Subscribe subscribe;
-        if (property.getAsset().getAssetType() == AssetType.CURRENCY) {
-            logger.debug("取消訂閱貨幣匯率");
-            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), property.getAsset().getId(), user.getPreferredCurrency().getCurrency()).orElse(null);
-            if (subscribe == null) {
-                Currency currency = (Currency) property.getAsset();
-                subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), user.getPreferredCurrency().getId(), currency.getCurrency()).orElse(null);
-            }
-        } else {
-            logger.debug("取消訂閱其他匯率");
-            subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), property.getAsset().getId()).orElse(null);
-        }
-        logger.debug("取得用戶資產訂閱表: " + subscribe);
-        if (subscribe != null && subscribe.isUserSubscribed()) {
-            logger.debug("用戶有此資產訂閱");
-            subscribeRepository.delete(subscribe);
-            switch (property.getAsset()) {
-                case CryptoTradingPair crypto -> {
-                    if (crypto.checkUserIsSubscriber(user)) {
-                        removeSubscriberFromTradingPair(crypto, user.getId());
-                    }
-                }
-                case StockTw stockTw -> {
-                    if (stockTw.checkUserIsSubscriber(user)) {
-                        removeSubscriberFromStockTw(stockTw, user.getId());
-                    }
-                }
-                case Currency currency -> logger.debug("直接刪除subscription");
-                case null, default -> throw new IllegalArgumentException("錯誤的資產類型");
-            }
-            logger.debug("資產訂閱數量減 1");
-        } else {
-            logger.debug("用戶沒有此資產訂閱");
-        }
     }
     @Transactional(rollbackFor = Exception.class)
     public void subscribeProperty(Property property, User user) {
@@ -139,6 +101,45 @@ public class SubscribeMethod {
         }
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public void unsubscribeProperty(Property property, User user) {
+        logger.debug("取消訂閱資產ID: " + property.getId());
+        Subscribe subscribe;
+        if (property.getAsset().getAssetType() == AssetType.CURRENCY) {
+            logger.debug("取消訂閱貨幣匯率");
+            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), property.getAsset().getId(), user.getPreferredCurrency().getCurrency()).orElse(null);
+            if (subscribe == null) {
+                Currency currency = (Currency) property.getAsset();
+                subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), user.getPreferredCurrency().getId(), currency.getCurrency()).orElse(null);
+            }
+        } else {
+            logger.debug("取消訂閱其他匯率");
+            subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), property.getAsset().getId()).orElse(null);
+        }
+        logger.debug("取得用戶資產訂閱表: " + subscribe);
+        if (subscribe != null && subscribe.isUserSubscribed()) {
+            logger.debug("用戶有此資產訂閱");
+            subscribeRepository.delete(subscribe);
+            switch (property.getAsset()) {
+                case CryptoTradingPair crypto -> {
+                    if (crypto.checkUserIsSubscriber(user)) {
+                        removeSubscriberFromTradingPair(crypto, user.getId());
+                    }
+                }
+                case StockTw stockTw -> {
+                    if (stockTw.checkUserIsSubscriber(user)) {
+                        removeSubscriberFromStockTw(stockTw, user.getId());
+                    }
+                }
+                case Currency currency -> logger.debug("直接刪除subscription");
+                case null, default -> throw new IllegalArgumentException("錯誤的資產類型");
+            }
+            logger.debug("資產訂閱數量減 1");
+        } else {
+            logger.debug("用戶沒有此資產訂閱");
+        }
+    }
+
 
 
 
@@ -173,7 +174,5 @@ public class SubscribeMethod {
             }
         }
     }
-
-
 }
 

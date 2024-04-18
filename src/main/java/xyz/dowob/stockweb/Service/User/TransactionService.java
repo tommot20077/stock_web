@@ -8,9 +8,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Method.CombineMethod;
+import xyz.dowob.stockweb.Component.Method.EventCacheMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.TransactionListDto;
+import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
+import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
@@ -21,9 +24,13 @@ import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.TransactionRepository;
+import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
+
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 
 @Service
@@ -35,9 +42,11 @@ public class TransactionService {
     private final StockTwRepository stockTwRepository;
     private final SubscribeMethod subscribeMethod;
     private final CombineMethod combineMethod;
+    private final PropertyInfluxService propertyInfluxService;
+    private final EventCacheMethod eventCacheMethod;
     Logger logger = LoggerFactory.getLogger(TransactionService.class);
     @Autowired
-    public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod) {
+    public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod, PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod) {
         this.transactionRepository = transactionRepository;
         this.currencyRepository = currencyRepository;
         this.cryptoRepository = cryptoRepository;
@@ -45,6 +54,8 @@ public class TransactionService {
         this.stockTwRepository = stockTwRepository;
         this.subscribeMethod = subscribeMethod;
         this.combineMethod = combineMethod;
+        this.propertyInfluxService = propertyInfluxService;
+        this.eventCacheMethod = eventCacheMethod;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -173,22 +184,39 @@ public class TransactionService {
                     if (userSymbolProperty == null || userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) < 0) {
                         logger.debug("{} 資產不足", symbol);
                         throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + symbol + "來完成交易");
-                    } else if (userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) == 0) {
-                        logger.debug("刪除 {} 資產", symbol);
-                        subscribeMethod.unsubscribeProperty(userSymbolProperty, user);
-                        propertyRepository.delete(userSymbolProperty);
                     } else {
-                        userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().subtract(transaction.formatQuantityAsBigDecimal()));
+                        BigDecimal netFlow = propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal().negate(), asset);
 
-                        if (transaction.getDescription() == null) {
-                            logger.debug("沒有備註，使用預設值");
-                            userSymbolProperty.setDescription("");
+                        if (userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) == 0) {
+
+                            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                                propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                            });
+                            Property finalUserSymbolProperty = userSymbolProperty;
+                            future.whenComplete((f, e) -> {
+                                if (e != null){
+                                    logger.error("寫入 InfluxDB 時發生錯誤", e);
+                                    throw new RuntimeException("寫入 InfluxDB 時發生錯誤");
+                                } else {
+                                    logger.debug("寫入 InfluxDB 成功");
+                                    logger.debug("刪除 {} 資產", symbol);
+                                    subscribeMethod.unsubscribeProperty(finalUserSymbolProperty, user);
+                                    propertyRepository.delete(finalUserSymbolProperty);
+                                }
+                            });
                         } else {
-                            logger.debug("備註為{}",transaction.getDescription());
-                            userSymbolProperty.setDescription(transaction.getDescription());
-                        }
+                            userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().subtract(transaction.formatQuantityAsBigDecimal()));
 
-                        propertyRepository.save(userSymbolProperty);
+                            if (transaction.getDescription() == null) {
+                                logger.debug("沒有備註，使用預設值");
+                                userSymbolProperty.setDescription("");
+                            } else {
+                                logger.debug("備註為{}",transaction.getDescription());
+                                userSymbolProperty.setDescription(transaction.getDescription());
+                            }
+                            propertyRepository.save(userSymbolProperty);
+                            propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                        }
                     }
 
                     logger.debug("儲存 {} 資產變更", symbol);
@@ -204,11 +232,11 @@ public class TransactionService {
                     } else {
                         logger.debug("建立 {} 資產", symbol);
                         userSymbolProperty = new Property();
-                        logger.debug("設定用戶{}",user);
+                        logger.debug("設定用戶{}", user);
                         userSymbolProperty.setUser(user);
-                        logger.debug("設定存款對象{}",asset);
+                        logger.debug("設定存款對象{}", asset);
                         userSymbolProperty.setAsset(asset);
-                        logger.debug("設定交易數量{}",transaction.formatQuantityAsBigDecimal());
+                        logger.debug("設定交易數量{}", transaction.formatQuantityAsBigDecimal());
                         userSymbolProperty.setQuantity(transaction.formatQuantityAsBigDecimal());
 
                         if (asset instanceof StockTw) {
@@ -231,6 +259,31 @@ public class TransactionService {
                     propertyRepository.save(userSymbolProperty);
                     subscribeMethod.subscribeProperty(userSymbolProperty, user);
                     logger.debug("儲存 {} 資產變更", symbol);
+
+                    switch (asset) {
+                        case StockTw stockTw -> {
+                            if (stockTw.isHasAnySubscribed()) {
+                                logger.debug("寫入 InfluxDB");
+                                propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), stockTw);
+                            } else {
+                                logger.debug("等待事件監聽器回傳，存入事件緩存");
+                                eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
+                            }
+                        }
+                        case CryptoTradingPair cryptoTradingPair -> {
+                            if (cryptoTradingPair.isHasAnySubscribed()) {
+                                logger.debug("寫入 InfluxDB");
+                                propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), cryptoTradingPair);
+                            } else {
+                                logger.debug("等待事件監聽器回傳，存入事件緩存");
+                                eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
+                            }
+                        }
+                        case Currency currency ->
+                                propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), currency);
+                        default -> {
+                        }
+                    }
                     break;
 
                 case OTHER:

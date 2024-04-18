@@ -3,6 +3,9 @@ package xyz.dowob.stockweb.Component;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
@@ -33,22 +36,24 @@ public class AssetDataInitial {
     @PostConstruct
     public void init() {
         try {
+            Pageable pageable = PageRequest.of(0, 10);
+
             logger.info("確認貨幣匯率資料");
-            List<String> currencies = currencyRepository.findAllDistinctCurrencies();
+            Page<String> currencies = currencyRepository.findAllCurrenciesByPage(pageable);
             if (currencies.isEmpty()) {
                 logger.info("貨幣匯率資料為空,開始加載");
                 currencyService.updateCurrencyData();
             }
 
             logger.debug("確認台灣股票資料");
-            List<Object[]> stockTws = stockTwRepository.findAllByOrderByStockCode();
+            Page<String> stockTws = stockTwRepository.findAllStockCodeByPage(pageable);
             if (stockTws.isEmpty()) {
                 logger.info("台灣股票資料為空,開始加載");
                 stockTwService.updateStockList();
             }
 
             logger.debug("確認加密貨幣資料");
-            List<String> cryptoTradingPairs = cryptoRepository.findAllBaseAssetByOrderByBaseAssetAsc();
+            Page<String> cryptoTradingPairs = cryptoRepository.findAllTradingPairByPage(pageable);
             if (cryptoTradingPairs.isEmpty()) {
                 logger.info("加密貨幣資料為空,開始加載");
                 cryptoService.updateSymbolList();

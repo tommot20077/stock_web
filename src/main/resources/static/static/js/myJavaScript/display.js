@@ -117,3 +117,18 @@ async function displayTransactionTable() {
         console.log("資料格式錯誤");
     }
 }
+
+async function displayStatisticsOverview () {
+    let tableBody = document.getElementById('statistics_overview');
+    try {
+        const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
+        const latestTotalSum = summaryData.latest.filter(dataPoint => dataPoint.field === "total_sum");
+
+
+
+
+
+    } catch (error) {
+        console.error(error);
+    }
+}
