@@ -131,7 +131,7 @@ public class AssetInfluxMethod {
                 }
             } else {
                 logger.debug("取得最新價格失敗 + " + asset);
-                logger.debug("使用最新的歷史資料");
+                logger.debug("改成使用最新的歷史資料");
                 List<FluxTable> historyTables = queryLatestPrice(asset, true);
                 logger.debug("取得最新歷史價格結果: " + historyTables);
 

@@ -206,7 +206,7 @@ public class ApiPropertyController {
                 return ResponseEntity.status(401).body("請先登入");
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
-            String json = propertyService.getUserRoiData(user);
+            String json = propertyService.getUserPropertyOverview(user);
             return ResponseEntity.ok().body(json);
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());

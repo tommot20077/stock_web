@@ -135,13 +135,14 @@ public class PropertyInfluxService {
     public void writeNetFlowToInflux (BigDecimal newNetFlow, User user) {
         Map<String, List<FluxTable>> netCashFlowTablesMap = queryByUser(propertySummaryBucket, "net_cash_flow", user, "3d", true);
         BigDecimal originNetCashFlow = BigDecimal.valueOf(0);
-        if (netCashFlowTablesMap.get("net_cash_flow").isEmpty()) {
+        if (!netCashFlowTablesMap.containsKey("net_cash_flow") || netCashFlowTablesMap.get("net_cash_flow").isEmpty() || netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().isEmpty()) {
             logger.debug("沒有該用戶的資料，設定初始值0");
             newNetFlow = BigDecimal.valueOf(0);
         } else {
-            Object value = netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().getFirst().getValueByKey("net_flow");
-            if (value instanceof BigDecimal netCashFlowBig) {
-                originNetCashFlow = netCashFlowBig;
+            Object value = netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().getFirst().getValueByKey("_value");
+            logger.debug("取得該用戶的資料: " + value);
+            if (value instanceof Double netCashFlowBig) {
+                originNetCashFlow = BigDecimal.valueOf(netCashFlowBig);
             } else {
                 logger.debug("沒有該用戶的資料，設定初始值0");
                 originNetCashFlow = BigDecimal.valueOf(0);
@@ -189,12 +190,13 @@ public class PropertyInfluxService {
         if (isLast) {
             baseQuery += " |> last()";
         }
+        logger.debug("baseQuery: " + baseQuery);
         return baseQuery;
     }
 
-    public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast) {
+    public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
         Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
-        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket, measurement, fields, user, specificTimes, allowRangeOfHour, isLast);
+        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket, measurement, fields, user, specificTimes, allowRangeOfHour, isLast, needToFillData);
 
         for (Map.Entry<LocalDateTime, String> entry : predicate.entrySet()) {
             LocalDateTime specificTime = entry.getKey();
@@ -205,7 +207,16 @@ public class PropertyInfluxService {
         }
         return userTablesMap;
     }
-    private Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(String propertySummaryBucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast) {
+
+    private Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
+            String propertySummaryBucket,
+            String measurement,
+            List<String> fields, User user,
+            List<LocalDateTime> specificTimes,
+            int allowRangeOfHour,
+            boolean isLast,
+            boolean needToFillData) {
+
         Map<LocalDateTime, String> queries = new HashMap<>();
         DateTimeFormatter influxDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
         for (LocalDateTime specificTime : specificTimes) {
@@ -224,6 +235,13 @@ public class PropertyInfluxService {
             if (isLast) {
                 baseQuery.append(" |> last()");
             }
+            if (needToFillData) {
+                baseQuery.append(
+                        " |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" +
+                        " |> fill(usePrevious: true)"
+                );
+
+            }
             if (!fields.isEmpty()) {
                 for (String field : fields) {
                     String additionalQuery = String.format("  |> filter(fn: (r) => r[\"_field\"] == \"%s\")", field);
@@ -232,6 +250,7 @@ public class PropertyInfluxService {
             }
             queries.put(specificTime, baseQuery.toString());
         }
+        logger.debug("queries: " + queries);
         return queries;
     }
 

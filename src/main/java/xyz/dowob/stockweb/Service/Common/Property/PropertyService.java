@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
 import jakarta.transaction.Transactional;
@@ -41,7 +39,6 @@ import xyz.dowob.stockweb.Repository.User.TransactionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -685,126 +682,180 @@ public class PropertyService {
         fields.add("total_sum");
 
 
-        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = propertyInfluxService.queryByTimeAndUser(propertySummaryBucket, "net_cash_flow", new ArrayList<>(), user, localDateList, 12, true);
-        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = propertyInfluxService.queryByTimeAndUser(propertySummaryBucket, "summary_property", fields, user, localDateList, 12, true);
+        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = propertyInfluxService.queryByTimeAndUser(
+                propertySummaryBucket, "net_cash_flow", new ArrayList<>(), user, localDateList, 12, true, false);
+        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = propertyInfluxService.queryByTimeAndUser(
+                propertySummaryBucket, "summary_property", fields, user, localDateList, 12, true, false);
         logger.debug("取得 InfluxDB 的淨流量資料: " + netCashFlowResult);
         logger.debug("取得 InfluxDB 的資產量資料: " + netPropertySumResult);
 
 
         for (Map.Entry<LocalDateTime, List<FluxTable>> entry : netCashFlowResult.entrySet()) {
-            for (FluxTable table : entry.getValue()) {
-                for (FluxRecord record : table.getRecords()) {
-                    logger.debug("取得淨流量資料: " + record);
-                    netCashFlowMap.put(entry.getKey(), (BigDecimal) record.getValueByKey("net_flow"));
+            if (entry.getValue().isEmpty() || entry.getValue().getFirst().getRecords().isEmpty()) {
+                logger.debug(entry.getKey() + " 取得淨流量資料: " + null);
+                netCashFlowMap.put(entry.getKey(), null);
+            } else {
+                for (FluxTable table : entry.getValue()) {
+                    for (FluxRecord record : table.getRecords()) {
+                        Double value = (Double) record.getValueByKey("_value");
+                        logger.debug(entry.getKey() + " 取得淨流量資料: " + value);
+                        if (value == null) {
+                            netCashFlowMap.put(entry.getKey(), null);
+                        } else {
+                            netCashFlowMap.put(entry.getKey(), BigDecimal.valueOf(value));
+                        }
+                    }
                 }
             }
         }
         for (Map.Entry<LocalDateTime, List<FluxTable>> entry : netPropertySumResult.entrySet()) {
-            for (FluxTable table : entry.getValue()) {
-                for (FluxRecord record : table.getRecords()) {
-                    logger.debug("取得總資產的資料: " + record);
-                    totalSumMap.put(entry.getKey(), (BigDecimal) record.getValueByKey("total_sum"));
+            if (entry.getValue().isEmpty() || entry.getValue().getFirst().getRecords().isEmpty()) {
+                logger.debug(entry.getKey() + " 取得總資產資料: " + null);
+                totalSumMap.put(entry.getKey(), null);
+            } else {
+                for (FluxTable table : entry.getValue()) {
+                    for (FluxRecord record : table.getRecords()) {
+                        Double value = (Double) record.getValueByKey("_value");
+                        logger.debug(entry.getKey() + " 取得總資產資料: " + value);
+                        if (value == null) {
+                            totalSumMap.put(entry.getKey(), null);
+                        } else {
+                            totalSumMap.put(entry.getKey(), BigDecimal.valueOf(value));
+                        }
+                    }
                 }
             }
         }
-
         Duration maxDifference = Duration.ofHours(3);
         for (LocalDateTime time : netCashFlowMap.keySet()) {
+            logger.debug("開始尋找符合資料: " +time);
             BigDecimal netCashFlowValue = netCashFlowMap.get(time);
-            BigDecimal propertySumValue = BigDecimal.ZERO;
-            LocalDateTime closestTime = findClosestTime(netPropertySumResult.keySet(), time, maxDifference);
-            if (closestTime != null) {
-                propertySumValue = totalSumMap.get(closestTime);
+            logger.debug("淨流量: " + netCashFlowValue);
+            if (netCashFlowValue != null) {
+                BigDecimal propertySumValue = null;
+                LocalDateTime closestTime = findClosestTime(netPropertySumResult.keySet(), time, maxDifference);
+                logger.debug("最接近的時間: " + closestTime);
+                if (closestTime != null) {
+                    propertySumValue = totalSumMap.get(closestTime);
+                    logger.debug("最接近的時間取得的總資產: " + propertySumValue);
+                }
+                RoiDataDto roiDataDto = new RoiDataDto(time, propertySumValue, netCashFlowValue);
+                roiDataDtoList.add(roiDataDto);
+            } else {
+                logger.debug("淨流量: " + null);
+                RoiDataDto roiDataDto = new RoiDataDto(time, null, null);
+                roiDataDtoList.add(roiDataDto);
             }
-            RoiDataDto roiDataDto = new RoiDataDto(time, netCashFlowValue, propertySumValue);
-            roiDataDtoList.add(roiDataDto);
         }
         roiDataDtoList.sort(Comparator.comparing(RoiDataDto::getDate));
+
+        logger.debug("roiDataDtoList: " + roiDataDtoList);
 
         if (roiDataDtoList.size() >= 2) {
             RoiDataDto todayDto = roiDataDtoList.getLast();
             for (int i = roiDataDtoList.size() - 2; i >= 0; i--) {
                 RoiDataDto historyDto = roiDataDtoList.get(i);
-                BigDecimal summaryIncrease = (todayDto.getTotalSum().subtract(historyDto.getTotalSum()));
-                BigDecimal cashFlowDecrease = (todayDto.getNetCashFlow().subtract(historyDto.getNetCashFlow()));
-                if (historyDto.getTotalSum().compareTo(BigDecimal.ZERO) != 0) {
-                    BigDecimal roi = (summaryIncrease.subtract(cashFlowDecrease)).divide(historyDto.getTotalSum(), 4,RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
-                    logger.debug("Roi: {}%", roi);
-                    roiResult.add(roi.toString());
+                if (todayDto.getTotalSum() != null && historyDto.getTotalSum() != null) {
+                    BigDecimal summaryIncrease = (todayDto.getTotalSum().subtract(historyDto.getTotalSum()));
+                    BigDecimal cashFlowDecrease = (todayDto.getNetCashFlow().subtract(historyDto.getNetCashFlow()));
+                    if (historyDto.getTotalSum().compareTo(BigDecimal.ZERO) != 0) {
+                        BigDecimal roi = (summaryIncrease.subtract(cashFlowDecrease)).divide(historyDto.getTotalSum(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+                        logger.debug("Roi: {}%", roi);
+                        roiResult.add(roi.toString());
+                    } else {
+                        roiResult.add("數據不足");
+                        logger.debug("總資產為0，數據不足");
+                    }
                 } else {
                     roiResult.add("數據不足");
-                    logger.debug("數據不足");
+                    logger.debug("數據為null，數據不足");
                 }
             }
         } else {
             roiResult.add("數據不足");
-            logger.debug("數據不足");
+            logger.debug("總數據不足: " + roiDataDtoList.size());
         }
         logger.debug("ROI 結果: " + roiResult);
         return roiResult;
     }
 
-    public String getUserRoiData(User user) throws JsonProcessingException {
-        Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
-        logger.debug("取得 InfluxDB 的 ROI 資料: " + roiDataTable);
 
-        Map<String, String> roiResult = new HashMap<>();
-        FluxRecord record = roiDataTable.get("roi").getFirst().getRecords().getFirst();
-        logger.debug("取得 ROI 資料: " + record);
-        String dayRoi = Optional.ofNullable(record.getValueByKey("day")).map(Object::toString).orElse("數據不足");
-        String weekRoi = Optional.ofNullable(record.getValueByKey("week")).map(Object::toString).orElse("數據不足");
-        String monthRoi = Optional.ofNullable(record.getValueByKey("month")).map(Object::toString).orElse("數據不足");
-        String yearRoi = Optional.ofNullable(record.getValueByKey("year")).map(Object::toString).orElse("數據不足");
-        roiResult.put("day", dayRoi);
-        roiResult.put("week", weekRoi);
-        roiResult.put("month", monthRoi);
-        roiResult.put("year", yearRoi);
 
-        logger.debug("ROI 結果: " + roiResult);
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.writeValueAsString(roiResult);
-    }
+        public String getUserPropertyOverview (User user) throws JsonProcessingException {
+            Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
+            Map<String, List<FluxTable>> cashFlowDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "net_cash_flow", user, "12h", true);
+            logger.debug("取得 InfluxDB 的 ROI 資料: " + roiDataTable);
+            logger.debug("取得 InfluxDB 的淨流量資料: " + cashFlowDataTable);
 
-    public ObjectNode formatToObjectNode(List<String> roiResult) {
+            List<String> keys =Arrays.asList("day", "week", "month", "year");
+            Map<String, String> propertyOverviewResult = keys.stream().collect(Collectors.toMap(k -> k, k -> "數據不足"));
 
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode objectNode = mapper.createObjectNode();
-        String day = !roiResult.isEmpty() ? roiResult.get(0) : "數據不足";
-        String week = roiResult.size() > 1 ? roiResult.get(1) : "數據不足";
-        String month = roiResult.size() > 2 ? roiResult.get(2) : "數據不足";
-        String year = roiResult.size() > 3 ? roiResult.get(3) : "數據不足";
+            roiDataTable.get("roi").getFirst().getRecords().forEach(record -> {
+                logger.debug("取得 ROI 資料: " + record.getValues());
+                String field = record.getField();
+                String value =  Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString).orElse("數據不足");
+                propertyOverviewResult.put(field, value);
+            });
 
-        objectNode.put("day", day);
-        objectNode.put("week", week);
-        objectNode.put("month", month);
-        objectNode.put("year", year);
-        logger.debug("返回結果: " + objectNode);
-        return objectNode;
-    }
-    private List<LocalDateTime> getRoiDate() {
-        LocalDateTime today = LocalDateTime.now();
-        List<LocalDateTime> localDateTime = new ArrayList<>();
-        localDateTime.add(today);
-        localDateTime.add(today.minusDays(1));
-        localDateTime.add(today.minusWeeks(1));
-        localDateTime.add(today.minusMonths(1));
-        localDateTime.add(today.minusYears(1));
-        return localDateTime;
-    }
 
-    public LocalDateTime findClosestTime(Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference) {
-        LocalDateTime closestTime = null;
-        long smallestDifference = maxDifference.toMinutes();
 
-        for (LocalDateTime time :times) {
-            long difference = Duration.between(time, targetTime).toMinutes();
-            if (difference < smallestDifference) {
-                smallestDifference = difference;
-                closestTime = time;
+            if (!cashFlowDataTable.containsKey("net_cash_flow") || cashFlowDataTable.get("net_cash_flow").isEmpty() || cashFlowDataTable.get(
+                    "net_cash_flow").getFirst().getRecords().isEmpty()) {
+                propertyOverviewResult.put("cash_flow", "數據不足");
+            } else {
+                FluxRecord record = cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().getFirst();
+                logger.debug("取得淨流量資料: " + record.getValueByKey("_value"));
+                String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString)
+                                                .orElse("數據不足");
+                propertyOverviewResult.put("cash_flow", dayNetCashFlow);
             }
-        }
-        return closestTime;
-    }
 
+
+            logger.debug("ROI 結果: " + propertyOverviewResult);
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(propertyOverviewResult);
+        }
+
+        public ObjectNode formatToObjectNode (List < String > roiResult) {
+
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode objectNode = mapper.createObjectNode();
+            String day = !roiResult.isEmpty() ? roiResult.get(0) : "數據不足";
+            String week = roiResult.size() > 1 ? roiResult.get(1) : "數據不足";
+            String month = roiResult.size() > 2 ? roiResult.get(2) : "數據不足";
+            String year = roiResult.size() > 3 ? roiResult.get(3) : "數據不足";
+
+            objectNode.put("day", day);
+            objectNode.put("week", week);
+            objectNode.put("month", month);
+            objectNode.put("year", year);
+            logger.debug("返回結果: " + objectNode);
+            return objectNode;
+        }
+        private List<LocalDateTime> getRoiDate() {
+            LocalDateTime today = LocalDateTime.now();
+            List<LocalDateTime> localDateTime = new ArrayList<>();
+            localDateTime.add(today);
+            localDateTime.add(today.minusDays(1));
+            localDateTime.add(today.minusWeeks(1));
+            localDateTime.add(today.minusMonths(1));
+            localDateTime.add(today.minusYears(1));
+            return localDateTime;
+        }
+
+        public LocalDateTime findClosestTime (Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference){
+            LocalDateTime closestTime = null;
+            long smallestDifference = maxDifference.toMinutes();
+
+            for (LocalDateTime time : times) {
+                logger.debug("time: " + time + " targetTime: " + targetTime);
+                long difference = Math.abs(Duration.between(time, targetTime).toMinutes());
+                if (difference < smallestDifference && difference <= maxDifference.toMinutes()) {
+                    smallestDifference = difference;
+                    closestTime = time;
+                }
+            }
+            return closestTime;
+        }
 
 }
