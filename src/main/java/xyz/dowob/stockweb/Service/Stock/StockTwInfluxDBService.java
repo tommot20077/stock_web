@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -22,14 +24,18 @@ import java.util.Objects;
 public class StockTwInfluxDBService {
     private final InfluxDBClient StockTwInfluxDBClient;
     private final InfluxDBClient StockTwHistoryInfluxDBClient;
+    private final AssetInfluxMethod assetInfluxMethod;
+    private final RetryTemplate retryTemplate;
     Logger logger = LoggerFactory.getLogger(StockTwInfluxDBService.class);
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
-    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient")InfluxDBClient stockTwHistoryInfluxClient) {
+    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient")InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
+        this.assetInfluxMethod = assetInfluxMethod;
+        this.retryTemplate = retryTemplate;
     }
 
     @Value("${db.influxdb.org}")
@@ -64,17 +70,16 @@ public class StockTwInfluxDBService {
             String time  = msgNode.path("tlong").asText();
             String stockId = msgNode.path("c").asText();
 
-
             Point point = Point.measurement("kline_data")
                     .addTag("stock_tw", stockId)
-                    .addField("price", price)
+                    .addField("close", price)
                     .addField("high", high)
                     .addField("low", low)
                     .addField("open", open)
                     .addField("volume", volume)
                     .time(Long.parseLong(time), WritePrecision.MS);
             logger.debug("建立InfluxDB Point");
-            writeToInflux(StockTwInfluxDBClient, point);
+            assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, point);
         }
     }
 
@@ -98,17 +103,7 @@ public class StockTwInfluxDBService {
                     + ", 最低價: " + lowestPrice
                     + ", 收盤價: " + closingPrice);
 
-            Point point = Point.measurement("kline_data")
-                    .addTag("stock_tw", stockCode)
-                    .addField("high", Double.parseDouble(highestPrice))
-                    .addField("low", Double.parseDouble(lowestPrice))
-                    .addField("open", Double.parseDouble(openingPrice))
-                    .addField("close", Double.parseDouble(closingPrice))
-                    .addField("volume", Double.parseDouble(numberOfStocksVolume))
-                    .time(tLong, WritePrecision.MS);
-            logger.debug("建立InfluxDB Point");
-            writeToInflux(StockTwHistoryInfluxDBClient, point);
-
+            writeKlineDataPoint(tLong, stockCode, numberOfStocksVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
         }
     }
 
@@ -128,34 +123,9 @@ public class StockTwInfluxDBService {
                 + ", 最低價: " + lowestPrice
                 + ", 收盤價: " + closingPrice);
 
-        Point point = Point.measurement("kline_data")
-                           .addTag("stock_tw", stockCode)
-                           .addField("high", Double.parseDouble(highestPrice))
-                           .addField("low", Double.parseDouble(lowestPrice))
-                           .addField("open", Double.parseDouble(openingPrice))
-                           .addField("close", Double.parseDouble(closingPrice))
-                           .addField("volume", Double.parseDouble(tradeVolume))
-                           .time(todayTlong, WritePrecision.MS);
-        logger.debug("建立InfluxDB Point");
-        writeToInflux(StockTwHistoryInfluxDBClient, point);
+        writeKlineDataPoint(todayTlong, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
     }
 
-
-
-
-
-
-    private void writeToInflux(InfluxDBClient client, Point point) {
-        try {
-            logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = client.makeWriteApi()) {
-                writeApi.writePoint(point);
-                logger.debug("寫入InfluxDB成功");
-            }
-        } catch (Exception e) {
-            logger.error("寫入InfluxDB時發生錯誤", e);
-        }
-    }
     private Long formattedRocData(String dateStr) {
         String[] dateParts = dateStr.split("/");
         int yearRoc = Integer.parseInt(dateParts[0]);
@@ -175,13 +145,36 @@ public class StockTwInfluxDBService {
         String predicate = String.format("_measurement=\"kline_data\" AND stock_tw=\"%s\"", stockCode);
         logger.debug("刪除" + stockCode + "的歷史資料");
         try {
-            logger.debug("連接InfluxDB成功");
-            StockTwInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockBucket, org);
-            StockTwHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockHistoryBucket, org);
-            logger.debug("刪除資料成功");
+            retryTemplate.doWithRetry(() -> {
+                try {
+                    logger.debug("連接InfluxDB成功");
+                    StockTwInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockBucket, org);
+                    StockTwHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockHistoryBucket, org);
+                    logger.debug("刪除資料成功");
+                } catch (Exception e) {
+                    logger.error("刪除資料時發生錯誤", e);
+                }
+            });
         } catch (Exception e) {
-            logger.error("刪除資料時發生錯誤", e);
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getMessage(), e);
         }
+
+
+    }
+
+
+    private void writeKlineDataPoint(Long todayTlong, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) {
+        Point point = Point.measurement("kline_data")
+                           .addTag("stock_tw", stockCode)
+                           .addField("high", Double.parseDouble(highestPrice))
+                           .addField("low", Double.parseDouble(lowestPrice))
+                           .addField("open", Double.parseDouble(openingPrice))
+                           .addField("close", Double.parseDouble(closingPrice))
+                           .addField("volume", Double.parseDouble(tradeVolume))
+                           .time(todayTlong, WritePrecision.MS);
+        logger.debug("建立InfluxDB Point");
+        assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
     }
 
     //todo 視情況刪除

@@ -47,8 +47,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     private final SubscribeRepository subscribeRepository;
     Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
     int maxRetryCount = 5;
-    int retryDelay = 10;// 秒
-    int connectMaxLiftTime = 24 * 60 * 60; // 秒
+    int retryDelay = 10;
+    int connectMaxLiftTime = 24 * 60 * 60;
     Date connectionTime;
     @Getter
     boolean isRunning = false;
@@ -185,7 +185,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 logger.debug("WebSocket收到" + jsonMap);
                 logger.debug("訂閱結果: " + jsonMap.get("result"));
             } else {
-                logger.debug("未知的消息: " + jsonMap);
+                logger.warn("未知的消息: " + jsonMap);
             }
         } catch (Exception e) {
             logger.error("處理ws的消息時發生錯誤", e);

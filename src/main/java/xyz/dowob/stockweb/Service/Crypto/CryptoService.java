@@ -103,7 +103,7 @@ public class CryptoService {
 
     public void closeConnection() throws IllegalStateException {
         if (!isRunning) {
-            throw new IllegalStateException("目前沒有開啟的連線");
+            logger.warn("目前沒有開啟的連線");
         } else {
             isNeedToCheckConnection = false;
             connectionManager.stop();
@@ -499,13 +499,14 @@ public class CryptoService {
     }
 
 
-    public void removeCryptoPricesDataByTradingPair(String tradingPair) {
+    public void removeCryptoPricesDataByTradingPair(String tradingPair) throws RuntimeException {
         try {
             logger.debug("要刪除歷史價格的交易對: " + tradingPair);
             cryptoInfluxService.deleteDataByTradingPair(tradingPair);
             logger.debug("刪除歷史價格的交易對成功: " + tradingPair);
         } catch (Exception e) {
             logger.error("刪除歷史價格的交易對失敗: " + tradingPair, e);
+            throw new RuntimeException("刪除歷史價格的交易對失敗: " + tradingPair, e);
         }
     }
 

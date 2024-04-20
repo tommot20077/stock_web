@@ -12,6 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
+import xyz.dowob.stockweb.Exception.RetryException;
 
 import java.time.*;
 import java.util.List;
@@ -24,8 +27,9 @@ import java.util.Map;
 public class CryptoInfluxService {
     private final InfluxDBClient cryptoInfluxDBClient;
     private final InfluxDBClient cryptoHistoryInfluxDBClient;
+    private final AssetInfluxMethod assetInfluxMethod;
+    private final RetryTemplate retryTemplate;
     Logger logger = LoggerFactory.getLogger(CryptoInfluxService.class);
-
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
@@ -34,9 +38,11 @@ public class CryptoInfluxService {
 
 
     @Autowired
-    public CryptoInfluxService(@Qualifier("CryptoInfluxClient")InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient) {
+    public CryptoInfluxService(@Qualifier("CryptoInfluxClient")InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.cryptoInfluxDBClient = cryptoInfluxClient;
         this.cryptoHistoryInfluxDBClient = cryptoHistoryInfluxClient;
+        this.assetInfluxMethod = assetInfluxMethod;
+        this.retryTemplate = retryTemplate;
     }
 
     @Value("${db.influxdb.bucket.crypto}")
@@ -68,15 +74,7 @@ public class CryptoInfluxService {
                 .time(Long.parseLong(time), WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
 
-        try {
-            logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = cryptoInfluxDBClient.makeWriteApi()) {
-                writeApi.writePoint(point);
-                logger.debug("寫入InfluxDB成功");
-            }
-        } catch (Exception e) {
-            logger.error("寫入InfluxDB時發生錯誤", e);
-        }
+        assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
     }
 
     public void writeCryptoHistoryToInflux(List<String[]> data, String tradingPair) {
@@ -102,34 +100,37 @@ public class CryptoInfluxService {
                     .addField("low", low)
                     .addField("volume", volume)
                     .time(time, WritePrecision.MS);
-            logger.debug("建立InfluxDB Point");
-            try {
-                logger.debug("連接InfluxDB成功");
-                try (WriteApi writeApi = cryptoHistoryInfluxDBClient.makeWriteApi()) {
-                    writeApi.writePoint(point);
-                    logger.debug("寫入InfluxDB成功");
-                }
-            } catch (Exception e) {
-                logger.error("寫入InfluxDB時發生錯誤", e);
-            }
+
+            assetInfluxMethod.writeToInflux(cryptoHistoryInfluxDBClient, point);
         }
     }
 
 
     public void deleteDataByTradingPair(String tradingPair) {
         String predicate = String.format("_measurement=\"kline_data\" AND tradingPair=\"%s\"", tradingPair);
-        logger.debug("刪除" + tradingPair + "的歷史資料");
+        logger.warn("刪除" + tradingPair + "的歷史資料");
         try {
-            logger.debug("連接InfluxDB成功");
-            cryptoInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoBucket, org);
-            cryptoHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoHistoryBucket, org);
-            logger.debug("刪除資料成功");
-        } catch (Exception e) {
-            logger.error("刪除資料時發生錯誤", e);
+            retryTemplate.doWithRetry(() -> {
+                try {
+                    logger.warn("連接InfluxDB成功");
+                    cryptoInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoBucket, org);
+                    cryptoHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoHistoryBucket, org);
+                    logger.info("刪除資料成功");
+                } catch (Exception e) {
+                    logger.error("刪除資料時發生錯誤: "+ e.getMessage());
+                    throw new RuntimeException("刪除資料時發生錯誤: "+ e.getMessage());
+                }
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
 
     public LocalDate getLastDateByTradingPair(String tradingPair) {
+        var ref = new Object() {
+            FluxTable result;
+        };
         String query = String.format(
                 "from(bucket: \"%s\") |> range(start: -14d)" +
                         " |> filter(fn: (r) => r[\"_measurement\"] == \"kline_data\")" +
@@ -137,9 +138,17 @@ public class CryptoInfluxService {
                         " |> last()",
                 cryptoHistoryBucket, tradingPair
         );
-        FluxTable result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast();
-        if (!result.getRecords().isEmpty()) {
-            Instant lastRecordTime = result.getRecords().getFirst().getTime();
+        try {
+            retryTemplate.doWithRetry(() -> {
+                ref.result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast();
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+        }
+
+        if (!ref.result.getRecords().isEmpty()) {
+            Instant lastRecordTime = ref.result.getRecords().getFirst().getTime();
             if (lastRecordTime != null) {
                 return LocalDateTime.ofInstant(lastRecordTime, ZoneId.of("UTC")).toLocalDate();
             }

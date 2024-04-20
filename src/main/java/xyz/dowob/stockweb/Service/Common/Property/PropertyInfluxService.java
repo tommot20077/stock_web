@@ -13,22 +13,20 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.User;
 
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author tommo
@@ -37,14 +35,18 @@ import java.util.concurrent.TimeUnit;
 public class PropertyInfluxService {
     private final InfluxDBClient propertySummaryInfluxClient;
     private final AssetInfluxMethod assetInfluxMethod;
+    private final RetryTemplate retryTemplate;
 
 
     Logger logger = LoggerFactory.getLogger(PropertyInfluxService.class);
 
     @Autowired
-    public PropertyInfluxService(@Qualifier("propertySummaryInfluxClient")InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod) {
+    public PropertyInfluxService(
+            @Qualifier("propertySummaryInfluxClient")
+            InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
+        this.retryTemplate = retryTemplate;
     }
 
     @Value("${db.influxdb.bucket.property_summary}")
@@ -53,75 +55,73 @@ public class PropertyInfluxService {
     @Value("${db.influxdb.org}")
     private String org;
 
-    public boolean writePropertyDataToInflux(List<PropertyListDto.writeToInfluxPropertyDto> userPropertiesDtoList, User user) {
+    public void writePropertyDataToInflux(List<PropertyListDto.writeToInfluxPropertyDto> userPropertiesDtoList, User user) {
         logger.debug("讀取資產數據: " + userPropertiesDtoList.toString());
         Long time;
-        boolean success = true;
         if (userPropertiesDtoList.getFirst().getTimeMillis() == 0L) {
             time = Instant.now().toEpochMilli();
         } else {
             time = userPropertiesDtoList.getFirst().getTimeMillis();
         }
 
-        BigDecimal currencyTypeSum = new BigDecimal(0);
-        BigDecimal cryptoTypeSum = new BigDecimal(0);
-        BigDecimal stockTwTypeSum = new BigDecimal(0);
-
-        for (PropertyListDto.writeToInfluxPropertyDto userPropertiesDto : userPropertiesDtoList) {
-            Point specificPoint = Point.measurement("specific_property")
-                    .addTag("user_id", user.getId().toString())
-                    .addTag("asset_type", userPropertiesDto.getAssetType().toString())
-                    .addTag("asset_id", userPropertiesDto.getAssetId().toString())
-                    .addField("current_price", userPropertiesDto.getCurrentPrice())
-                    .addField("current_total_price", userPropertiesDto.getCurrentTotalPrice())
-                    .addField("quantity", userPropertiesDto.getQuantity())
-                    .time(time, WritePrecision.MS);
-            logger.debug("建立InfluxDB specificPoint");
-
-            try {
-                logger.debug("連接InfluxDB成功");
-                try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
-                    writeApi.writePoint(specificPoint);
-                    logger.debug("寫入InfluxDB成功");
-                }
-
-                switch (userPropertiesDto.getAssetType()) {
-                    case CURRENCY:
-                        currencyTypeSum = currencyTypeSum.add(userPropertiesDto.getCurrentTotalPrice());
-                        break;
-                    case CRYPTO:
-                        cryptoTypeSum = cryptoTypeSum.add(userPropertiesDto.getCurrentTotalPrice());
-                        break;
-                    case STOCK_TW:
-                        stockTwTypeSum = stockTwTypeSum.add(userPropertiesDto.getCurrentTotalPrice());
-                        break;
-                }
-
-            } catch (Exception e) {
-                logger.error("寫入InfluxDB時發生錯誤", e);
-            }
-        }
-        Point summaryPoint = Point.measurement("summary_property")
-                    .addTag("user_id", user.getId().toString())
-                    .addField("currency_sum", currencyTypeSum)
-                    .addField("crypto_sum", cryptoTypeSum)
-                    .addField("stock_tw_sum", stockTwTypeSum)
-                    .addField("total_sum", currencyTypeSum.add(cryptoTypeSum).add(stockTwTypeSum))
-                    .time(time, WritePrecision.MS);
-        logger.debug("建立InfluxDB specificPoint");
+        var ref = new Object() {
+            BigDecimal currencyTypeSum = new BigDecimal(0);
+            BigDecimal cryptoTypeSum = new BigDecimal(0);
+            BigDecimal stockTwTypeSum = new BigDecimal(0);
+        };
         try {
-            logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
-                writeApi.writePoint(summaryPoint);
-                logger.debug("寫入InfluxDB成功");
-            }
-        } catch (Exception e) {
-            logger.error("寫入InfluxDB時發生錯誤", e);
-            success = false;
-        }
+            retryTemplate.doWithRetry(() -> {
+                for (PropertyListDto.writeToInfluxPropertyDto userPropertiesDto : userPropertiesDtoList) {
+                    Point specificPoint = Point.measurement("specific_property")
+                                               .addTag("user_id", user.getId().toString())
+                                               .addTag("asset_type", userPropertiesDto.getAssetType().toString())
+                                               .addTag("asset_id", userPropertiesDto.getAssetId().toString())
+                                               .addField("current_price", userPropertiesDto.getCurrentPrice())
+                                               .addField("current_total_price",
+                                                         userPropertiesDto.getCurrentTotalPrice())
+                                               .addField("quantity", userPropertiesDto.getQuantity())
+                                               .time(time, WritePrecision.MS);
+                    logger.debug("建立InfluxDB specificPoint");
 
-        return success;
+                    try {
+                        logger.debug("連接InfluxDB成功");
+                        try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
+                            writeApi.writePoint(specificPoint);
+                            logger.debug("寫入InfluxDB成功");
+                        }
+                    } catch (Exception e) {
+                        logger.error("寫入InfluxDB時發生錯誤", e);
+                        throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
+                    }
+                    switch (userPropertiesDto.getAssetType()) {
+                        case CURRENCY:
+                            ref.currencyTypeSum = ref.currencyTypeSum.add(userPropertiesDto.getCurrentTotalPrice());
+                            break;
+                        case CRYPTO:
+                            ref.cryptoTypeSum = ref.cryptoTypeSum.add(userPropertiesDto.getCurrentTotalPrice());
+                            break;
+                        case STOCK_TW:
+                            ref.stockTwTypeSum = ref.stockTwTypeSum.add(userPropertiesDto.getCurrentTotalPrice());
+                            break;
+                    }
+                }
+                Point summaryPoint = Point.measurement("summary_property").addTag("user_id", user.getId().toString())
+                                          .addField("currency_sum", ref.currencyTypeSum)
+                                          .addField("crypto_sum", ref.cryptoTypeSum)
+                                          .addField("stock_tw_sum", ref.stockTwTypeSum).addField("total_sum",
+                                                                                                 ref.currencyTypeSum.add(
+                                                                                                            ref.cryptoTypeSum)
+                                                                                                                    .add(ref.stockTwTypeSum))
+                                          .time(time, WritePrecision.MS);
+                logger.debug("建立InfluxDB specificPoint");
+                assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, summaryPoint);
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+        }
     }
+
 
     public BigDecimal calculateNetFlow(BigDecimal quantity, Asset asset) {
         BigDecimal price = assetInfluxMethod.getLatestPrice(asset);
@@ -132,7 +132,8 @@ public class PropertyInfluxService {
         return price.multiply(quantity);
     }
 
-    public void writeNetFlowToInflux (BigDecimal newNetFlow, User user) {
+    public void writeNetFlowToInflux(BigDecimal newNetFlow, User user) {
+
         Map<String, List<FluxTable>> netCashFlowTablesMap = queryByUser(propertySummaryBucket, "net_cash_flow", user, "3d", true);
         BigDecimal originNetCashFlow = BigDecimal.valueOf(0);
         if (!netCashFlowTablesMap.containsKey("net_cash_flow") || netCashFlowTablesMap.get("net_cash_flow").isEmpty() || netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().isEmpty()) {
@@ -149,44 +150,45 @@ public class PropertyInfluxService {
             }
         }
         BigDecimal newNetCashFlow = originNetCashFlow.add(newNetFlow);
-
-
-        Point netCashFlowPoint = Point.measurement("net_cash_flow")
-            .addTag("user_id", user.getId().toString())
-            .addField("net_flow", newNetCashFlow)
-            .time(Instant.now().toEpochMilli(), WritePrecision.MS);
-
-        logger.debug("建立InfluxDB netCashFlowPoint");
         try {
-            logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
-                writeApi.writePoint(netCashFlowPoint);
-                logger.debug("寫入InfluxDB成功");
-            }
-        } catch (Exception e) {
-            logger.error("寫入InfluxDB時發生錯誤", e);
-            throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
+            retryTemplate.doWithRetry(() -> {
+                Point netCashFlowPoint = Point.measurement("net_cash_flow").addTag("user_id", user.getId().toString()).addField("net_flow", newNetCashFlow).time(Instant.now().toEpochMilli(), WritePrecision.MS);
+
+                logger.debug("建立InfluxDB netCashFlowPoint");
+                assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, netCashFlowPoint);
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
 
 
-
-
     public Map<String, List<FluxTable>> queryByUser(String bucket, String measurement, User user, String queryTimeRange, boolean isLast) {
         Map<String, List<FluxTable>> userPropertyTablesMap = new HashMap<>();
-        String summaryPredicate = createInquiryPredicateWithUserAndTimeInRange(bucket, measurement, user, queryTimeRange, isLast);
-        userPropertyTablesMap.put(measurement, propertySummaryInfluxClient.getQueryApi().query(summaryPredicate, org));
+        String summaryPredicate = createInquiryPredicateWithUserAndTimeInRange(bucket, measurement, user,
+                                                                               queryTimeRange, isLast);
+
+        var ref = new Object() {
+            List<FluxTable> userPropertyTables;
+        };
+        try {
+            retryTemplate.doWithRetry(() -> {
+                ref.userPropertyTables = propertySummaryInfluxClient.getQueryApi().query(summaryPredicate, org);
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+        }
+
+        userPropertyTablesMap.put(measurement, ref.userPropertyTables);
         return userPropertyTablesMap;
     }
 
     private String createInquiryPredicateWithUserAndTimeInRange(String propertySummaryBucket, String measurement, User user, String dateRange, boolean isLast) {
         String baseQuery = String.format(
-            "from(bucket: \"%s\")" +
-            " |> range(start: -%s)" +
-            " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" +
-            " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
-                propertySummaryBucket, dateRange, measurement, user.getId()
-        );
+                "from(bucket: \"%s\")" + " |> range(start: -%s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
+                propertySummaryBucket, dateRange, measurement, user.getId());
         if (isLast) {
             baseQuery += " |> last()";
         }
@@ -196,29 +198,38 @@ public class PropertyInfluxService {
 
     public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
         Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
-        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket, measurement, fields, user, specificTimes, allowRangeOfHour, isLast, needToFillData);
+        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket, measurement,
+                                                                                              fields, user,
+                                                                                              specificTimes,
+                                                                                              allowRangeOfHour, isLast,
+                                                                                              needToFillData);
 
         for (Map.Entry<LocalDateTime, String> entry : predicate.entrySet()) {
             LocalDateTime specificTime = entry.getKey();
             String query = entry.getValue();
 
-            List<FluxTable> result = propertySummaryInfluxClient.getQueryApi().query(query, org);
-            userTablesMap.put(specificTime, result);
+            var ref = new Object() {
+                List<FluxTable> result;
+            };
+            try {
+                retryTemplate.doWithRetry(() -> {
+                    ref.result = propertySummaryInfluxClient.getQueryApi().query(query, org);
+                });
+            } catch (RetryException e) {
+                logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+                throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+            }
+            userTablesMap.put(specificTime, ref.result);
         }
         return userTablesMap;
     }
 
     private Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
-            String propertySummaryBucket,
-            String measurement,
-            List<String> fields, User user,
-            List<LocalDateTime> specificTimes,
-            int allowRangeOfHour,
-            boolean isLast,
-            boolean needToFillData) {
+            String propertySummaryBucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
 
         Map<LocalDateTime, String> queries = new HashMap<>();
-        DateTimeFormatter influxDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
+        DateTimeFormatter influxDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                                                              .withZone(ZoneOffset.UTC);
         for (LocalDateTime specificTime : specificTimes) {
             LocalDateTime rangeStart = specificTime.minusHours(allowRangeOfHour);
             LocalDateTime rangeEnd = specificTime.plusMinutes(30);
@@ -227,19 +238,14 @@ public class PropertyInfluxService {
             String formattedEnd = influxDateFormat.format(rangeEnd);
 
             StringBuilder baseQuery = new StringBuilder(String.format(
-                    "from(bucket: \"%s\")" +
-                    " |> range(start: %s, stop: %s)" +
-                    " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" +
-                    " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
+                    "from(bucket: \"%s\")" + " |> range(start: %s, stop: %s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
                     propertySummaryBucket, formattedStart, formattedEnd, measurement, user.getId()));
             if (isLast) {
                 baseQuery.append(" |> last()");
             }
             if (needToFillData) {
                 baseQuery.append(
-                        " |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" +
-                        " |> fill(usePrevious: true)"
-                );
+                        " |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
 
             }
             if (!fields.isEmpty()) {
@@ -257,21 +263,15 @@ public class PropertyInfluxService {
     public void writeUserRoiDataToInflux(ObjectNode node, User user, Long time) {
         logger.debug("讀取資料: " + node);
         Point roiPoint = Point.measurement("roi")
-            .addTag("user_id", user.getId().toString())
-            .addField("day", "數據不足".equals(node.get("day").asText())? null : node.get("day").asDouble())
-            .addField("week", "數據不足".equals(node.get("week").asText())? null : node.get("week").asDouble())
-            .addField("month", "數據不足".equals(node.get("month").asText())? null : node.get("month").asDouble())
-            .addField("year", "數據不足".equals(node.get("year").asText())? null : node.get("year").asDouble())
-            .time(time, WritePrecision.MS);
-        try {
-            logger.debug("寫入InfluxDB: " + roiPoint);
-            try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
-                writeApi.writePoint(roiPoint);
-                logger.debug("寫入InfluxDB成功");
-            }
-        } catch (Exception e) {
-            logger.error("寫入InfluxDB時發生錯誤", e);
-            throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
-        }
+                .addTag("user_id", user.getId().toString())
+                .addField("day", "數據不足".equals(node.get("day").asText()) ? null : node.get("day").asDouble())
+                .addField("week", "數據不足".equals(node.get("week").asText()) ? null : node.get("week").asDouble())
+                .addField("month", "數據不足".equals(node.get("month").asText()) ? null : node.get("month").asDouble())
+                .addField("year", "數據不足".equals(node.get("year").asText()) ? null : node.get("year").asDouble()).time(time, WritePrecision.MS);
+
+        assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, roiPoint);
+
     }
+
+
 }

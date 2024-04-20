@@ -76,7 +76,7 @@ public class CrontabMethod {
     @Scheduled(cron = "0 30 8 * * ? ", zone = "Asia/Taipei")
     public void checkSubscriptions() throws JsonProcessingException {
 
-        logger.debug("正在檢查訂閱狀況");
+        logger.info("正在檢查訂閱狀況");
         logger.debug(String.valueOf(trackableStocks));
         Map<String, List<String>> subscriptionValidity = stockTwService.checkSubscriptionValidity();
         if (subscriptionValidity != null) {
@@ -89,7 +89,7 @@ public class CrontabMethod {
                 logger.debug("成功獲取列表，加入到處理欄中");
                 stockTwService.trackStockNowPrices(trackableStocks);
             } else {
-                logger.warn("沒有可以訂閱的股票");
+                logger.info("沒有可以訂閱的股票");
             }
         }
     }
@@ -114,25 +114,25 @@ public class CrontabMethod {
 
     @Scheduled(cron = "0 30 16 * * MON-FRI ", zone = "Asia/Taipei")
     public void updateStockHistoryPrices() {
-        logger.debug("開始更新股票的每日最新價格");
+        logger.info("開始更新股票的每日最新價格");
         stockTwService.trackStockHistoryPricesWithUpdateDaily();
     }
 
     @Scheduled(cron = "0 30 2 * * ? ", zone = "UTC")
     public void updateCryptoHistoryPrices() {
-        logger.debug("開始更新加密貨幣的每日最新價格");
+        logger.info("開始更新加密貨幣的每日最新價格");
         cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
     }
 
     @Scheduled(cron = "0 30 */4 * * ? ", zone = "UTC")
     public void checkHistoryData() {
-        logger.debug("開始檢查資產的歷史數據");
+        logger.info("開始檢查資產的歷史數據");
         subscribeMethod.CheckSubscribedAssets();
     }
 
     @Scheduled(cron = "0 0 */1 * * ? ", zone = "UTC")
     public void recordUserPropertySummary() {
-        logger.debug("開始記錄使用者的資產總價");
+            logger.info("開始記錄使用者的資產總價");
         List<User> users = userService.getAllUsers();
         try {
             for (User user : users) {
@@ -148,7 +148,7 @@ public class CrontabMethod {
 
     @Scheduled(cron = "0 10 */4 * * ? ", zone = "UTC")
     public void updateUserCashFlow() {
-        logger.debug("開始更新使用者的現金流");
+        logger.info("開始更新使用者的現金流");
         List<User> users = userService.getAllUsers();
         try {
             for (User user : users) {
@@ -162,7 +162,7 @@ public class CrontabMethod {
 
     @Scheduled(cron = "0 40 */4 * * ? ", zone = "UTC")
     public void updateUserRoiData() {
-        logger.debug("開始更新使用者的 ROI");
+        logger.info("開始更新使用者的 ROI");
         Long time = Instant.now().toEpochMilli();
         List<User> users = userService.getAllUsers();
         for (User user : users) {

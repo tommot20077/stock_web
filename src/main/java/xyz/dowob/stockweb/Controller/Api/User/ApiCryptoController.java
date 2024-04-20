@@ -29,7 +29,6 @@ public class ApiCryptoController {
     private final CryptoService cryptoService;
 
     private final UserService userService;
-    Logger logger = LoggerFactory.getLogger(ApiCryptoController.class);
     @Autowired
     public ApiCryptoController(CryptoService cryptoService, UserService userService) {
         this.cryptoService = cryptoService;

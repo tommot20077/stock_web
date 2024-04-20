@@ -12,8 +12,7 @@ import xyz.dowob.stockweb.Component.Event.StockTw.StockTwSubscriberChangeEvent;
 
 
 @Component
-public class StockTwSubscriberChangeListener
-        implements ApplicationListener<StockTwSubscriberChangeEvent> {
+public class StockTwSubscriberChangeListener implements ApplicationListener<StockTwSubscriberChangeEvent> {
     Logger logger = LoggerFactory.getLogger(StockTwSubscriberChangeListener.class);
     private final CrontabMethod crontabMethod;
     @Autowired
@@ -23,7 +22,7 @@ public class StockTwSubscriberChangeListener
 
     @Override
     public void onApplicationEvent(@NotNull StockTwSubscriberChangeEvent event) {
-        logger.debug("收到股票訂閱變更");
+        logger.info("收到股票訂閱變更");
         try {
             crontabMethod.checkSubscriptions();
             crontabMethod.trackPricesPeriodically();

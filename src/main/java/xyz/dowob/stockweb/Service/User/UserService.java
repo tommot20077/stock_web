@@ -79,7 +79,7 @@ public class UserService {
         user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(()-> new RuntimeException("貨幣資料更新中，請稍後再嘗試一次，若是狀況持續發生，請聯繫管理員")));
 
         if (userRepository.findAll().isEmpty()) {
-            logger.debug("唯一一位用戶，設定為管理員");
+            logger.warn("唯一一位用戶，設定為管理員");
             user.setRole(Role.ADMIN);
         }
         userRepository.save(user);

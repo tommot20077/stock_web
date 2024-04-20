@@ -1,8 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.Admin;
 
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -30,7 +28,6 @@ public class ApiAdminController {
     private final StockTwService stockTwService;
     private final ProgressTracker progressTracker;
     private final CrontabMethod crontabMethod;
-    Logger logger = LoggerFactory.getLogger(ApiAdminController.class);
     @Autowired
     public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, ProgressTracker progressTracker, CrontabMethod crontabMethod) {
         this.currencyService = currencyService;
@@ -91,11 +88,7 @@ public class ApiAdminController {
     @PostMapping("/crypto/ws/restart")
     public ResponseEntity<?> restartWebSocket() {
         try {
-            try {
-                cryptoService.closeConnection();
-            } catch (Exception e) {
-                logger.debug("目前沒有開啟的連線，啟動新的連線");
-            }
+            cryptoService.closeConnection();
             cryptoService.openConnection();
             return ResponseEntity.ok().body("WebSocket已重啟");
         } catch (Exception e) {
@@ -106,8 +99,7 @@ public class ApiAdminController {
     @PostMapping("/crypto/trackCryptoHistoryData")
     public CompletableFuture<?> trackCryptoHistoryData(@RequestParam String tradingPair) {
         CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
-        return cryptoService.trackCryptoHistoryPrices(tradingPairs)
-                            .thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
+        return cryptoService.trackCryptoHistoryPrices(tradingPairs).thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
     }
 
     @PostMapping("/crypto/trackCryptoDailyData")

@@ -95,7 +95,7 @@ public class SubscribeMethod {
                     logger.debug("訂閱匯率: " + currency.getCurrency() + "-" + user.getPreferredCurrency());
                     subscribe.setChannel(user.getPreferredCurrency().getCurrency());
                 }
-                case null, default -> logger.debug("錯誤的資產類型");
+                case null, default -> logger.warn("錯誤的資產類型");
             }
             subscribeRepository.save(subscribe);
         }
@@ -131,7 +131,6 @@ public class SubscribeMethod {
                         removeSubscriberFromStockTw(stockTw, user.getId());
                     }
                 }
-                case Currency currency -> logger.debug("直接刪除subscription");
                 case null, default -> throw new IllegalArgumentException("錯誤的資產類型");
             }
             logger.debug("資產訂閱數量減 1");

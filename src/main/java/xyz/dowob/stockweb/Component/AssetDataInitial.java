@@ -58,7 +58,6 @@ public class AssetDataInitial {
                 logger.info("加密貨幣資料為空,開始加載");
                 cryptoService.updateSymbolList();
             }
-
             logger.info("資料初始化完成");
         } catch (Exception e) {
             logger.error("無法加載資產資料", e);

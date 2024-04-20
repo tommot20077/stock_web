@@ -20,7 +20,6 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
     private final UserRepository userRepository;
-    // 暫放logger
     Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
     @Value(value = "${security.jwt.secret}")
     private String jwtSecret;
@@ -77,6 +76,4 @@ public class JwtTokenProvider {
                 .signWith(this.key)
                 .compact();
     }
-
-
 }

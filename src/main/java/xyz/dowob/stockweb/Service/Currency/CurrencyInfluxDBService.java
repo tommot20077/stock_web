@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -16,10 +17,12 @@ import java.time.ZonedDateTime;
 @Service
 public class CurrencyInfluxDBService {
     private final InfluxDBClient currencyDBClient;
+    private final AssetInfluxMethod assetInfluxMethod;
     Logger logger = LoggerFactory.getLogger(CurrencyInfluxDBService.class);
     @Autowired
-    public CurrencyInfluxDBService(@Qualifier("CurrencyInfluxClient")InfluxDBClient currencyClient) {
+    public CurrencyInfluxDBService(@Qualifier("CurrencyInfluxClient")InfluxDBClient currencyClient, AssetInfluxMethod assetInfluxMethod) {
         this.currencyDBClient = currencyClient;
+        this.assetInfluxMethod = assetInfluxMethod;
     }
 
     public void writeToInflux(String currency, BigDecimal rate, ZonedDateTime zonedDateTime) {
@@ -31,15 +34,6 @@ public class CurrencyInfluxDBService {
                 .addField("rate", rate.doubleValue())
                 .time(epochMilli, WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
-
-        try {
-            logger.debug("連接InfluxDB成功");
-            try (WriteApi writeApi = currencyDBClient.makeWriteApi()) {
-                writeApi.writePoint(point);
-                logger.debug("寫入InfluxDB成功");
-            }
-        } catch (Exception e) {
-            logger.error("寫入InfluxDB時發生錯誤", e);
-        }
+        assetInfluxMethod.writeToInflux(currencyDBClient, point);
     }
 }

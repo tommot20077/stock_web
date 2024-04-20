@@ -21,9 +21,9 @@ public class CryptoSubscriberChangeListener
 
     @Override
     public void onApplicationEvent(@NotNull CryptoSubscriberChangeEvent event) {
-        logger.debug("收到虛擬貨幣訂閱變更");
+        logger.info("收到虛擬貨幣訂閱變更");
         if (cryptoService.isConnectionOpen()) {
-            logger.debug("重新訂閱虛擬貨幣，關閉現有連線");
+            logger.info("重新訂閱虛擬貨幣，關閉現有連線");
             cryptoService.closeConnection();
             cryptoService.openConnection();
         } else {

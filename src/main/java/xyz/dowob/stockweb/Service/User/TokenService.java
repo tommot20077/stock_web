@@ -9,9 +9,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Component.Provider.JwtTokenProvider;
 import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
 import xyz.dowob.stockweb.Enum.Role;
+import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Model.User.Token;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.User.TokenRepository;
@@ -32,16 +34,18 @@ public class TokenService {
     private final PasswordEncoder passwordEncoder;
     private final MailTokenProvider mailTokenProvider;
     private final UserService userService;
+    private final RetryTemplate retryTemplate;
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
     @Autowired
-    public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, UserService userService) {
+    public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, UserService userService, RetryTemplate retryTemplate) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.passwordEncoder = passwordEncoder;
         this.mailTokenProvider = mailTokenProvider;
         this.userService = userService;
+        this.retryTemplate = retryTemplate;
     }
 
 
@@ -141,24 +145,31 @@ public class TokenService {
 
     @Transactional(rollbackFor = Exception.class)
     public void removeExpiredTokens () {
-        logger.info("開始清理過期的token");
         try {
-            OffsetDateTime expiredOverDay = OffsetDateTime.now().minusDays(1);
-            List<Token> tokens = tokenRepository.findAllByEmailApiTokenExpiryTimeIsBefore(expiredOverDay);
-            List<Token> tokens2 = tokenRepository.findAllByRememberMeTokenExpireTimeIsBefore(expiredOverDay);
-            for (Token token : tokens) {
-                token.setEmailApiToken(null);
-                token.setEmailApiTokenExpiryTime(null);
-            }
-            for (Token token : tokens2) {
-                token.setRememberMeToken(null);
-                token.setRememberMeTokenExpireTime(null);
-            }
-            tokenRepository.saveAll(tokens);
-            tokenRepository.saveAll(tokens2);
-        } catch (Exception e) {
-            logger.error("清理過期的token失敗", e);
-            throw new RuntimeException("清理過期的token失敗");
+            retryTemplate.doWithRetry(() -> {
+                logger.info("開始清理過期的token");
+                try {
+                    OffsetDateTime expiredOverDay = OffsetDateTime.now().minusDays(1);
+                    List<Token> tokens = tokenRepository.findAllByEmailApiTokenExpiryTimeIsBefore(expiredOverDay);
+                    List<Token> tokens2 = tokenRepository.findAllByRememberMeTokenExpireTimeIsBefore(expiredOverDay);
+                    for (Token token : tokens) {
+                        token.setEmailApiToken(null);
+                        token.setEmailApiTokenExpiryTime(null);
+                    }
+                    for (Token token : tokens2) {
+                        token.setRememberMeToken(null);
+                        token.setRememberMeTokenExpireTime(null);
+                    }
+                    tokenRepository.saveAll(tokens);
+                    tokenRepository.saveAll(tokens2);
+                } catch (Exception e) {
+                    logger.error("清理過期的token失敗", e);
+                    throw new RuntimeException("清理過期的token失敗");
+                }
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
 }

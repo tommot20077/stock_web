@@ -281,13 +281,14 @@ public class StockTwService {
         taskRepository.save(task);
     }
 
-    public void removeStockTwPricesDataByStockCode(String stockCode) {
+    public void removeStockTwPricesDataByStockCode(String stockCode) throws RuntimeException {
         try {
             logger.debug("要刪除的股票資料代號: " + stockCode);
             stockTwInfluxDBService.deleteDataByStockCode(stockCode);
             logger.debug("刪除股票資料完成");
         } catch (Exception e) {
             logger.error("刪除股票資料時發生錯誤", e);
+            throw new RuntimeException("刪除股票資料時發生錯誤", e);
         }
     }
 

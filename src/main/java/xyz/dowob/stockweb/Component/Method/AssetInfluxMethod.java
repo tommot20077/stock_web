@@ -1,6 +1,8 @@
 package xyz.dowob.stockweb.Component.Method;
 
 import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.WriteApi;
+import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
 import org.slf4j.Logger;
@@ -9,7 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Enum.AssetType;
+import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -25,6 +29,7 @@ public class AssetInfluxMethod {
     private final InfluxDBClient currencyInfluxClient;
     private final InfluxDBClient stockTwHistoryInfluxClient;
     private final InfluxDBClient cryptoHistoryInfluxClient;
+    private final RetryTemplate retryTemplate;
 
 
     @Value("${db.influxdb.bucket.crypto}")
@@ -51,17 +56,47 @@ public class AssetInfluxMethod {
                              @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient,
                              @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
                              @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient,
-                             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient) {
+                             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, RetryTemplate retryTemplate) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
         this.stockTwHistoryInfluxClient = stockTwHistoryInfluxClient;
         this.cryptoHistoryInfluxClient = cryptoHistoryInfluxClient;
+        this.retryTemplate = retryTemplate;
     }
 
 
 
     private Object[] getBucketAndClient(Asset asset, boolean useHistoryData) {
+        Object bucket, client;
+        String klineDataKey = "kline_data", rateKey = "exchange_rate";
+        String closeKey = "close", priceKey = "price", rateTypeKey = "rate";
+        String tradingPairKey = "tradingPair", currencyKey = "Currency", stockCodeKey = "stock_tw";
+
+        return switch (asset.getAssetType()) {
+            case CRYPTO -> {
+                CryptoTradingPair cryptoTradingPair = (CryptoTradingPair) asset;
+                bucket = useHistoryData ? cryptoHistoryBucket : cryptoBucket;
+                client = useHistoryData ? cryptoHistoryInfluxClient : cryptoInfluxClient;
+                yield new Object[]{bucket, client, klineDataKey, closeKey, tradingPairKey, cryptoTradingPair.getTradingPair()};
+            }
+            case CURRENCY -> {
+                Currency currency = (Currency) asset;
+                bucket = currencyBucket;
+                client = currencyInfluxClient;
+                yield new Object[]{bucket, client, rateKey, rateTypeKey, currencyKey, currency.getCurrency()};
+            }
+            case STOCK_TW -> {
+                StockTw stockTw = (StockTw) asset;
+                bucket = useHistoryData ? stockHistoryBucket : stockTwBucket;
+                client = useHistoryData ? stockTwHistoryInfluxClient : stockTwInfluxClient;
+                yield new Object[]{bucket, client, klineDataKey, priceKey, stockCodeKey, stockTw.getStockCode()};
+            }
+        };
+
+
+//todo 記得檢測後刪除
+/*
         if (!useHistoryData) {
             return switch (asset.getAssetType()) {
                 case CRYPTO -> {
@@ -95,27 +130,41 @@ public class AssetInfluxMethod {
             };
         }
 
+ */
     }
 
-    private List<FluxTable> queryLatestPrice(Asset asset, boolean useHistoryData) {
-        Object[] bucketAndClient = getBucketAndClient(asset, useHistoryData);
-        String bucket = (String) bucketAndClient[0];
-        InfluxDBClient client = (InfluxDBClient) bucketAndClient[1];
-        String measurement= (String) bucketAndClient[2];
-        String field = (String) bucketAndClient[3];
-        String assetType = (String) bucketAndClient[4];
-        String symbol = (String) bucketAndClient[5];
-        String query = String.format(
-                "from(bucket: \"%s\") " +
-                        " |> range(start: -7d)" +
-                        " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" +
-                        " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" +
-                        " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" +
-                        " |> last()",
-                bucket, measurement, field, assetType, symbol
-        );
-        logger.debug("取得價格的查詢條件: " + query);
-        return client.getQueryApi().query(query, org);
+    private List<FluxTable> queryLatestPrice(Asset asset, boolean useHistoryData) throws RuntimeException {
+        try {
+            var ref = new Object() {
+                List<FluxTable> tables;
+            };
+            retryTemplate.doWithRetry(() -> {
+                Object[] bucketAndClient = getBucketAndClient(asset, useHistoryData);
+                String bucket = (String) bucketAndClient[0];
+                InfluxDBClient client = (InfluxDBClient) bucketAndClient[1];
+                String measurement= (String) bucketAndClient[2];
+                String field = (String) bucketAndClient[3];
+                String assetType = (String) bucketAndClient[4];
+                String symbol = (String) bucketAndClient[5];
+                String query = String.format(
+                        "from(bucket: \"%s\") " +
+                                " |> range(start: -7d)" +
+                                " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" +
+                                " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" +
+                                " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" +
+                                " |> last()",
+                        bucket, measurement, field, assetType, symbol
+                );
+                logger.debug("取得價格的查詢條件: " + query);
+                ref.tables = client.getQueryApi().query(query, org);
+            });
+            return ref.tables;
+        } catch (RetryException e) {
+            Exception lastException = e.getLastException();
+            logger.error("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
+        }
+
     }
 
     public BigDecimal getLatestPrice(Asset asset) {
@@ -160,6 +209,28 @@ public class AssetInfluxMethod {
         } else {
             logger.debug("取得最新歷史價格失敗 + " + asset);
             return BigDecimal.valueOf(-1);
+        }
+    }
+
+
+
+    public void writeToInflux(InfluxDBClient influxClient, Point point) {
+        try {
+            retryTemplate.doWithRetry(() -> {
+                try {
+                    logger.debug("寫入InfluxDB: " + point);
+                    try (WriteApi writeApi = influxClient.makeWriteApi()) {
+                        writeApi.writePoint(point);
+                        logger.debug("寫入InfluxDB成功");
+                    }
+                } catch (Exception e) {
+                    logger.error("寫入InfluxDB時發生錯誤", e);
+                    throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
+                }
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
 }

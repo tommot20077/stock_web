@@ -43,7 +43,6 @@ public class ApiPropertyController {
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
 
-
             Map<String, String> failureModify = new HashMap<>();
             for (PropertyListDto.PropertyDto stockTw : propertyListDto.getPropertyList()) {
                 try {

@@ -6,8 +6,7 @@ import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 
 
 @Getter
-public class CryptoSubscriberChangeEvent
-        extends ApplicationEvent {
+public class CryptoSubscriberChangeEvent extends ApplicationEvent {
 
     private final CryptoTradingPair cryptoTradingPair;
 

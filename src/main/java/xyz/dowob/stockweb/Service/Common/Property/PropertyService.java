@@ -596,10 +596,11 @@ public class PropertyService {
 
 
     public void writeAllPropertiesToInflux (List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
-        boolean success = propertyInfluxService.writePropertyDataToInflux(writeToInfluxPropertyDto, user);
-        if (!success) {
-            logger.error("寫入 InfluxDB 失敗");
-            throw new RuntimeException("寫入 InfluxDB 失敗");
+        try {
+            propertyInfluxService.writePropertyDataToInflux(writeToInfluxPropertyDto, user);
+        } catch (Exception e) {
+            logger.error("寫入 InfluxDB 失敗", e);
+            throw new RuntimeException("寫入 InfluxDB 失敗", e);
         }
     }
 
