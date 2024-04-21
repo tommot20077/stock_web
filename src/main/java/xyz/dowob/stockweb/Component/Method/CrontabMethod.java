@@ -173,7 +173,6 @@ public class CrontabMethod {
         logger.debug("更新完成");
     }
 
-
     @Scheduled(fixedRate = 60000)
     public void checkAndReconnectWebSocket() {
         if (cryptoService.isNeedToCheckConnection() && !cryptoWebSocketHandler.isRunning()) {

@@ -28,7 +28,6 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
     public AssetHistoryDataFetchCompleteListener(PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod, RetryTemplate retryTemplate) {
         this.propertyInfluxService = propertyInfluxService;
         this.eventCacheMethod = eventCacheMethod;
-
         this.retryTemplate = retryTemplate;
     }
 

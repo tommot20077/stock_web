@@ -24,6 +24,7 @@ import xyz.dowob.stockweb.Dto.Property.RoiDataDto;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
 import xyz.dowob.stockweb.Model.Common.Asset;
+import xyz.dowob.stockweb.Model.Common.EventCache;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
@@ -169,16 +170,22 @@ public class PropertyService {
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 });
                 future.whenComplete((f, e) -> {
-                    if (e != null) {
+                    if (e != null && !"無法取得最新價格".equals(e.getMessage().split(":")[1].trim())) {
                         logger.error("寫入 InfluxDB 時發生錯誤", e);
                         throw new RuntimeException("寫入 InfluxDB 時發生錯誤");
                     } else {
                         logger.debug("寫入 InfluxDB 成功");
                         subscribeMethod.unsubscribeProperty(propertyToRemove, user);
                         recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
+                        List<EventCache> eventCaches = eventCacheMethod.getEventCacheWithProperty(propertyToRemove);
+                        if (eventCaches != null && !eventCaches.isEmpty()) {
+                            logger.debug("刪除事件緩存");
+                            eventCaches.forEach(eventCacheMethod::deleteEventCache);
+                        }
                         propertyRepository.delete(propertyToRemove);
                         logger.debug("刪除成功");
                     }
+
                 });
                 break;
 
@@ -655,7 +662,7 @@ public class PropertyService {
             case Currency currency -> assetInfluxMethod.getLatestPrice(currency);
             case null, default -> throw new IllegalArgumentException("不支援的資產類型");
         };
-    }
+    }//todo 可以刪除
 
     public String getPropertySummary(User user) {
         Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket, "summary_property", user, "7d", false);
