@@ -122,14 +122,45 @@ async function displayStatisticsOverview () {
     let tableBody = document.getElementById('statistics_overview');
     try {
         const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
-        const latestTotalSum = summaryData.latest.filter(dataPoint => dataPoint.field === "total_sum");
-
-
-
-
-
+        const propertyOverviewData = await fetchStatisticsOverview();
+        const latestTotalSum = summaryData.latest.filter(dataPoint => dataPoint.field === "total_sum")[0].value;
+        const latestTotalSumFloat = parseFloat(latestTotalSum).toFixed(2);
+        tableBody.innerHTML =
+            `
+            <div class="d-none d-md-block">
+                <p class="statistics-title">目前總資產</p>
+                <h3 class="rate-percentage">${latestTotalSum}</h3>
+                <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
+            </div>
+            <div class="d-none d-md-block">
+                <p class="statistics-title">資金淨流量</p>
+                <h3 class="rate-percentage">${propertyOverviewData.cash_flow}</h3>
+                <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
+            </div>
+            ` +
+            generateStatisticsTable("日收益",parseFloat(propertyOverviewData.day) * latestTotalSumFloat , propertyOverviewData.day) +
+            generateStatisticsTable("周收益",parseFloat(propertyOverviewData.week) * latestTotalSumFloat , propertyOverviewData.week) +
+            generateStatisticsTable("月收益",parseFloat(propertyOverviewData.month) * latestTotalSumFloat , propertyOverviewData.month) +
+            generateStatisticsTable("年收益",parseFloat(propertyOverviewData.year) * latestTotalSumFloat , propertyOverviewData.year);
 
     } catch (error) {
         console.error(error);
     }
+}
+
+function generateStatisticsTable(title, value, percentage) {
+    let displayValue = value;
+    let displayPercentage = percentage;
+    if (percentage === "數據不足") {
+        displayValue = "數據不足";
+        displayPercentage = "0";
+    }
+
+    return `
+        <div class="d-none d-md-block">
+            <p class="statistics-title">${title}</p>
+            <h3 class="rate-percentage">${displayValue}</h3>
+            <p class="${parseFloat(displayPercentage) < 0 ? 'text-danger' : 'text-success'} d-flex"><i class="mdi ${parseFloat(displayPercentage) < 0 ? 'mdi-menu-down' : 'mdi-menu-up'}"></i><span>${displayPercentage}%</span></p>
+        </div>
+    `;
 }

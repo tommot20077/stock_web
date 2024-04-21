@@ -760,6 +760,40 @@ INDEX_NAMESPACE.fetchUserPropertySummary = function () {
     return fetchUserPropertySummary();
 }
 
+async function fetchStatisticsOverview () {
+    let statisticsOverviewData;
+    const cachedData = localStorage.getItem('userStatisticsOverview');
+    if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        const {data, timestamp} = parsedData;
+
+        const isExpired = Date.now() - timestamp > 60 * 60 * 1000;
+        if (!isExpired && data) {
+            return data;
+        }
+    }
+    try {
+        const response = await fetch("/api/user/property/getPropertyOverview",  {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error("無法獲取資產統計資訊：" + errorText);
+        }
+
+        statisticsOverviewData = await response.json();
+        localStorage.setItem('userStatisticsOverview', JSON.stringify({
+            data: statisticsOverviewData,
+            timestamp: Date.now()
+        }));
+        return await statisticsOverviewData;
+    } catch (error) {
+        console.error(error);
+    }
+}
 
 
 
@@ -877,4 +911,5 @@ function loadingInColumn(TableBody, column) {
             </div>
         </td>`;
     tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
-}
+    }
+

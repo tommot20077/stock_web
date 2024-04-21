@@ -41,6 +41,7 @@ import xyz.dowob.stockweb.Repository.User.TransactionRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -837,8 +838,10 @@ public class PropertyService {
             } else {
                 FluxRecord record = cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().getFirst();
                 logger.debug("取得淨流量資料: " + record.getValueByKey("_value"));
-                String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString)
-                                                .orElse("數據不足");
+                String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(value -> {
+                    DecimalFormat df = new DecimalFormat("#.###");
+                    return df.format(Double.parseDouble(value.toString()));
+                }).orElse("數據不足");
                 propertyOverviewResult.put("cash_flow", dayNetCashFlow);
             }
 
