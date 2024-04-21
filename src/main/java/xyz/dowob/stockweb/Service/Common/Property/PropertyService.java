@@ -12,8 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.Method.ChartMethod;
@@ -58,10 +60,11 @@ public class PropertyService {
     private final AssetHandler assetHandler;
     private final ChartMethod chartMethod;
     private final EventCacheMethod eventCacheMethod;
+    private final ApplicationEventPublisher eventPublisher;
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod, EventCacheMethod eventCacheMethod) {
+    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod, EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
@@ -73,12 +76,11 @@ public class PropertyService {
         this.assetHandler = assetHandler;
         this.chartMethod = chartMethod;
         this.eventCacheMethod = eventCacheMethod;
+        this.eventPublisher = eventPublisher;
     }
     @Value("${db.influxdb.bucket.property_summary}")
     private String propertySummaryBucket;
 
-    @Value("${db.influxdb.org}")
-    private String org;
 
 
     @Transactional(rollbackOn = Exception.class)
@@ -145,6 +147,8 @@ public class PropertyService {
                     logger.debug("寫入 InfluxDB");
                     BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, stock);
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                    logger.debug("發布更新用戶資產事件");
+                    eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                 } else {
                     logger.debug("等待事件監聽器回傳，存入事件緩存");
                     eventCacheMethod.addEventCache(propertyToAdd, quantity);
@@ -184,8 +188,9 @@ public class PropertyService {
                         }
                         propertyRepository.delete(propertyToRemove);
                         logger.debug("刪除成功");
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                     }
-
                 });
                 break;
 
@@ -217,10 +222,11 @@ public class PropertyService {
                     propertyToUpdate.setDescription("");
                 }
 
-
-
                 BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()), propertyToUpdate.getAsset());
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                logger.debug("發布更新用戶資產事件");
+                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+
                 propertyRepository.save(propertyToUpdate);
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
                 logger.debug("更新成功");
@@ -288,6 +294,9 @@ public class PropertyService {
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 logger.debug("新增成功");
 
+                logger.debug("發布更新用戶資產事件");
+                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+
                 break;
 
             case REMOVE:
@@ -310,6 +319,8 @@ public class PropertyService {
                 propertyRepository.delete(propertyToRemove);
                 logger.debug("刪除成功");
 
+                logger.debug("發布更新用戶資產事件");
+                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                 break;
 
             case UPDATE:
@@ -350,6 +361,9 @@ public class PropertyService {
                 propertyRepository.save(propertyToUpdate);
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
                 logger.debug("更新成功");
+
+                logger.debug("發布更新用戶資產事件");
+                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                 break;
 
             default:
@@ -415,6 +429,9 @@ public class PropertyService {
                     logger.debug("寫入InfluxDB");
                     BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, tradingPair);
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+
+                    logger.debug("發布更新用戶資產事件");
+                    eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                 } else {
                     logger.debug("等待事件監聽器回傳，存入事件緩存");
                     eventCacheMethod.addEventCache(propertyToAdd, quantity);
@@ -450,6 +467,8 @@ public class PropertyService {
                         recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
                         propertyRepository.delete(propertyToRemove);
                         logger.debug("刪除成功");
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                     }
                 });
                 break;
@@ -486,6 +505,9 @@ public class PropertyService {
 
                 BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()), propertyToUpdate.getAsset());
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                logger.debug("發布更新用戶資產事件");
+                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+
                 propertyRepository.save(propertyToUpdate);
                 logger.debug("更新成功");
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
@@ -530,6 +552,8 @@ public class PropertyService {
         transaction.setTransactionDate(LocalDateTime.now());
         transactionRepository.save(transaction);
         logger.debug("儲存交易紀錄");
+
+
     }
 
 

@@ -12,6 +12,18 @@ function getAssetType(type) {
     return map[type] || type;
 }
 
+function getGender(gender) {
+    const map = {
+        "MALE": "男性",
+        "男性": "MALE",
+        "FEMALE": "女性",
+        "女性": "FEMALE",
+        "OTHER": "其他",
+        "其他": "OTHER"
+    };
+    return map[gender] || "其他";
+}
+
 function getTransactionType(type) {
     const map = {
         'BUY': "買入",

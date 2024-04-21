@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
 import xyz.dowob.stockweb.Component.Method.CombineMethod;
 import xyz.dowob.stockweb.Component.Method.EventCacheMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
@@ -44,9 +46,10 @@ public class TransactionService {
     private final CombineMethod combineMethod;
     private final PropertyInfluxService propertyInfluxService;
     private final EventCacheMethod eventCacheMethod;
+    private final ApplicationEventPublisher eventPublisher;
     Logger logger = LoggerFactory.getLogger(TransactionService.class);
     @Autowired
-    public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod, PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod) {
+    public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod, PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
         this.currencyRepository = currencyRepository;
         this.cryptoRepository = cryptoRepository;
@@ -56,6 +59,7 @@ public class TransactionService {
         this.combineMethod = combineMethod;
         this.propertyInfluxService = propertyInfluxService;
         this.eventCacheMethod = eventCacheMethod;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -127,6 +131,17 @@ public class TransactionService {
                     subscribeMethod.subscribeProperty(userSymbolProperty, user);
                     logger.debug("儲存 {} 資產變更", symbol);
 
+                    if (userSymbolProperty.getAsset() instanceof CryptoTradingPair cryptoTradingPair) {
+                        if (cryptoTradingPair.isHasAnySubscribed()) {
+                            logger.debug("發布更新用戶資產事件");
+                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+                        }
+                    } else if (userSymbolProperty.getAsset() instanceof StockTw stockTw) {
+                        if (stockTw.isHasAnySubscribed()) {
+                            logger.debug("發布更新用戶資產事件");
+                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+                        }
+                    }
 
                     break;
 
@@ -176,6 +191,8 @@ public class TransactionService {
                             propertyRepository.save(userUnitProperty);
                             propertyRepository.save(userSymbolProperty);
                         }
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                     }
                     break;
 
@@ -202,6 +219,8 @@ public class TransactionService {
                                     logger.debug("刪除 {} 資產", symbol);
                                     subscribeMethod.unsubscribeProperty(finalUserSymbolProperty, user);
                                     propertyRepository.delete(finalUserSymbolProperty);
+                                    logger.debug("發布更新用戶資產事件");
+                                    eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                                 }
                             });
                         } else {
@@ -216,6 +235,8 @@ public class TransactionService {
                             }
                             propertyRepository.save(userSymbolProperty);
                             propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                            logger.debug("發布更新用戶資產事件");
+                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         }
                     }
 
@@ -265,24 +286,34 @@ public class TransactionService {
                             if (stockTw.isHasAnySubscribed()) {
                                 logger.debug("寫入 InfluxDB");
                                 propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), stockTw);
+                                logger.debug("發布更新用戶資產事件");
+                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                             } else {
                                 logger.debug("等待事件監聽器回傳，存入事件緩存");
                                 eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
+                                logger.debug("發布更新用戶資產事件");
+                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                             }
                         }
                         case CryptoTradingPair cryptoTradingPair -> {
                             if (cryptoTradingPair.isHasAnySubscribed()) {
                                 logger.debug("寫入 InfluxDB");
                                 propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), cryptoTradingPair);
+                                logger.debug("發布更新用戶資產事件");
+                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                             } else {
                                 logger.debug("等待事件監聽器回傳，存入事件緩存");
                                 eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
+                                logger.debug("發布更新用戶資產事件");
+                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                             }
                         }
-                        case Currency currency ->
+                        case Currency currency -> {
                                 propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), currency);
-                        default -> {
+                                logger.debug("發布更新用戶資產事件");
+                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         }
+                        default -> {}
                     }
                     break;
 

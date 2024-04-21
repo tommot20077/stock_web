@@ -50,17 +50,7 @@ function logout(isRedirectImmediately, timeSet) {
 
 }
 
-function getGender(gender) {
-    const map = {
-        "MALE": "男性",
-        "男性": "MALE",
-        "FEMALE": "女性",
-        "女性": "FEMALE",
-        "OTHER": "其他",
-        "其他": "OTHER"
-    };
-    return map[gender] || "其他";
-}
+
 
 
 
@@ -402,11 +392,13 @@ function addOrUpdatePropertyForm(event) {
                 hideSpinner();
                 if (submitType === 'ADD') {
                     showFlexById('success_add_message');
+                    localStorage.removeItem('userPropertySummary');
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
                 } else {
                     showFlexById('success_edit_message');
+                    localStorage.removeItem('userPropertySummary');
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -461,6 +453,7 @@ function deleteProperty(event, elementId) {
             if (response.ok) {
                 return response.text().then(data => {
                     hideSpinner();
+                    localStorage.removeItem('userPropertySummary');
                     window.location.reload();
                 });
             } else {
@@ -524,8 +517,6 @@ function addTransaction(event) {
             return;
         }
 
-
-
         formDataJson = {
             type: formData.get('operation_type'),
             symbol: formData.get('transaction_name'),
@@ -555,6 +546,7 @@ function addTransaction(event) {
                 return response.text().then(data => {
                     hideSpinner();
                     showFlexById("success_message");
+                    localStorage.removeItem('userPropertySummary');
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);

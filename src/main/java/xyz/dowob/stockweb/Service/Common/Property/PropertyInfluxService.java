@@ -166,9 +166,7 @@ public class PropertyInfluxService {
 
     public Map<String, List<FluxTable>> queryByUser(String bucket, String measurement, User user, String queryTimeRange, boolean isLast) {
         Map<String, List<FluxTable>> userPropertyTablesMap = new HashMap<>();
-        String summaryPredicate = createInquiryPredicateWithUserAndTimeInRange(bucket, measurement, user,
-                                                                               queryTimeRange, isLast);
-
+        String summaryPredicate = createInquiryPredicateWithUserAndTimeInRange(bucket, measurement, user, queryTimeRange, isLast);
         var ref = new Object() {
             List<FluxTable> userPropertyTables;
         };

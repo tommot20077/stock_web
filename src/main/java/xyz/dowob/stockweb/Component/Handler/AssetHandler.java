@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Currency.Currency;
+import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -57,4 +58,5 @@ public class AssetHandler {
         }
         return twdCurrency.getExchangeRate();
     }
+
 }
