@@ -132,10 +132,12 @@ public class CrontabMethod {
 
     @Scheduled(cron = "0 0 */1 * * ? ", zone = "UTC")
     public void recordUserPropertySummary() {
-            logger.info("開始記錄使用者的資產總價");
+        logger.info("開始記錄使用者的資產總價");
         List<User> users = userService.getAllUsers();
+        logger.debug(String.valueOf(users));
         try {
             for (User user : users) {
+                logger.debug("正在記錄使用者 " + user.getUsername() + " 的資產總價");
                 List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(user, false);
                 List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(getAllPropertiesDtoList);
                 propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, user);
