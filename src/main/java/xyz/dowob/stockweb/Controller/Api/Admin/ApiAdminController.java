@@ -10,6 +10,7 @@ import xyz.dowob.stockweb.Dto.Common.Progress;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
+import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -26,13 +27,15 @@ public class ApiAdminController {
     private final CurrencyService currencyService;
     private final CryptoService cryptoService;
     private final StockTwService stockTwService;
+    private final NewsService newsService;
     private final ProgressTracker progressTracker;
     private final CrontabMethod crontabMethod;
     @Autowired
-    public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, ProgressTracker progressTracker, CrontabMethod crontabMethod) {
+    public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTracker progressTracker, CrontabMethod crontabMethod) {
         this.currencyService = currencyService;
         this.cryptoService = cryptoService;
         this.stockTwService = stockTwService;
+        this.newsService = newsService;
         this.progressTracker = progressTracker;
         this.crontabMethod = crontabMethod;
     }
@@ -224,6 +227,28 @@ public class ApiAdminController {
     public ResponseEntity<?> updateCashFlowData() {
         try {
             crontabMethod.updateUserCashFlow();
+            return ResponseEntity.ok().body("更新成功");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/common/updateHeadlineNewsData")
+    public ResponseEntity<?> updateNewsData() {
+        try {
+            newsService.sendNewsRequest(true, 1, null, null);
+            return ResponseEntity.ok().body("更新成功");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/common/updateAssetNewsData")
+    public ResponseEntity<?> updateNewsData(@RequestParam(value = "type", required = false, defaultValue = "") String type,
+                                            @RequestParam(value = "keyword", required = false, defaultValue = "") String keyword
+    ) {
+        try {
+            newsService.sendNewsRequest(false, 1, keyword, type);
             return ResponseEntity.ok().body("更新成功");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

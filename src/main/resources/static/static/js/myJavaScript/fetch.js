@@ -795,6 +795,30 @@ async function fetchStatisticsOverview () {
     }
 }
 
+async function fetchIndexNewsData(pageNumber) {
+    let queryParams = new URLSearchParams({
+        type: 'headline',
+        page: pageNumber
+    });
+    try {
+        let response = await fetch(`/api/user/common/getNews?${queryParams}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.ok) {
+            let data = await response.json();
+            return data;
+        } else {
+            let errorText = await response.text();
+            throw new Error(errorText);
+        }
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 
 
 function hideById(id) {

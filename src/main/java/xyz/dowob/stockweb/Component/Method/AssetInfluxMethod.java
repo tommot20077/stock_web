@@ -70,7 +70,7 @@ public class AssetInfluxMethod {
     private Object[] getBucketAndClient(Asset asset, boolean useHistoryData) {
         Object bucket, client;
         String klineDataKey = "kline_data", rateKey = "exchange_rate";
-        String closeKey = "close", priceKey = "price", rateTypeKey = "rate";
+        String closeKey = "close", priceKey = "close", rateTypeKey = "rate";
         String tradingPairKey = "tradingPair", currencyKey = "Currency", stockCodeKey = "stock_tw";
 
         return switch (asset.getAssetType()) {
@@ -93,44 +93,6 @@ public class AssetInfluxMethod {
                 yield new Object[]{bucket, client, klineDataKey, priceKey, stockCodeKey, stockTw.getStockCode()};
             }
         };
-
-
-//todo 記得檢測後刪除
-/*
-        if (!useHistoryData) {
-            return switch (asset.getAssetType()) {
-                case CRYPTO -> {
-                    CryptoTradingPair cryptoTradingPair = (CryptoTradingPair) asset;
-                    yield new Object[]{cryptoBucket, cryptoInfluxClient, "kline_data", "close", "tradingPair", cryptoTradingPair.getTradingPair()};
-                }
-                case CURRENCY -> {
-                    Currency currency = (Currency) asset;
-                    yield new Object[]{currencyBucket, currencyInfluxClient, "exchange_rate", "rate", "Currency", currency.getCurrency()};
-                }
-                case STOCK_TW -> {
-                    StockTw stockTw = (StockTw) asset;
-                    yield new Object[]{stockTwBucket, stockTwInfluxClient, "kline_data", "price", "stock_tw", stockTw.getStockCode()};
-                }
-            };
-        } else {
-            return switch (asset.getAssetType()) {
-                case CRYPTO -> {
-                    CryptoTradingPair cryptoTradingPair = (CryptoTradingPair) asset;
-                    yield new Object[]{cryptoHistoryBucket, cryptoHistoryInfluxClient, "kline_data", "close", "tradingPair", cryptoTradingPair.getTradingPair()};
-                }
-                case CURRENCY -> {
-                    Currency currency = (Currency) asset;
-                    yield new Object[]{currencyBucket, currencyInfluxClient, "exchange_rate", "rate", "Currency", currency.getCurrency()};
-                }
-                case STOCK_TW -> {
-                    StockTw stockTw = (StockTw) asset;
-                    yield new Object[]{stockHistoryBucket, stockTwHistoryInfluxClient, "kline_data", "price", "stock_tw", stockTw.getStockCode()};
-                }
-
-            };
-        }
-
- */
     }
 
     private List<FluxTable> queryLatestPrice(Asset asset, boolean useHistoryData) throws RuntimeException {

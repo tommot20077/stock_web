@@ -1,11 +1,11 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
-import io.jsonwebtoken.security.Request;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -16,7 +16,10 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
+import xyz.dowob.stockweb.Model.Common.News;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.NewsService;
+import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
@@ -31,10 +34,14 @@ import java.util.stream.Collectors;
 public class ApiUserController {
     private final UserService userService;
     private final TokenService tokenService;
+    private final NewsService newsService;
+    private final RedisService redisService;
     @Autowired
-    public ApiUserController(UserService userService, TokenService tokenService) {
+    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService) {
         this.userService = userService;
         this.tokenService = tokenService;
+        this.newsService = newsService;
+        this.redisService = redisService;
     }
 
 
@@ -160,6 +167,32 @@ public class ApiUserController {
                 return ResponseEntity.ok().body(userService.getChannelAndAssetAndRemoveAbleByUserId(user));
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+        }
+    }
+
+    @GetMapping("/getNews")
+    public ResponseEntity<?> getHeadlineNews(@RequestParam(name = "type", required = false, defaultValue = "headline") String type,
+                                             @RequestParam(name = "page", required = false, defaultValue = "1") int page) {
+
+        String key = "news_" + type.toLowerCase() + "_page_" + page;
+        try {
+            String cachedNewsJson = redisService.getCacheFromKey(key);
+            if (cachedNewsJson != null) {
+                return ResponseEntity.ok().body(cachedNewsJson);
+            } else {
+                Page<News> news = newsService.getAllNewsByType(type, page);
+                String newsJson = newsService.formatNewsListToJson(news);
+                if (newsJson == null) {
+                    Map<String, String> result = new HashMap<>();
+                    result.put("result", "沒有新聞");
+                    return ResponseEntity.ok().body(result);
+                } else {
+                    redisService.saveToCache(key, newsJson, 4);
+                    return ResponseEntity.ok().body(newsJson);
+                }
             }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());

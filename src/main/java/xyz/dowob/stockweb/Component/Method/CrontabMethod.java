@@ -5,13 +5,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
+import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -21,6 +23,7 @@ import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -38,17 +41,21 @@ public class CrontabMethod {
     private final CryptoService cryptoService;
     private final UserService userService;
     private final PropertyService propertyService;
+    private final NewsService newsService;
+    private final RedisService redisService;
     private final CryptoWebSocketHandler cryptoWebSocketHandler;
     private final SubscribeMethod subscribeMethod;
     private final PropertyInfluxService propertyInfluxService;
     @Autowired
-    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService , CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
+    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
         this.tokenService = tokenService;
         this.currencyService = currencyService;
         this.stockTwService = stockTwService;
         this.cryptoService = cryptoService;
         this.userService = userService;
         this.propertyService = propertyService;
+        this.newsService = newsService;
+        this.redisService = redisService;
         this.cryptoWebSocketHandler = cryptoWebSocketHandler;
         this.subscribeMethod = subscribeMethod;
         this.propertyInfluxService = propertyInfluxService;
@@ -56,6 +63,9 @@ public class CrontabMethod {
 
     private List<String> trackableStocks = new ArrayList<>();
     Logger logger = LoggerFactory.getLogger(CrontabMethod.class);
+
+    @Value("${news.remain.days}")
+    private int newsRemainDays;
 
 
     @Scheduled(cron = "0 0 1 * * ?")
@@ -182,4 +192,20 @@ public class CrontabMethod {
         }
     }
 
+    @Scheduled(cron = "0 0 1 * * ? ", zone = "UTC")
+    public void removeExpiredNews() {
+        logger.info("開始刪除過期的新聞");
+        LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
+        newsService.deleteNewsAfterDate(removeTime);
+        logger.debug("刪除完成");
+    }
+
+    @Scheduled(cron = "0 30 */8 * * ? ", zone = "UTC")
+    public void updateNewsData() {
+        logger.info("開始更新頭條新聞");
+        redisService.deleteByPattern("news_headline_page_*");
+        logger.debug("刪除緩存完成");
+        newsService.sendNewsRequest(true, 1, null, null);
+        logger.debug("更新完成");
+    }
 }
