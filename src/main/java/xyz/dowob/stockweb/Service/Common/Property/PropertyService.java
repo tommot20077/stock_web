@@ -824,17 +824,24 @@ public class PropertyService {
             List<String> keys =Arrays.asList("day", "week", "month", "year");
             Map<String, String> propertyOverviewResult = keys.stream().collect(Collectors.toMap(k -> k, k -> "數據不足"));
 
-            roiDataTable.get("roi").getFirst().getRecords().forEach(record -> {
-                logger.debug("取得 ROI 資料: " + record.getValues());
-                String field = record.getField();
-                String value =  Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString).orElse("數據不足");
-                propertyOverviewResult.put(field, value);
-            });
+
+            if (!roiDataTable.containsKey("roi") || roiDataTable.get("roi").isEmpty() || roiDataTable.get("roi").getFirst().getRecords().isEmpty()) {
+                for (String key : keys) {
+                    propertyOverviewResult.put(key, "數據不足");
+                }
+            } else {
+                roiDataTable.get("roi").getFirst().getRecords().forEach(record -> {
+                    logger.debug("取得 ROI 資料: " + record.getValues());
+                    String field = record.getField();
+                    String value =  Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString).orElse("數據不足");
+                    propertyOverviewResult.put(field, value);
+                });
+            }
 
 
 
-            if (!cashFlowDataTable.containsKey("net_cash_flow") || cashFlowDataTable.get("net_cash_flow").isEmpty() || cashFlowDataTable.get(
-                    "net_cash_flow").getFirst().getRecords().isEmpty()) {
+
+            if (!cashFlowDataTable.containsKey("net_cash_flow") || cashFlowDataTable.get("net_cash_flow").isEmpty() || cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().isEmpty()) {
                 propertyOverviewResult.put("cash_flow", "數據不足");
             } else {
                 FluxRecord record = cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().getFirst();

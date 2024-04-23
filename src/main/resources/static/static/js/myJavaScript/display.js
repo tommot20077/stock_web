@@ -138,10 +138,10 @@ async function displayStatisticsOverview () {
                 <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
             </div>
             ` +
-            generateStatisticsTable("日收益",parseFloat(propertyOverviewData.day) * latestTotalSumFloat , propertyOverviewData.day) +
-            generateStatisticsTable("周收益",parseFloat(propertyOverviewData.week) * latestTotalSumFloat , propertyOverviewData.week) +
-            generateStatisticsTable("月收益",parseFloat(propertyOverviewData.month) * latestTotalSumFloat , propertyOverviewData.month) +
-            generateStatisticsTable("年收益",parseFloat(propertyOverviewData.year) * latestTotalSumFloat , propertyOverviewData.year);
+            generateStatisticsTable("日收益",(parseFloat(propertyOverviewData.day) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.day) +
+            generateStatisticsTable("周收益",(parseFloat(propertyOverviewData.week) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.week) +
+            generateStatisticsTable("月收益",(parseFloat(propertyOverviewData.month) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.month) +
+            generateStatisticsTable("年收益",(parseFloat(propertyOverviewData.year) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.year);
 
     } catch (error) {
         console.error(error);
@@ -163,4 +163,90 @@ function generateStatisticsTable(title, value, percentage) {
             <p class="${parseFloat(displayPercentage) < 0 ? 'text-danger' : 'text-success'} d-flex"><i class="mdi ${parseFloat(displayPercentage) < 0 ? 'mdi-menu-down' : 'mdi-menu-up'}"></i><span>${displayPercentage}%</span></p>
         </div>
     `;
+}
+
+async function displayNewsTable(pageNumber) {
+    let tableBody = document.getElementById("newsTableBody");
+    let newsData = await fetchIndexNewsData(pageNumber);
+    if (!newsData) {
+        console.log("請求新聞時發生錯誤");
+        return
+    }
+
+    tableBody.innerHTML = `
+        <thead>
+            <tr>
+            <th>標題</th>
+            <th>類型</th>
+            <th>發布時間</th>
+            <th>來源</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    `;
+
+    let tbody = tableBody.querySelector("tbody");
+    newsData.content.forEach(news => {
+        let row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td><a href="${news.url}" target="_blank">${news.title}</a></td}">
+            <td>${news.newsType}</td>
+            <td>${new Date(news.publishedAt).toLocaleString()}</td>
+            <td>${news.sourceName}</td>
+        `;
+        tbody.appendChild(row);
+    })
+
+    return newsData.last;
+}
+
+
+async function updateNewsTable(prevPageButton, nextPageButton, currentPageElement, page) {
+    let currentPage = page;
+    currentPageElement.textContent = currentPage;
+    let isLastPage = await displayNewsTable(currentPage);
+
+    if (isLastPage) {
+        nextPageButton.classList.add('disabled');
+        nextPageButton.href = '#';
+        nextPageButton.removeEventListener('click', handleNext);
+    } else {
+        nextPageButton.classList.remove('disabled');
+        nextPageButton.addEventListener('click', handleNext);
+    }
+
+    if (currentPage > 1) {
+        prevPageButton.classList.remove('disabled');
+        prevPageButton.addEventListener('click', handlePrev);
+    } else {
+        prevPageButton.classList.add('disabled');
+        prevPageButton.href = '#';
+        prevPageButton.removeEventListener('click', handlePrev);
+    }
+
+    prevPageButton.href = `#newsTableBody`;
+    nextPageButton.href = `#newsTableBody`;
+    function handlePrev(e) {
+        e.preventDefault();
+        if(currentPage > 1) {
+            updateNewsTable(prevPageButton, nextPageButton, currentPageElement, currentPage - 1);
+            scrollToElement('newsTableBody');
+        }
+    }
+
+    function handleNext(e) {
+        e.preventDefault();
+        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, currentPage + 1);
+        scrollToElement('newsTableBody');
+    }
+
+    function scrollToElement(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
 }
