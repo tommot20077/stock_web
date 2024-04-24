@@ -5,11 +5,12 @@ import lombok.Data;
 import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Model.User.User;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Data
 @Entity
-public class EventCache {
+public class EventCache implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

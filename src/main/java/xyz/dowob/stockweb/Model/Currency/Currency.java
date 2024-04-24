@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 @Data
 @Table(name = "currency_data")
 @PrimaryKeyJoinColumn(name = "asset_id")
-public class Currency extends Asset {
+public class Currency extends Asset implements Serializable {
     @Column(unique = true)
     private String currency;
 

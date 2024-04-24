@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
 import xyz.dowob.stockweb.Enum.AssetType;
+
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -12,7 +14,7 @@ import java.time.ZoneId;
 @Entity
 @Data
 @Table(name = "property_summary")
-public class PropertySummary {
+public class PropertySummary implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

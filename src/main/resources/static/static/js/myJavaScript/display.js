@@ -1,5 +1,5 @@
 async function displayPropertyTable() {
-    let data = await getUserAllProperties();
+    let data = await fetchUserAllProperties();
     if(data && Array.isArray(data)){
         let tableBody = document.getElementById("propertyTableBody");
         tableBody.innerHTML = "";
@@ -9,7 +9,7 @@ async function displayPropertyTable() {
             <tr>
                 <td>${item.propertyId}</td>
                 <td>${getAssetType(item.assetType)}</td>
-                <td>${item.assetName}</td>
+                <td><a href="/asset_info/${item.assetId}">${item.assetName}</a></td>
                 <td>${item.quantity}</td>
                 <td style="text-align: right">${item.currentPrice}</td>
                 <td style="text-align: right">${item.currentTotalPrice}</td>

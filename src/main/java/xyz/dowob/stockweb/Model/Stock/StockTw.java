@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.User;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -15,7 +16,7 @@ import java.util.Set;
 @Data
 @PrimaryKeyJoinColumn(name = "asset_id")
 @Table(name = "stock_tw_data")
-public class StockTw extends Asset {
+public class StockTw extends Asset implements Serializable {
 
     @Column(name = "stock_code", unique = true, nullable = false)
     private String stockCode;

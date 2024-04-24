@@ -8,6 +8,7 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Objects;
@@ -15,7 +16,7 @@ import java.util.Objects;
 @Entity
 @Data
 @Table(name = "user_token")
-public class Token {
+public class Token implements Serializable {
 
     @Id
     private Long id;

@@ -7,13 +7,14 @@ import lombok.Data;
 import xyz.dowob.stockweb.Enum.TransactionType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Data
 @Table(name = "user_asset_transactions")
-public class Transaction {
+public class Transaction implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;

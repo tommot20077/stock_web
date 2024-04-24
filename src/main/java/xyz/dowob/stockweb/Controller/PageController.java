@@ -12,10 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User.User;
@@ -24,12 +21,12 @@ import xyz.dowob.stockweb.Service.User.UserService;
 
 
 @Controller
-public class UserController {
+public class PageController {
 
     private final UserService userService;
     private final TokenService tokenService;
     @Autowired
-    public UserController(UserService userService, TokenService tokenService) {
+    public PageController(UserService userService, TokenService tokenService) {
         this.userService = userService;
         this.tokenService = tokenService;
     }
@@ -116,6 +113,11 @@ public class UserController {
     @GetMapping("/user_subscribe")
     public String userSubscribe () {
         return "subscribeInfo";
+    }
+
+    @GetMapping("/asset_info/{assetId}")
+    public String assetInfo (@PathVariable Long assetId) {
+        return "assetInfo";
     }
 
 

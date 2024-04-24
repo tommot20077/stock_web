@@ -6,10 +6,12 @@ import jakarta.persistence.*;
 import lombok.Data;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
+import java.io.Serializable;
+
 @Entity
 @Data
 @Table(name = "user_subscribe")
-public class Subscribe {
+public class Subscribe implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

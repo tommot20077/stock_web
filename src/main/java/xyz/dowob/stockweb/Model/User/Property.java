@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -13,7 +14,7 @@ import java.time.ZoneId;
 @Data
 @Entity
 @Table(name = "user_property")
-public class Property {
+public class Property implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.User;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -14,7 +15,7 @@ import java.util.Set;
 @Entity
 @Data
 @Table(name = "crypto_data")
-public class CryptoTradingPair extends Asset {
+public class CryptoTradingPair extends Asset implements Serializable {
 
     @Column(nullable = false)
     private String tradingPair;

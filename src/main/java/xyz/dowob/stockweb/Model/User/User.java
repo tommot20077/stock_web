@@ -12,6 +12,7 @@ import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -19,7 +20,7 @@ import java.util.*;
 
 @Entity
 @Data
-public class User {
+public class User implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

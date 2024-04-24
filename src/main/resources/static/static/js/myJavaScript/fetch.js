@@ -198,7 +198,7 @@ function sendVerificationEmail() {
     }
 }
 
-async function getUserAllProperties() {
+async function fetchUserAllProperties() {
     loadingInColumn("propertyTableBody", 9);
     try {
         let response = await fetch("/api/user/property/getUserAllProperty",{
