@@ -819,6 +819,34 @@ async function fetchIndexNewsData(pageNumber) {
     }
 }
 
+async function fetchAssetInfoData(assetId, type, method) {
+    if (method === 'handle') {
+        method = 'handleAssetInfo'
+    } else if (method === 'get') {
+        method = 'getAssetInfo'
+    } else {
+        throw new Error('不支援的操作方法：' + method);
+    }
+
+    let queryParams = new URLSearchParams({
+        type: type,
+    });
+    let response = await fetch(`/api/user/asset/${method}/${assetId}?${queryParams}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    if (response.ok) {
+        return await response.text();
+    } else {
+        let errorText = await response.text();
+        throw new Error(errorText);
+    }
+}
+
+
+
 
 
 function hideById(id) {

@@ -6,14 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 @Service
 public class RedisService {
@@ -22,16 +20,45 @@ public class RedisService {
     @Autowired
     public RedisService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
-
     }
 
-    public void saveToCache(String key, String value, int hours) {
+    public void saveValueToCache(String key, String value, int hours) {
         redisTemplate.opsForValue().set(key, value, hours, TimeUnit.HOURS);
     }
 
-    public String getCacheFromKey(String key) {
+    public void saveHashToCache(String key, String innerKey, String value, int hours) {
+        redisTemplate.opsForHash().put(key, innerKey, value);
+        redisTemplate.expire(key, hours, TimeUnit.HOURS);
+    }
+
+    /**
+     * 將批次資料增量插入到缓存列表中。
+     * @param key             缓存的key值
+     * @param value           要插入的資料，應為JSON格式的字符串
+     * @param expirationTime  缓存過期時間（單位：小时）
+     */
+    public void rPushToCacheList(String key, String value, long expirationTime) {
+        redisTemplate.opsForList().rightPush(key, value);
+        redisTemplate.expire(key, expirationTime, TimeUnit.HOURS);
+    }
+
+
+    public String getCacheValueFromKey(String key) {
         return redisTemplate.opsForValue().get(key);
     }
+    public List<String> getCacheListValueFromKey(String key) {
+        try {
+            return redisTemplate.opsForList().range(key, 0, -1);
+        } catch (Exception e) {
+            logger.error("讀取redis時發生錯誤: "+ e.getMessage());
+            throw new RuntimeException("讀取redis時發生錯誤"+ e.getMessage());
+        }
+    }
+
+    public String getHashValueFromKey(String key, String innerKey) {
+        return (String) redisTemplate.opsForHash().get(key, innerKey);
+    }
+
 
     /**
      * 使用 scan 命令根据模式删除匹配的鍵
@@ -64,9 +91,4 @@ public class RedisService {
             redisTemplate.delete(keys);
         }
     }
-
-    public void updateCache(String key, String value) {
-        redisTemplate.opsForValue().set(key, value, 8, TimeUnit.HOURS);
-    }
-
 }

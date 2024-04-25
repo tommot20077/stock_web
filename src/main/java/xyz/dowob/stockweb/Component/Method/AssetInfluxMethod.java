@@ -20,7 +20,15 @@ import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class AssetInfluxMethod {
@@ -49,14 +57,18 @@ public class AssetInfluxMethod {
 
     @Value("${db.influxdb.org}")
     private String org;
+
+    @Value("${db.influxdb.bucket.crypto_history.dateline}")
+    private String cryptoHistoryDateline;
+
+    @Value("${db.influxdb.bucket.stock_tw_history.dateline}")
+    private String stockHistoryDateline;
+
     Logger logger = LoggerFactory.getLogger(AssetInfluxMethod.class);
 
     @Autowired
-    public AssetInfluxMethod(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
-                             @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient,
-                             @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
-                             @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient,
-                             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, RetryTemplate retryTemplate) {
+    public AssetInfluxMethod(
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, RetryTemplate retryTemplate) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
@@ -66,11 +78,10 @@ public class AssetInfluxMethod {
     }
 
 
-
     private Object[] getBucketAndClient(Asset asset, boolean useHistoryData) {
         Object bucket, client;
         String klineDataKey = "kline_data", rateKey = "exchange_rate";
-        String closeKey = "close", priceKey = "close", rateTypeKey = "rate";
+        String closeKey = "close", rateTypeKey = "rate";
         String tradingPairKey = "tradingPair", currencyKey = "Currency", stockCodeKey = "stock_tw";
 
         return switch (asset.getAssetType()) {
@@ -90,7 +101,7 @@ public class AssetInfluxMethod {
                 StockTw stockTw = (StockTw) asset;
                 bucket = useHistoryData ? stockHistoryBucket : stockTwBucket;
                 client = useHistoryData ? stockTwHistoryInfluxClient : stockTwInfluxClient;
-                yield new Object[]{bucket, client, klineDataKey, priceKey, stockCodeKey, stockTw.getStockCode()};
+                yield new Object[]{bucket, client, klineDataKey, closeKey, stockCodeKey, stockTw.getStockCode()};
             }
         };
     }
@@ -104,19 +115,11 @@ public class AssetInfluxMethod {
                 Object[] bucketAndClient = getBucketAndClient(asset, useHistoryData);
                 String bucket = (String) bucketAndClient[0];
                 InfluxDBClient client = (InfluxDBClient) bucketAndClient[1];
-                String measurement= (String) bucketAndClient[2];
+                String measurement = (String) bucketAndClient[2];
                 String field = (String) bucketAndClient[3];
                 String assetType = (String) bucketAndClient[4];
                 String symbol = (String) bucketAndClient[5];
-                String query = String.format(
-                        "from(bucket: \"%s\") " +
-                                " |> range(start: -7d)" +
-                                " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" +
-                                " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" +
-                                " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" +
-                                " |> last()",
-                        bucket, measurement, field, assetType, symbol
-                );
+                String query = String.format("from(bucket: \"%s\") " + " |> range(start: -7d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" + " |> last()", bucket, measurement, field, assetType, symbol);
                 logger.debug("取得價格的查詢條件: " + query);
                 ref.tables = client.getQueryApi().query(query, org);
             });
@@ -166,14 +169,13 @@ public class AssetInfluxMethod {
         Object value = record.getValueByKey("_value");
         logger.debug("取得價格為: " + value);
 
-        if(value instanceof Number) {
+        if (value instanceof Number) {
             return BigDecimal.valueOf(((Number) value).doubleValue());
         } else {
             logger.debug("取得最新歷史價格失敗 + " + asset);
             return BigDecimal.valueOf(-1);
         }
     }
-
 
 
     public void writeToInflux(InfluxDBClient influxClient, Point point) {
@@ -190,6 +192,50 @@ public class AssetInfluxMethod {
                     throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
                 }
             });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+        }
+    }
+
+    public Map<String, List<FluxTable>> queryByAsset(Asset asset, Boolean isHistory, String timeStamp) {
+        var ref = new Object() {
+            List<FluxTable> tables;
+        };
+        Object[] bucketAndClient = getBucketAndClient(asset, isHistory);
+        DateTimeFormatter outFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'00:00:00'Z'");
+        DateTimeFormatter cryptoAndStockTwFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        String start;
+
+        if (timeStamp != null) {
+            start = timeStamp;
+        } else {
+            if (asset.getAssetType() == AssetType.CRYPTO) {
+                start = LocalDateTime.from(LocalDate.parse(cryptoHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay()).format(outFormatter);
+            } else if (asset.getAssetType() == AssetType.STOCK_TW) {
+                start = LocalDateTime.from(LocalDate.parse(stockHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay()).format(outFormatter);
+            } else {
+                start = "1970-01-01T00:00:00.000Z";
+            }
+        }
+        logger.debug("取得價格的起始時間: " + start);
+
+        try {
+            retryTemplate.doWithRetry(() -> {
+                String bucket = (String) bucketAndClient[0];
+                InfluxDBClient client = (InfluxDBClient) bucketAndClient[1];
+                String measurement = (String) bucketAndClient[2];
+                String assetType = (String) bucketAndClient[4];
+                String symbol = (String) bucketAndClient[5];
+                String query = String.format("from(bucket: \"%s\") " + " |> range(start: %s, stop: now())" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")", bucket, start, measurement, assetType, symbol);
+                logger.debug("取得價格的查詢條件: " + query);
+                ref.tables = client.getQueryApi().query(query, org);
+            });
+
+            String addition = isHistory ? "history" : "latest";
+            return new HashMap<>() {{
+                put(asset.getId().toString() + "_" + addition, ref.tables);
+            }};
         } catch (RetryException e) {
             logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());

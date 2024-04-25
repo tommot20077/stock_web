@@ -3,7 +3,6 @@ package xyz.dowob.stockweb.Controller.Api.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -179,7 +178,7 @@ public class ApiUserController {
 
         String key = "news_" + type.toLowerCase() + "_page_" + page;
         try {
-            String cachedNewsJson = redisService.getCacheFromKey(key);
+            String cachedNewsJson = redisService.getCacheValueFromKey(key);
             if (cachedNewsJson != null) {
                 return ResponseEntity.ok().body(cachedNewsJson);
             } else {
@@ -190,7 +189,7 @@ public class ApiUserController {
                     result.put("result", "沒有新聞");
                     return ResponseEntity.ok().body(result);
                 } else {
-                    redisService.saveToCache(key, newsJson, 4);
+                    redisService.saveValueToCache(key, newsJson, 4);
                     return ResponseEntity.ok().body(newsJson);
                 }
             }

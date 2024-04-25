@@ -47,7 +47,10 @@ public class StockTwService {
     RateLimiter rateLimiter = RateLimiter.create(0.5);
 
     @Value(value = "${stock.tw.finmind.token}")
-    private  String finMindToken;
+    private String finMindToken;
+
+    @Value(value = "${db.influxdb.bucket.stock_tw_history.dateline}")
+    private String stockTwHistoryDateline;
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
     @Autowired
@@ -202,7 +205,7 @@ public class StockTwService {
     @Async
     public void trackStockTwHistoryPrices(StockTw stockTw) {
         boolean hasData = true;
-        LocalDate endDate = LocalDate.parse("20110101", DateTimeFormatter.BASIC_ISO_DATE);
+        LocalDate endDate = LocalDate.parse(stockTwHistoryDateline, DateTimeFormatter.BASIC_ISO_DATE);
         LocalDate date = LocalDate.now(ZoneId.of("Asia/Taipei"));
         Task task = new Task(UUID.randomUUID().toString(), "獲取" + stockTw.getStockCode() + "歷史資料", 1);
         taskRepository.save(task);

@@ -19,6 +19,7 @@
     <!-- End plugin css for this page -->
     <!-- inject:css -->
     <link rel="stylesheet" href=/static/css/vertical-layout-light/style.css>
+    <link rel="stylesheet" href="/static/loading.css">
     <!-- endinject -->
     <link rel="shortcut icon" href=/static/favicon.ico />
 
@@ -589,15 +590,15 @@
                                                         <div class="card-body">
                                                             <div class="d-sm-flex justify-content-between align-items-start">
                                                                 <div>
-                                                                    <h4 class="card-title card-title-dash">資產變化</h4>
-                                                                    <h5 class="card-subtitle card-subtitle-dash">用戶一周的資產金額變化</h5>
+                                                                    <h4 class="card-title">價格走勢</h4>
                                                                 </div>
                                                                 <div id="performance-line-legend"></div>
                                                             </div>
-                                                            <div class="mt-5">
-                                                                <div>
-                                                                    <canvas id="userPropertySummaryLineChart" height="550"></canvas>
-                                                                </div>
+                                                            <div class="mt-5" id = "klineChart" style="width:100%; height: 600px">
+                                                                <div id = "error-text" style="display: none"></div>
+                                                                <div id = "loader" class="bar-loader"></div>
+                                                                <
+                                                                <!--- KlineChart -->
                                                             </div>
                                                         </div>
                                                     </div>
@@ -647,156 +648,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-lg-4 d-flex flex-column">
-                                                <!-- Todo List
-                                              <div class="row flex-grow">
-                                                <div class="col-12 grid-margin stretch-card">
-                                                  <div class="card card-rounded">
-                                                    <div class="card-body">
-                                                      <div class="row">
-                                                        <div class="col-lg-12">
-                                                          <div class="d-flex justify-content-between align-items-center">
-                                                            <h4 class="card-title card-title-dash">Todo list</h4>
-                                                            <div class="add-items d-flex mb-0">
-                                                              <button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p"><i class="mdi mdi-plus"></i></button>
-                                                            </div>
-                                                          </div>
-                                                          <div class="list-wrapper">
-                                                            <ul class="todo-list todo-list-rounded">
-                                                              <li class="d-block">
-                                                                <div class="form-check w-100">
-                                                                  <label class="form-check-label">
-                                                                    <input class="checkbox" type="checkbox"> Lorem Ipsum is simply dummy text of the printing <i class="input-helper rounded"></i>
-                                                                  </label>
-                                                                  <div class="d-flex mt-2">
-                                                                    <div class="ps-4 text-small me-3">24 June 2020</div>
-                                                                    <div class="badge badge-opacity-warning me-3">Due tomorrow</div>
-                                                                    <i class="mdi mdi-flag ms-2 flag-color"></i>
-                                                                  </div>
-                                                                </div>
-                                                              </li>
-                                                              <li class="d-block">
-                                                                <div class="form-check w-100">
-                                                                  <label class="form-check-label">
-                                                                    <input class="checkbox" type="checkbox"> Lorem Ipsum is simply dummy text of the printing <i class="input-helper rounded"></i>
-                                                                  </label>
-                                                                  <div class="d-flex mt-2">
-                                                                    <div class="ps-4 text-small me-3">23 June 2020</div>
-                                                                    <div class="badge badge-opacity-success me-3">Done</div>
-                                                                  </div>
-                                                                </div>
-                                                              </li>
-                                                              <li>
-                                                                <div class="form-check w-100">
-                                                                  <label class="form-check-label">
-                                                                    <input class="checkbox" type="checkbox"> Lorem Ipsum is simply dummy text of the printing <i class="input-helper rounded"></i>
-                                                                  </label>
-                                                                  <div class="d-flex mt-2">
-                                                                    <div class="ps-4 text-small me-3">24 June 2020</div>
-                                                                    <div class="badge badge-opacity-success me-3">Done</div>
-                                                                  </div>
-                                                                </div>
-                                                              </li>
-                                                              <li class="border-bottom-0">
-                                                                <div class="form-check w-100">
-                                                                  <label class="form-check-label">
-                                                                    <input class="checkbox" type="checkbox"> Lorem Ipsum is simply dummy text of the printing <i class="input-helper rounded"></i>
-                                                                  </label>
-                                                                  <div class="d-flex mt-2">
-                                                                    <div class="ps-4 text-small me-3">24 June 2020</div>
-                                                                    <div class="badge badge-opacity-danger me-3">Expired</div>
-                                                                  </div>
-                                                                </div>
-                                                              </li>
-                                                            </ul>
-                                                          </div>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              //todo Top Performer
-                                              <div class="row flex-grow">
-                                                <div class="col-12 grid-margin stretch-card">
-                                                  <div class="card card-rounded">
-                                                    <div class="card-body">
-                                                      <div class="row">
-                                                        <div class="col-lg-12">
-                                                          <div class="d-flex justify-content-between align-items-center mb-3">
-                                                            <div>
-                                                              <h4 class="card-title card-title-dash">Top Performer</h4>
-                                                            </div>
-                                                          </div>
-                                                          <div class="mt-3">
-                                                            <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                                              <div class="d-flex">
-                                                                <img class="img-sm rounded-10" src="/static/images/faces/face1.jpg" alt="profile">
-                                                                <div class="wrapper ms-3">
-                                                                  <p class="ms-1 mb-1 fw-bold">Brandon Washington</p>
-                                                                  <small class="text-muted mb-0">162543</small>
-                                                                </div>
-                                                              </div>
-                                                              <div class="text-muted text-small">
-                                                                1h ago
-                                                              </div>
-                                                            </div>
-                                                            <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                                              <div class="d-flex">
-                                                                <img class="img-sm rounded-10" src="/static/images/faces/face2.jpg" alt="profile">
-                                                                <div class="wrapper ms-3">
-                                                                  <p class="ms-1 mb-1 fw-bold">Wayne Murphy</p>
-                                                                  <small class="text-muted mb-0">162543</small>
-                                                                </div>
-                                                              </div>
-                                                              <div class="text-muted text-small">
-                                                                1h ago
-                                                              </div>
-                                                            </div>
-                                                            <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                                              <div class="d-flex">
-                                                                <img class="img-sm rounded-10" src="/static/images/faces/face3.jpg" alt="profile">
-                                                                <div class="wrapper ms-3">
-                                                                  <p class="ms-1 mb-1 fw-bold">Katherine Butler</p>
-                                                                  <small class="text-muted mb-0">162543</small>
-                                                                </div>
-                                                              </div>
-                                                              <div class="text-muted text-small">
-                                                                1h ago
-                                                              </div>
-                                                            </div>
-                                                            <div class="wrapper d-flex align-items-center justify-content-between py-2 border-bottom">
-                                                              <div class="d-flex">
-                                                                <img class="img-sm rounded-10" src="/static/images/faces/face4.jpg" alt="profile">
-                                                                <div class="wrapper ms-3">
-                                                                  <p class="ms-1 mb-1 fw-bold">Matthew Bailey</p>
-                                                                  <small class="text-muted mb-0">162543</small>
-                                                                </div>
-                                                              </div>
-                                                              <div class="text-muted text-small">
-                                                                1h ago
-                                                              </div>
-                                                            </div>
-                                                            <div class="wrapper d-flex align-items-center justify-content-between pt-2">
-                                                              <div class="d-flex">
-                                                                <img class="img-sm rounded-10" src="/static/images/faces/face5.jpg" alt="profile">
-                                                                <div class="wrapper ms-3">
-                                                                  <p class="ms-1 mb-1 fw-bold">Rafell John</p>
-                                                                  <small class="text-muted mb-0">Alaska, USA</small>
-                                                                </div>
-                                                              </div>
-                                                              <div class="text-muted text-small">
-                                                                1h ago
-                                                              </div>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                                -->
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -831,9 +682,6 @@
 <!-- endinject -->
 <!-- Plugin js for this page -->
 <script src="/static/js/myJavaScript/map.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/cdn.min.js"></script>
-<script src="/static/vendors/chart.js/Chart.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="/static/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
 <script src="/static/vendors/progressbar.js/progressbar.min.js"></script>
 
@@ -847,17 +695,26 @@
 <!-- endinject -->
 <!-- Custom js for this page-->
 <script src="/static/js/dashboard.js"></script>
-<script src="/static/js/Chart.roundedBarCharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/klinecharts/dist/umd/klinecharts.min.js"></script>
 <script src="/static/js/myJavaScript/map.js"></script>
 <script src="/static/js/myJavaScript/display.js"></script>
 <script src="/static/js/myJavaScript/fetch.js"></script>
-<script src="/static/js/myJavaScript/indexChart.js"></script>
+<script src="/static/js/myJavaScript/asserChart.js"></script>
 <!-- End custom js for this page-->
 
 
 
 <script>
+    let assetId = getAssetIdFromUrl();
     getUserDetails();
+    getAssetKlineChart(assetId, "handle");
+
+    let interval = setInterval(async function () {
+        let result = await getAssetKlineChart(assetId, "get");
+        if (result) {
+            clearInterval(interval);
+        }
+        }, 3000);
 </script>
 
 

@@ -13,9 +13,11 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
@@ -25,10 +27,12 @@ public class PageController {
 
     private final UserService userService;
     private final TokenService tokenService;
+    private final AssetService assetService;
     @Autowired
-    public PageController(UserService userService, TokenService tokenService) {
+    public PageController(UserService userService, TokenService tokenService, AssetService assetService) {
         this.userService = userService;
         this.tokenService = tokenService;
+        this.assetService = assetService;
     }
 
 
@@ -116,7 +120,7 @@ public class PageController {
     }
 
     @GetMapping("/asset_info/{assetId}")
-    public String assetInfo (@PathVariable Long assetId) {
+    public String assetInfo () {
         return "assetInfo";
     }
 
