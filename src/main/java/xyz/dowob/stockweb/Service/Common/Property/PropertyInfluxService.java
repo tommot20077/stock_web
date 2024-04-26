@@ -108,10 +108,8 @@ public class PropertyInfluxService {
                 Point summaryPoint = Point.measurement("summary_property").addTag("user_id", user.getId().toString())
                                           .addField("currency_sum", ref.currencyTypeSum)
                                           .addField("crypto_sum", ref.cryptoTypeSum)
-                                          .addField("stock_tw_sum", ref.stockTwTypeSum).addField("total_sum",
-                                                                                                 ref.currencyTypeSum.add(
-                                                                                                            ref.cryptoTypeSum)
-                                                                                                                    .add(ref.stockTwTypeSum))
+                                          .addField("stock_tw_sum", ref.stockTwTypeSum)
+                                          .addField("total_sum", ref.currencyTypeSum.add(ref.cryptoTypeSum).add(ref.stockTwTypeSum))
                                           .time(time, WritePrecision.MS);
                 logger.debug("建立InfluxDB specificPoint");
                 assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, summaryPoint);
@@ -194,69 +192,9 @@ public class PropertyInfluxService {
         return baseQuery;
     }
 
-    public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
-        Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
-        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket, measurement,
-                                                                                              fields, user,
-                                                                                              specificTimes,
-                                                                                              allowRangeOfHour, isLast,
-                                                                                              needToFillData);
 
-        for (Map.Entry<LocalDateTime, String> entry : predicate.entrySet()) {
-            LocalDateTime specificTime = entry.getKey();
-            String query = entry.getValue();
 
-            var ref = new Object() {
-                List<FluxTable> result;
-            };
-            try {
-                retryTemplate.doWithRetry(() -> {
-                    ref.result = propertySummaryInfluxClient.getQueryApi().query(query, org);
-                });
-            } catch (RetryException e) {
-                logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
-                throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
-            }
-            userTablesMap.put(specificTime, ref.result);
-        }
-        return userTablesMap;
-    }
 
-    private Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
-            String propertySummaryBucket, String measurement, List<String> fields, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
-
-        Map<LocalDateTime, String> queries = new HashMap<>();
-        DateTimeFormatter influxDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-                                                              .withZone(ZoneOffset.UTC);
-        for (LocalDateTime specificTime : specificTimes) {
-            LocalDateTime rangeStart = specificTime.minusHours(allowRangeOfHour);
-            LocalDateTime rangeEnd = specificTime.plusMinutes(30);
-
-            String formattedStart = influxDateFormat.format(rangeStart);
-            String formattedEnd = influxDateFormat.format(rangeEnd);
-
-            StringBuilder baseQuery = new StringBuilder(String.format(
-                    "from(bucket: \"%s\")" + " |> range(start: %s, stop: %s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
-                    propertySummaryBucket, formattedStart, formattedEnd, measurement, user.getId()));
-            if (isLast) {
-                baseQuery.append(" |> last()");
-            }
-            if (needToFillData) {
-                baseQuery.append(
-                        " |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
-
-            }
-            if (!fields.isEmpty()) {
-                for (String field : fields) {
-                    String additionalQuery = String.format("  |> filter(fn: (r) => r[\"_field\"] == \"%s\")", field);
-                    baseQuery.append(additionalQuery);
-                }
-            }
-            queries.put(specificTime, baseQuery.toString());
-        }
-        logger.debug("queries: " + queries);
-        return queries;
-    }
 
     public void writeUserRoiDataToInflux(ObjectNode node, User user, Long time) {
         logger.debug("讀取資料: " + node);

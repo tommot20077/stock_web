@@ -147,27 +147,9 @@ async function displayStatisticsOverview () {
         console.error(error);
     }
 }
-
-function generateStatisticsTable(title, value, percentage) {
-    let displayValue = value;
-    let displayPercentage = percentage;
-    if (percentage === "數據不足") {
-        displayValue = "數據不足";
-        displayPercentage = "0";
-    }
-
-    return `
-        <div class="d-none d-md-block">
-            <p class="statistics-title">${title}</p>
-            <h3 class="rate-percentage">${displayValue}</h3>
-            <p class="${parseFloat(displayPercentage) < 0 ? 'text-danger' : 'text-success'} d-flex"><i class="mdi ${parseFloat(displayPercentage) < 0 ? 'mdi-menu-down' : 'mdi-menu-up'}"></i><span>${displayPercentage}%</span></p>
-        </div>
-    `;
-}
-
-async function displayNewsTable(pageNumber) {
+async function displayNewsTable(pageNumber, type, asset) {
     let tableBody = document.getElementById("newsTableBody");
-    let newsData = await fetchIndexNewsData(pageNumber);
+    let newsData = await fetchIndexNewsData(pageNumber, type, asset);
     if (!newsData) {
         console.log("請求新聞時發生錯誤");
         return
@@ -203,10 +185,10 @@ async function displayNewsTable(pageNumber) {
 }
 
 
-async function updateNewsTable(prevPageButton, nextPageButton, currentPageElement, page) {
+async function updateNewsTable(prevPageButton, nextPageButton, currentPageElement, page, type, asset) {
     let currentPage = page;
     currentPageElement.textContent = currentPage;
-    let isLastPage = await displayNewsTable(currentPage);
+    let isLastPage = await displayNewsTable(currentPage, type, asset);
 
     nextPageButton.classList.toggle('disabled',isLastPage);
     nextPageButton.style.display = isLastPage ? 'none' : '';
@@ -219,30 +201,30 @@ async function updateNewsTable(prevPageButton, nextPageButton, currentPageElemen
     nextPageButton.removeEventListener('click', nextPageButton.nextHandler);
 
     if (!isLastPage) {
-        nextPageButton.nextHandler = createHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement);
+        nextPageButton.nextHandler = createHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, type, asset);
         nextPageButton.addEventListener('click', nextPageButton.nextHandler);
     }
 
     if (currentPage > 1) {
-        prevPageButton.prevHandler = createHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement);
+        prevPageButton.prevHandler = createHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, type, asset);
         prevPageButton.addEventListener('click', prevPageButton.prevHandler);
     }
 
 }
 
 
-function createHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement) {
+function createHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, type, asset) {
     return function(e) {
         e.preventDefault();
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage);
+        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, type, asset);
         scrollToElement('newsTableBody');
     };
 }
 
-function createHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement) {
+function createHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, type, asset) {
     return function(e) {
         e.preventDefault();
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage);
+        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, type, asset);
         scrollToElement('newsTableBody');
     };
 }

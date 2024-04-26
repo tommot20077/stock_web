@@ -795,9 +795,10 @@ async function fetchStatisticsOverview () {
     }
 }
 
-async function fetchIndexNewsData(pageNumber) {
+async function fetchIndexNewsData(pageNumber, type, asset) {
     let queryParams = new URLSearchParams({
-        type: 'headline',
+        type: type,
+        asset: asset,
         page: pageNumber
     });
     try {

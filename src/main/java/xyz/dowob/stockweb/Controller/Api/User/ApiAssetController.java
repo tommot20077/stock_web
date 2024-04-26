@@ -70,15 +70,19 @@ public class ApiAssetController {
 
         String key = String.format("kline_%s_%s", type, assetId);
         try {
-            if ("processing".equals(redisService.getHashValueFromKey(key, "status"))) {
+            String status = redisService.getHashValueFromKey(key, "status");
+
+            if ("processing".equals(status)) {
                 return ResponseEntity.badRequest().body("資產資料已經在處理中");
-            } else if (redisService.getHashValueFromKey(key, "status") == null) {
-                return ResponseEntity.badRequest().body("沒有請求過資產資料" + type + "，請先用/handleAssetInfo/[assetId]處理資產資料");
-            } else if ("error".equals(redisService.getHashValueFromKey(key, "status"))) {
+            } else if (status == null) {
+                return ResponseEntity.badRequest().body("沒有請求過資產資料");
+            } else if ("error".equals(status)) {
                 return ResponseEntity.badRequest().body("資產資料處理錯誤，請重新使用/handleAssetInfo/[assetId]處理資產資料");
+            } else if ("no_data".equals(status)) {
+                return ResponseEntity.badRequest().body("無此資產的價格圖");
             }
-            List<String> cacheList = redisService.getCacheListValueFromKey(key + ":data");
-            String json = assetService.formatRedisAssetInfoCacheToJson(cacheList, type, redisService.getHashValueFromKey(key, "timestamp"));
+
+            String json = assetService.formatRedisAssetInfoCacheToJson(type, key);
             return ResponseEntity.ok().body(json);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("錯誤: "+ e.getMessage());

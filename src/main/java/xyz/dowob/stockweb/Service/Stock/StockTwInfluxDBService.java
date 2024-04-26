@@ -41,10 +41,10 @@ public class StockTwInfluxDBService {
     @Value("${db.influxdb.org}")
     private String org;
 
-    @Value("${db.influxdb.bucket.stock}")
+    @Value("${db.influxdb.bucket.stock_tw}")
     private String stockBucket;
 
-    @Value("${db.influxdb.bucket.stock_history}")
+    @Value("${db.influxdb.bucket.stock_tw_history}")
     private String stockHistoryBucket;
 
     public void writeStockTwToInflux(JsonNode msgArray) {

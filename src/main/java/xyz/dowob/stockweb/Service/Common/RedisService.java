@@ -32,6 +32,19 @@ public class RedisService {
     }
 
     /**
+     * 使用新数据完全替换列表
+     * @param key 列表的键
+     * @param values 新的数据值
+     * @param expirationTime 过期时间，以小時为单位
+     */
+    public void saveListToCache(String key, List<String> values, long expirationTime) {
+        redisTemplate.delete(key);
+        if (!values.isEmpty()) {
+            redisTemplate.opsForList().rightPushAll(key, values);
+            redisTemplate.expire(key, expirationTime, TimeUnit.HOURS);
+        }
+    }
+    /**
      * 將批次資料增量插入到缓存列表中。
      * @param key             缓存的key值
      * @param value           要插入的資料，應為JSON格式的字符串

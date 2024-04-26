@@ -1,8 +1,10 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
+import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -15,8 +17,10 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.News;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.User.TokenService;
@@ -35,12 +39,14 @@ public class ApiUserController {
     private final TokenService tokenService;
     private final NewsService newsService;
     private final RedisService redisService;
+    private final AssetService assetService;
     @Autowired
-    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService) {
+    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.newsService = newsService;
         this.redisService = redisService;
+        this.assetService = assetService;
     }
 
 
@@ -173,16 +179,37 @@ public class ApiUserController {
     }
 
     @GetMapping("/getNews")
-    public ResponseEntity<?> getHeadlineNews(@RequestParam(name = "type", required = false, defaultValue = "headline") String type,
-                                             @RequestParam(name = "page", required = false, defaultValue = "1") int page) {
+    public ResponseEntity<?> getNews(
+            @RequestParam(name = "type", required = false) String type,
+            @RequestParam(name = "asset", required = false) Long assetId,
+            @RequestParam(name = "page", required = false, defaultValue = "1") int page) {
+        String key;
+        Asset asset = null;
+        if (assetId != null) {
+            asset = assetService.getAssetById(assetId);
+            type = asset.getId().toString();
+        }
+        if (type != null && !type.isEmpty() && asset != null) {
+            key = "news_" + asset.getId() + "_page_" + page;
+        } else if (type != null && !type.isEmpty()) {
+            key = "news_" + type.toLowerCase() + "_page_" + page;
+        } else {
+            return ResponseEntity.badRequest().body("沒有任何查詢參數可以使用");
+        }
 
-        String key = "news_" + type.toLowerCase() + "_page_" + page;
         try {
             String cachedNewsJson = redisService.getCacheValueFromKey(key);
             if (cachedNewsJson != null) {
+                System.out.println("取得緩存");
                 return ResponseEntity.ok().body(cachedNewsJson);
             } else {
-                Page<News> news = newsService.getAllNewsByType(type, page);
+                Page<News> news;
+                if (asset != null){
+                    news = newsService.getAllNewsByAsset(asset, page);
+                } else {
+                    news = newsService.getAllNewsByType(type, page);
+                }
+
                 String newsJson = newsService.formatNewsListToJson(news);
                 if (newsJson == null) {
                     Map<String, String> result = new HashMap<>();

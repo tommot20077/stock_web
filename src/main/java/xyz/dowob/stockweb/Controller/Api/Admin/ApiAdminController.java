@@ -7,8 +7,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Dto.Common.Progress;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
+import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
@@ -30,14 +32,16 @@ public class ApiAdminController {
     private final NewsService newsService;
     private final ProgressTracker progressTracker;
     private final CrontabMethod crontabMethod;
+    private final AssetService assetService;
     @Autowired
-    public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTracker progressTracker, CrontabMethod crontabMethod) {
+    public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTracker progressTracker, CrontabMethod crontabMethod, AssetService assetService) {
         this.currencyService = currencyService;
         this.cryptoService = cryptoService;
         this.stockTwService = stockTwService;
         this.newsService = newsService;
         this.progressTracker = progressTracker;
         this.crontabMethod = crontabMethod;
+        this.assetService = assetService;
     }
 
 
@@ -234,7 +238,7 @@ public class ApiAdminController {
     }
 
     @PostMapping("/common/updateHeadlineNewsData")
-    public ResponseEntity<?> updateNewsData() {
+    public ResponseEntity<?> updateHeadlineNewsData() {
         try {
             newsService.sendNewsRequest(true, 1, null, null);
             return ResponseEntity.ok().body("更新成功");
@@ -244,13 +248,27 @@ public class ApiAdminController {
     }
 
     @PostMapping("/common/updateAssetNewsData")
-    public ResponseEntity<?> updateNewsData(@RequestParam(value = "type", required = false, defaultValue = "") String type,
-                                            @RequestParam(value = "keyword", required = false, defaultValue = "") String keyword
-    ) {
+    public ResponseEntity<?> updateNewsData(
+            @RequestParam(value = "keyword", required = false, defaultValue = "") String keyword,
+            @RequestParam(value = "asset", required = false) Long assetId) {
         try {
-            newsService.sendNewsRequest(false, 1, keyword, type);
+            Asset asset = null;
+            if (assetId != null) {
+                asset = assetService.getAssetById(assetId);
+            }
+            newsService.sendNewsRequest(false, 1, keyword, asset);
             return ResponseEntity.ok().body("更新成功");
         } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/common/updateNewsData")
+    public ResponseEntity<?> updateNewsData() {
+        try {
+            crontabMethod.updateNewsData();
+            return ResponseEntity.ok().body("更新成功");
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

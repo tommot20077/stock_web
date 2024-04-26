@@ -36,4 +36,7 @@ public class News implements Serializable {
 
     @Enumerated(value = EnumType.STRING)
     private NewsType newsType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Asset asset = null;
 }

@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import xyz.dowob.stockweb.Enum.NewsType;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.News;
 
 import java.time.LocalDateTime;
@@ -21,4 +22,6 @@ public interface NewsRepository extends JpaRepository<News, String> {
     List<String> getAllNewsWithPublishedAtAndTitle();
 
     Page<News> findAllByNewsType(NewsType newsType, PageRequest pageRequest);
+
+    Page<News> findAllByAsset(Asset asset, PageRequest pageRequest);
 }

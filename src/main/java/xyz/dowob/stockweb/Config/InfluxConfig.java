@@ -26,11 +26,11 @@ public class InfluxConfig {
     @Value("${db.influxdb.bucket.crypto_history}")
     private String cryptoHistoryBucket;
 
-    @Value("${db.influxdb.bucket.stock}")
-    private String stockBucket;
+    @Value("${db.influxdb.bucket.stock_tw}")
+    private String stockTwBucket;
 
-    @Value("${db.influxdb.bucket.stock_history}")
-    private String stockHistoryBucket;
+    @Value("${db.influxdb.bucket.stock_tw_history}")
+    private String stockTwHistoryBucket;
 
     @Value("${db.influxdb.bucket.currency}")
     private String currencyBucket;
@@ -51,11 +51,11 @@ public class InfluxConfig {
     }
     @Bean(name = "StockTwInfluxClient")
     public InfluxDBClient stockTwInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockBucket);
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockTwBucket);
     }
     @Bean(name = "StockTwHistoryInfluxClient")
     public InfluxDBClient stockTwHistoryInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockHistoryBucket);
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockTwHistoryBucket);
     }
     @Bean(name = "CurrencyInfluxClient")
     public InfluxDBClient currencyInfluxClient() {

@@ -26,7 +26,6 @@ import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Dto.Property.RoiDataDto;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
-import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.EventCache;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -574,7 +573,7 @@ public class PropertyService {
                 );
         return new ArrayList<>(propertyMap.values()).stream()
                 .map(property -> {
-                    BigDecimal currentPrice = getCurrentPrice(property.getAsset());
+                    BigDecimal currentPrice = assetInfluxMethod.getLatestPrice(property.getAsset());
                     logger.debug("目前價格: " + currentPrice);
                     BigDecimal exchangeRate;
                     if (isFormattedToPreferredCurrency) {
@@ -680,16 +679,6 @@ public class PropertyService {
     }
 
 
-
-    public BigDecimal getCurrentPrice(Asset asset) {
-        return switch (asset) {
-            case StockTw stockTw -> assetInfluxMethod.getLatestPrice(stockTw);
-            case CryptoTradingPair crypto -> assetInfluxMethod.getLatestPrice(crypto);
-            case Currency currency -> assetInfluxMethod.getLatestPrice(currency);
-            case null, default -> throw new IllegalArgumentException("不支援的資產類型");
-        };
-    }//todo 可以刪除
-
     public String getPropertySummary(User user) {
         Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket, "summary_property", user, "7d", false);
         logger.debug("取得 InfluxDB 的資料: " + userSummary);
@@ -707,19 +696,19 @@ public class PropertyService {
         }
     }
     public List<String> prepareRoiDataAndCalculate(User user) {
-        List<LocalDateTime> localDateList = getRoiDate();
+        List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         List<String> roiResult = new ArrayList<>();
-        List<String> fields = new ArrayList<>();
+        Map<String, String> filters = new HashMap<>();
         List<RoiDataDto> roiDataDtoList = new ArrayList<>();
         Map<LocalDateTime, BigDecimal> netCashFlowMap = new TreeMap<>();
         Map<LocalDateTime, BigDecimal> totalSumMap = new TreeMap<>();
-        fields.add("total_sum");
+        filters.put("_field","total_sum");
 
 
-        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = propertyInfluxService.queryByTimeAndUser(
-                propertySummaryBucket, "net_cash_flow", new ArrayList<>(), user, localDateList, 12, true, false);
-        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = propertyInfluxService.queryByTimeAndUser(
-                propertySummaryBucket, "summary_property", fields, user, localDateList, 12, true, false);
+        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = assetInfluxMethod.queryByTimeAndUser(
+                propertySummaryBucket, "net_cash_flow", new HashMap<>(), user, localDateList, 12, true, false);
+        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = assetInfluxMethod.queryByTimeAndUser(
+                propertySummaryBucket, "summary_property", filters, user, localDateList, 12, true, false);
         logger.debug("取得 InfluxDB 的淨流量資料: " + netCashFlowResult);
         logger.debug("取得 InfluxDB 的資產量資料: " + netPropertySumResult);
 
@@ -874,16 +863,6 @@ public class PropertyService {
             objectNode.put("year", year);
             logger.debug("返回結果: " + objectNode);
             return objectNode;
-        }
-        private List<LocalDateTime> getRoiDate() {
-            LocalDateTime today = LocalDateTime.now();
-            List<LocalDateTime> localDateTime = new ArrayList<>();
-            localDateTime.add(today);
-            localDateTime.add(today.minusDays(1));
-            localDateTime.add(today.minusWeeks(1));
-            localDateTime.add(today.minusMonths(1));
-            localDateTime.add(today.minusYears(1));
-            return localDateTime;
         }
 
         public LocalDateTime findClosestTime (Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference){

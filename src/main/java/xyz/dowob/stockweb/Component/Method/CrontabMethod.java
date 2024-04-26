@@ -10,7 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
@@ -43,11 +45,14 @@ public class CrontabMethod {
     private final PropertyService propertyService;
     private final NewsService newsService;
     private final RedisService redisService;
+    private final AssetService assetService;
     private final CryptoWebSocketHandler cryptoWebSocketHandler;
     private final SubscribeMethod subscribeMethod;
     private final PropertyInfluxService propertyInfluxService;
+
+
     @Autowired
-    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
+    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
         this.tokenService = tokenService;
         this.currencyService = currencyService;
         this.stockTwService = stockTwService;
@@ -56,6 +61,7 @@ public class CrontabMethod {
         this.propertyService = propertyService;
         this.newsService = newsService;
         this.redisService = redisService;
+        this.assetService = assetService;
         this.cryptoWebSocketHandler = cryptoWebSocketHandler;
         this.subscribeMethod = subscribeMethod;
         this.propertyInfluxService = propertyInfluxService;
@@ -66,6 +72,15 @@ public class CrontabMethod {
 
     @Value("${news.remain.days}")
     private int newsRemainDays;
+
+    @Value("${news.autoupdate.currency}")
+    private boolean newsAutoupdateCurrency;
+
+    @Value("${news.autoupdate.crypto}")
+    private boolean newsAutoupdateCrypto;
+
+    @Value("${news.autoupdate.stock_tw}")
+    private boolean newsAutoupdateStockTw;
 
 
     @Scheduled(cron = "0 0 1 * * ?")
@@ -205,7 +220,19 @@ public class CrontabMethod {
         logger.info("開始更新頭條新聞");
         redisService.deleteByPattern("news_headline_page_*");
         logger.debug("刪除緩存完成");
-        newsService.sendNewsRequest(true, 1, null, null);
-        logger.debug("更新完成");
+        newsService.sendNewsRequest(true, 1, null , null);
+        logger.info("開始更新訂閱資產的新聞");
+        List<Asset> subscribeAsset = assetService.findHasSubscribeAsset(newsAutoupdateCrypto, newsAutoupdateStockTw, newsAutoupdateCurrency);
+        for (Asset asset : subscribeAsset) {
+            logger.debug("正在更新 " + asset.getId() + " 的新聞");
+            newsService.sendNewsRequest(false, 1, null , asset);
+        }
+        logger.info("新聞更新完成");
     }
+
+
+
+
+
 }
+

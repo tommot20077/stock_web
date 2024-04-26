@@ -18,12 +18,10 @@ import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
+import xyz.dowob.stockweb.Model.User.User;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,6 +35,7 @@ public class AssetInfluxMethod {
     private final InfluxDBClient currencyInfluxClient;
     private final InfluxDBClient stockTwHistoryInfluxClient;
     private final InfluxDBClient cryptoHistoryInfluxClient;
+    private final InfluxDBClient propertySummaryInfluxClient;
     private final RetryTemplate retryTemplate;
 
 
@@ -46,10 +45,10 @@ public class AssetInfluxMethod {
     @Value("${db.influxdb.bucket.crypto_history}")
     private String cryptoHistoryBucket;
 
-    @Value("${db.influxdb.bucket.stock}")
+    @Value("${db.influxdb.bucket.stock_tw}")
     private String stockTwBucket;
 
-    @Value("${db.influxdb.bucket.stock_history}")
+    @Value("${db.influxdb.bucket.stock_tw_history}")
     private String stockHistoryBucket;
 
     @Value("${db.influxdb.bucket.currency}")
@@ -68,12 +67,20 @@ public class AssetInfluxMethod {
 
     @Autowired
     public AssetInfluxMethod(
-            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
+            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient,
+            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
+            @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient,
+            @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient,
+            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient,
+            RetryTemplate retryTemplate
+    ) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
         this.stockTwHistoryInfluxClient = stockTwHistoryInfluxClient;
         this.cryptoHistoryInfluxClient = cryptoHistoryInfluxClient;
+        this.propertySummaryInfluxClient = propertySummaryInfluxClient;
         this.retryTemplate = retryTemplate;
     }
 
@@ -232,7 +239,7 @@ public class AssetInfluxMethod {
                 ref.tables = client.getQueryApi().query(query, org);
             });
 
-            String addition = isHistory ? "history" : "latest";
+            String addition = isHistory ? "history" : "current";
             return new HashMap<>() {{
                 put(asset.getId().toString() + "_" + addition, ref.tables);
             }};
@@ -240,5 +247,93 @@ public class AssetInfluxMethod {
             logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
+    }
+
+    public Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
+            String propertySummaryBucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
+
+        Map<LocalDateTime, String> queries = new HashMap<>();
+        DateTimeFormatter influxDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
+        for (LocalDateTime specificTime : specificTimes) {
+            LocalDateTime rangeStart = specificTime.minusHours(allowRangeOfHour);
+            LocalDateTime rangeEnd = specificTime.plusMinutes(30);
+
+            String formattedStart = influxDateFormat.format(rangeStart);
+            String formattedEnd = influxDateFormat.format(rangeEnd);
+
+            StringBuilder baseQuery = new StringBuilder(String.format(
+                    "from(bucket: \"%s\")" + " |> range(start: %s, stop: %s)" +
+                            " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")",
+                    propertySummaryBucket, formattedStart, formattedEnd, measurement));
+            if (isLast) {
+                baseQuery.append(" |> last()");
+            }
+            if (user != null) {
+                String additionalQuery = String.format(" |> filter(fn: (r) => r[\"user_id\"] == \"%s\")", user.getId());
+                baseQuery.append(additionalQuery);
+            }
+
+
+            if (needToFillData) {
+                baseQuery.append(
+                        " |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
+            }
+            if (!filters.isEmpty()) {
+                for (Map.Entry<String, String> additionalFilters : filters.entrySet()) {
+                    String additionFilterKey = additionalFilters.getKey();
+                    String additionFilterValue = additionalFilters.getValue();
+                    String additionalQuery = String.format("  |> filter(fn: (r) => r[\"%s\"] == \"%s\")", additionFilterKey, additionFilterValue);
+                    baseQuery.append(additionalQuery);
+                }
+            }
+            queries.put(specificTime, baseQuery.toString());
+        }
+        logger.debug("queries: " + queries);
+        return queries;
+    }
+
+
+    public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
+        Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
+        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(
+                bucket,
+                measurement,
+                filters,
+                user,
+                specificTimes,
+                allowRangeOfHour,
+                isLast,
+                needToFillData
+        );
+
+        for (Map.Entry<LocalDateTime, String> entry : predicate.entrySet()) {
+            LocalDateTime specificTime = entry.getKey();
+            String query = entry.getValue();
+
+            var ref = new Object() {
+                List<FluxTable> result;
+            };
+            try {
+                retryTemplate.doWithRetry(() -> {
+                    ref.result = propertySummaryInfluxClient.getQueryApi().query(query, org);
+                });
+            } catch (RetryException e) {
+                logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+                throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+            }
+            userTablesMap.put(specificTime, ref.result);
+        }
+        return userTablesMap;
+    }
+
+    public List<LocalDateTime> getStatisticDate() {
+        LocalDateTime today = LocalDateTime.now();
+        List<LocalDateTime> localDateTime = new ArrayList<>();
+        localDateTime.add(today);
+        localDateTime.add(today.minusDays(1));
+        localDateTime.add(today.minusWeeks(1));
+        localDateTime.add(today.minusMonths(1));
+        localDateTime.add(today.minusYears(1));
+        return localDateTime;
     }
 }
