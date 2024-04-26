@@ -43,11 +43,11 @@ async function getAssetKlineChart(assetId, type, method) {
                 try {
                     console.log("data.statistics: " + jsonData.statistics);
                     hasStatistic = true;
-                    let today = Number(jsonData.statistics[4]) ? +jsonData.statistics[4] : "數據不足";
-                    let day = Number(jsonData.statistics[3]) ? +jsonData.statistics[3] : "數據不足";
-                    let week = Number(jsonData.statistics[2]) ? +jsonData.statistics[2] : "數據不足";
-                    let month = Number(jsonData.statistics[1]) ? +jsonData.statistics[1] : "數據不足";
-                    let year = Number(jsonData.statistics[0]) ? +jsonData.statistics[0] : "數據不足";
+                    let today = Number(jsonData.statistics[4]) ? (+jsonData.statistics[4]).toFixed(3) : "數據不足";
+                    let day = Number(jsonData.statistics[3]) ? (+jsonData.statistics[3]).toFixed(3) : "數據不足";
+                    let week = Number(jsonData.statistics[2]) ? (+jsonData.statistics[2]).toFixed(3) : "數據不足";
+                    let month = Number(jsonData.statistics[1]) ? (+jsonData.statistics[1]).toFixed(3) : "數據不足";
+                    let year = Number(jsonData.statistics[0]) ? (+jsonData.statistics[0]).toFixed(3) : "數據不足";
                     let body = document.getElementById("statistics_overview");
                     body.innerHTML =
                         `

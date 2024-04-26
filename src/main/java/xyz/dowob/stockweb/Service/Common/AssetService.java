@@ -12,12 +12,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
+import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Common.AssetRepository;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
@@ -37,17 +39,19 @@ public class AssetService {
     private final AssetInfluxMethod assetInfluxMethod;
     private final ObjectMapper objectMapper;
     private final RedisService redisService;
+    private final AssetHandler assetHandler;
     private final CurrencyRepository currencyRepository;
     private final StockTwRepository stockTwRepository;
     private final CryptoRepository cryptoRepository;
 
     Logger logger = LoggerFactory.getLogger(AssetService.class);
     @Autowired
-    public AssetService(AssetRepository assetRepository, AssetInfluxMethod assetInfluxMethod, ObjectMapper objectMapper, RedisService redisService, CurrencyRepository currencyRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository) {
+    public AssetService(AssetRepository assetRepository, AssetInfluxMethod assetInfluxMethod, ObjectMapper objectMapper, RedisService redisService, AssetHandler assetHandler, CurrencyRepository currencyRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository) {
         this.assetRepository = assetRepository;
         this.assetInfluxMethod = assetInfluxMethod;
         this.objectMapper = objectMapper;
         this.redisService = redisService;
+        this.assetHandler = assetHandler;
         this.currencyRepository = currencyRepository;
         this.stockTwRepository = stockTwRepository;
         this.cryptoRepository = cryptoRepository;
@@ -204,13 +208,13 @@ public class AssetService {
             }
             case CryptoTradingPair cryptoTradingPair -> {
                 filters.put("_field", "close");
-                filters.put("crypto_code", cryptoTradingPair.getTradingPair());
+                filters.put("tradingPair", cryptoTradingPair.getTradingPair());
                 select[0] = cryptoHistoryBucket;
                 select[1] = "kline_data";
             }
             case Currency currency -> {
                 filters.put("_field", "rate");
-                filters.put("currency_code", currency.getCurrency());
+                filters.put("Currency", currency.getCurrency());
                 select[0] = currencyBucket;
                 select[1] = "exchange_rate";
             }
@@ -259,15 +263,13 @@ public class AssetService {
     }
 
 
-    public String formatRedisAssetInfoCacheToJson(String type, String key) {
+    public String formatRedisAssetInfoCacheToJson(String type, String key, User user, Long assetId) {
         ArrayNode mergeArray = objectMapper.createArrayNode();
         Map <String, Object> resultMap = new HashMap<>();
 
-        List<String> cacheStatisticsList = redisService.getCacheListValueFromKey(key + ":statistics");
+
         List<String> cacheDataList = redisService.getCacheListValueFromKey(key + ":data");
         String timestamp = redisService.getHashValueFromKey(key, "last_timestamp");
-
-
         try {
             for (String item : cacheDataList) {
                 ArrayNode arrayNode = (ArrayNode) objectMapper.readTree(item);
@@ -276,7 +278,25 @@ public class AssetService {
             resultMap.put("data", mergeArray);
             resultMap.put("type", type);
             resultMap.put("last_timestamp", timestamp);
-            resultMap.put("statistics", cacheStatisticsList);
+
+            List<String> cacheStatisticsList = redisService.getCacheListValueFromKey(key + ":statistics");
+            if (user == null) {
+                resultMap.put("statistics", cacheStatisticsList);
+            } else {
+                List<String> statisticsListForUser = new ArrayList<>();
+                for (String item : cacheStatisticsList) {
+                    if ("數據不足".equals(item)) {
+                        statisticsListForUser.add(item);
+                        continue;
+                    }
+                    BigDecimal bigDecimal = new BigDecimal(item);
+                    Asset asset = assetRepository.findById(assetId).orElseThrow(() -> new RuntimeException("找不到資產"));
+                    BigDecimal formatPrice = assetHandler.exrateToPreferredCurrency(asset, bigDecimal, user.getPreferredCurrency());
+                    statisticsListForUser.add(formatPrice.toString());
+                }
+                resultMap.put("statistics", statisticsListForUser);
+            }
+
             return objectMapper.writeValueAsString(resultMap);
         } catch (JsonProcessingException e) {
             logger.error("資產資料處理錯誤: ", e);

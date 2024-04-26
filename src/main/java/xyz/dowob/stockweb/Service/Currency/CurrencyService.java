@@ -129,6 +129,7 @@ public class CurrencyService {
         throw new RuntimeException("無法轉換指定貨幣的資料");
     }
 
+
     public Map<String, BigDecimal> getExchangeRates(List<String> currencies) {
         Map<String, BigDecimal> rates = new HashMap<>();
         for (String currency : currencies) {

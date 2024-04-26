@@ -37,8 +37,6 @@ public class AssetHandler {
     }
 
 
-
-
     public BigDecimal exrateToPreferredCurrency(Asset asset, BigDecimal assetExrate, Currency preferredCurrency) {
         BigDecimal preferredCurrencyRate = preferredCurrency.getExchangeRate();
         if (asset.getAssetType() == AssetType.CURRENCY) {
@@ -51,6 +49,8 @@ public class AssetHandler {
             throw new IllegalArgumentException("不支援的資產類型");
         }
     }
+
+
 
     private BigDecimal getTwdCurrency() {
         if (twdCurrency == null) {

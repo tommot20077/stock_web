@@ -1,13 +1,16 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
+import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
+import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -21,9 +24,11 @@ import java.util.*;
 public class ApiAssetController {
     private final AssetService assetService;
     private final RedisService redisService;
+    private final UserService userService;
     @Autowired
-    public ApiAssetController(AssetService assetService, RedisService redisService) {this.assetService = assetService;
+    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService) {this.assetService = assetService;
         this.redisService = redisService;
+        this.userService = userService;
     }
 
 
@@ -62,12 +67,13 @@ public class ApiAssetController {
     }
 
     @GetMapping("/getAssetInfo/{assetId}")
-    public ResponseEntity<?> getAssetInfo(@PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
+    public ResponseEntity<?> getAssetInfo(@PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type, HttpSession session) {
         type = type.toLowerCase();
         if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
             return ResponseEntity.badRequest().body("錯誤的查詢類型");
         }
 
+        User user = userService.getUserFromJwtTokenOrSession(session);
         String key = String.format("kline_%s_%s", type, assetId);
         try {
             String status = redisService.getHashValueFromKey(key, "status");
@@ -82,7 +88,7 @@ public class ApiAssetController {
                 return ResponseEntity.badRequest().body("無此資產的價格圖");
             }
 
-            String json = assetService.formatRedisAssetInfoCacheToJson(type, key);
+            String json = assetService.formatRedisAssetInfoCacheToJson(type, key, user, assetId);
             return ResponseEntity.ok().body(json);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("錯誤: "+ e.getMessage());
