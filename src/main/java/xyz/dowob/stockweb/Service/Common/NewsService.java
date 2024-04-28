@@ -24,14 +24,12 @@ import xyz.dowob.stockweb.Model.Common.News;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
-import xyz.dowob.stockweb.Repository.Common.AssetRepository;
 import xyz.dowob.stockweb.Repository.Common.NewsRepository;
 
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 
 
 @Service
@@ -54,7 +52,7 @@ public class NewsService {
     @Value("${news.prefer.language}")
     private String preferLanguage;
 
-    @Value("${news.api.pageSize}")
+    @Value("${common.global_size}")
     private int pageSize;
 
     Logger logger = LoggerFactory.getLogger(NewsService.class);
@@ -226,19 +224,25 @@ public class NewsService {
 
 
 
-    public Page<News> getAllNewsByType(String typeString, int page) {
-        NewsType type = NewsType.valueOf(typeString.toUpperCase());
-        PageRequest pageRequest = PageRequest.of(page - 1, 50);
-        return newsRepository.findAllByNewsType(type, pageRequest);
+    public Page<News> getAllNewsByType(String categoryString, int page) {
+        try {
+            NewsType type = NewsType.valueOf(categoryString.toUpperCase());
+            PageRequest pageRequest = PageRequest.of(page - 1, 50);
+            return newsRepository.findAllByNewsTypeOrderByPublishedAtDesc(type, pageRequest);
+        } catch (IllegalArgumentException e) {
+            logger.error("錯誤的類型: " + categoryString);
+            throw new RuntimeException("錯誤的類型: " + categoryString);
+        }
     }
 
     public Page<News> getAllNewsByAsset(Asset asset, int page){
         PageRequest pageRequest = PageRequest.of(page - 1, 50);
-        return newsRepository.findAllByAsset(asset, pageRequest);
+        return newsRepository.findAllByAssetOrderByPublishedAtDesc(asset, pageRequest);
     }
 
 
     public String formatNewsListToJson(Page<News> newsList) {
+        logger.debug("newsList: " + newsList);
         if (newsList == null || newsList.isEmpty()) {
             return null;
         }

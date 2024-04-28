@@ -455,8 +455,8 @@
                     </a>
                     <div class="collapse" id="stock">
                         <ul class="nav flex-column sub-menu">
-                            <li class="nav-item"> <a class="nav-link" href=/stocktw_info> 台股概況 </a></li>
-                            <li class="nav-item"> <a class="nav-link" href=/stocktw_news> 台股新聞 </a></li>
+                            <li class="nav-item"> <a class="nav-link" href=/info/stock_tw> 台股概況 </a></li>
+                            <li class="nav-item"> <a class="nav-link" href=/news/stock_tw> 台股新聞 </a></li>
 
                         </ul>
                     </div>
@@ -469,8 +469,8 @@
                     </a>
                     <div class="collapse" id="currency">
                         <ul class="nav flex-column sub-menu">
-                            <li class="nav-item"> <a class="nav-link" href=/currency_info> 貨幣資訊 </a></li>
-                            <li class="nav-item"> <a class="nav-link" href=/currency_news> 貨幣新聞 </a></li>
+                            <li class="nav-item"> <a class="nav-link" href=/info/currency> 貨幣資訊 </a></li>
+                            <li class="nav-item"> <a class="nav-link" href=/news/currency> 貨幣新聞 </a></li>
                         </ul>
                     </div>
                 </li>
@@ -482,8 +482,8 @@
                     </a>
                     <div class="collapse" id="crypto">
                         <ul class="nav flex-column sub-menu">
-                            <li class="nav-item"> <a class="nav-link" href=/crypto_info> 幣圈資訊 </a></li>
-                            <li class="nav-item"> <a class="nav-link" href=/crypto_news> 幣圈新聞 </a></li>
+                            <li class="nav-item"> <a class="nav-link" href=/info/crypto> 幣圈資訊 </a></li>
+                            <li class="nav-item"> <a class="nav-link" href=/news/crypto> 幣圈新聞 </a></li>
                         </ul>
                     </div>
                 </li>
@@ -557,102 +557,21 @@
                             <div class="tab-content tab-content-basic">
                                 <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview">
                                     <div class="row">
-                                        <div class="col-sm-8">
-                                            <div class="statistics-details d-flex align-items-center justify-content-between" id="statistics_overview">
-                                                <div class="d-none d-md-block">
-                                                    <p class="statistics-title">資產名稱</p>
-                                                    <h3 class="rate-percentage">名稱</h3>
-                                                    <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span></span></p>
-                                                </div>
-                                                <div class="d-none d-md-block">
-                                                    <p class="statistics-title">目前資產價格</p>
-                                                    <h3 class="rate-percentage">0</h3>
-                                                    <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
-                                                </div>
-                                                <div class="d-none d-md-block">
-                                                    <p class="statistics-title">日成長</p>
-                                                    <h3 class="rate-percentage">0</h3>
-                                                    <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
-                                                </div>
-                                                <div class="d-none d-md-block">
-                                                    <p class="statistics-title">周成長</p>
-                                                    <h3 class="rate-percentage">0</h3>
-                                                    <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
-                                                </div>
-                                                <div>
-                                                    <p class="statistics-title">月成長</p>
-                                                    <h3 class="rate-percentage">0</h3>
-                                                    <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
-                                                </div>
-                                                <div>
-                                                    <p class="statistics-title">年成長</p>
-                                                    <h3 class="rate-percentage">0</h3>
-                                                    <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-lg-12 d-flex flex-column">
-                                            <div class="row flex-grow">
-                                                <div class="col-12 col-lg-4 col-lg-12 grid-margin stretch-card">
-                                                    <div class="card card-rounded">
-                                                        <div class="card-body">
-                                                            <div class="d-sm-flex justify-content-between align-items-start">
-                                                                <div>
-                                                                    <h4 class="card-title">歷史價格走勢</h4>
-                                                                </div>
-
-                                                            </div>
-                                                            <div class="mt-5" id="historyKlineChart" style="width:100%; height: 600px">
-                                                                <div id="history-error-text" style="display: none"></div>
-                                                                <div id="history-loader" class="bar-loader"></div>
-                                                                <
-                                                                <!--- KlineChart -->
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-lg-12 d-flex flex-column">
-                                            <div class="row flex-grow">
-                                                <div class="col-12 col-lg-4 col-lg-12 grid-margin stretch-card">
-                                                    <div class="card card-rounded">
-                                                        <div class="card-body">
-                                                            <div class="d-sm-flex justify-content-between align-items-start">
-                                                                <div>
-                                                                    <h4 class="card-title">即時價格走勢</h4>
-                                                                </div>
-                                                            </div>
-                                                            <div class="mt-5" id = "currentKlineChart" style="width:100%; height: 600px">
-                                                                <div id = "current-error-text" style="display: none"></div>
-                                                                <div id = "current-loader" class="bar-loader" style="flex: auto"></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row">
                                         <div class="col-lg-12 d-flex flex-column">
                                             <div class="row flex-grow">
                                                 <div class="col-12 grid-margin stretch-card">
                                                     <div class="col-lg-12 grid-margin stretch-card">
                                                         <div class="card">
                                                             <div class="card-body">
-                                                                <h4 class="card-title">資產新聞</h4>
+                                                                <h4 class="card-title">資產種類列表</h4>
                                                                 <div class="table-responsive">
-                                                                    <table class="table table-hover" id="newsTableBody">
+                                                                    <table class="table table-hover" id="assetsListTableBody">
                                                                         <thead>
                                                                         <tr>
-                                                                            <th>標題</th>
+                                                                            <th>ID</th>
+                                                                            <th>名稱</th>
                                                                             <th>類型</th>
-                                                                            <th>發布時間</th>
-                                                                            <th>來源</th>
+                                                                            <th>資產訂閱狀態</th>
                                                                         </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -731,39 +650,21 @@
 <script src="/static/js/myJavaScript/map.js"></script>
 <script src="/static/js/myJavaScript/display.js"></script>
 <script src="/static/js/myJavaScript/fetch.js"></script>
-<script src="/static/js/myJavaScript/asserChart.js"></script>
 <!-- End custom js for this page-->
 
 
 
 <script>
-    let assetId = getAssetParamFromUrl();
-    getAssetDetails(assetId);
+    let category = getAssetParamFromUrl();
     getUserDetails();
+    displayAssetsList(1, category);
+
     document.addEventListener("DOMContentLoaded", () => {
         const prevPageButton = document.getElementById('previousPage');
         const nextPageButton = document.getElementById('nextPage');
         const currentPageElement = document.getElementById('currentPage');
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, 1, "", assetId);
+        updateAssetsList(prevPageButton, nextPageButton, currentPageElement, 1, category);
     })
-
-
-    let historyInterval = setInterval(async function () {
-        let result = await getAssetKlineChart(assetId, "history", "get");
-        if (result) {
-            clearInterval(historyInterval);
-        }
-    }, 3000);
-
-    let currentInterval = setInterval(async function () {
-        let result = await getAssetKlineChart(assetId, "current", "get");
-        if (result) {
-            clearInterval(currentInterval);
-        }
-    }, 3000);
-
-
-
 </script>
 
 

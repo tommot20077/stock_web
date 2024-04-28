@@ -1,7 +1,5 @@
 package xyz.dowob.stockweb.Repository.Common;
 
-import org.jetbrains.annotations.NotNull;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,7 +10,6 @@ import xyz.dowob.stockweb.Model.Common.News;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface NewsRepository extends JpaRepository<News, String> {
 
@@ -21,7 +18,7 @@ public interface NewsRepository extends JpaRepository<News, String> {
     @Query("select n.title from News n")
     List<String> getAllNewsWithPublishedAtAndTitle();
 
-    Page<News> findAllByNewsType(NewsType newsType, PageRequest pageRequest);
+    Page<News> findAllByNewsTypeOrderByPublishedAtDesc(NewsType newsType, PageRequest pageRequest);
 
-    Page<News> findAllByAsset(Asset asset, PageRequest pageRequest);
+    Page<News> findAllByAssetOrderByPublishedAtDesc(Asset asset, PageRequest pageRequest);
 }

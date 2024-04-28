@@ -23,12 +23,14 @@ import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -81,6 +83,9 @@ public class CrontabMethod {
 
     @Value("${news.autoupdate.stock_tw}")
     private boolean newsAutoupdateStockTw;
+
+    @Value("${common.global_size}")
+    private int pageSize;
 
 
     @Scheduled(cron = "0 0 1 * * ?")
@@ -228,6 +233,28 @@ public class CrontabMethod {
             newsService.sendNewsRequest(false, 1, null , asset);
         }
         logger.info("新聞更新完成");
+    }
+
+    @Scheduled(cron = "0 10 */4 * * ? ", zone = "UTC")
+    public void updateAssetListCache() {
+        try {
+            List<String> keys = new ArrayList<>(Arrays.asList("crypto", "stock_tw", "currency"));
+            logger.info("開始更新資產列表緩存");
+
+            for (String key : keys) {
+                int totalPage = assetService.findAssetTotalPage(key, pageSize);
+                for (int page = 1; page <= totalPage; page++) {
+                    logger.debug("正在更新 " + key + " 的第 " + page + " 頁資產列表緩存");
+                    String innerKey = key + "_page_" + page;
+                    List<Asset> assetsList = assetService.findAssetPageByType(key, page, false);
+                    assetService.formatStringAssetListToFrontendType(assetsList, innerKey);
+                }
+            }
+            logger.info("資產列表緩存更新完成");
+        } catch (Exception e) {
+            logger.error("更新資產列表緩存失敗", e);
+            throw new  RuntimeException("更新資產列表緩存失敗", e);
+        }
     }
 
 

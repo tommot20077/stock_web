@@ -1,10 +1,8 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
-import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -178,36 +176,36 @@ public class ApiUserController {
         }
     }
 
-    @GetMapping("/getNews")
+    @GetMapping("/getNews/{category}")
     public ResponseEntity<?> getNews(
-            @RequestParam(name = "type", required = false) String type,
+            @PathVariable(name = "category", required = false) String category,
             @RequestParam(name = "asset", required = false) Long assetId,
             @RequestParam(name = "page", required = false, defaultValue = "1") int page) {
-        String key;
+        String key = "news";
+        String innerKey;
         Asset asset = null;
         if (assetId != null) {
             asset = assetService.getAssetById(assetId);
-            type = asset.getId().toString();
+            category = asset.getId().toString();
         }
-        if (type != null && !type.isEmpty() && asset != null) {
-            key = "news_" + asset.getId() + "_page_" + page;
-        } else if (type != null && !type.isEmpty()) {
-            key = "news_" + type.toLowerCase() + "_page_" + page;
+        if (category != null && !category.isEmpty() && asset != null) {
+            innerKey = asset.getId() + "_page_" + page;
+        } else if (category != null && !category.isEmpty()) {
+            innerKey = category.toLowerCase() + "_page_" + page;
         } else {
             return ResponseEntity.badRequest().body("沒有任何查詢參數可以使用");
         }
 
         try {
-            String cachedNewsJson = redisService.getCacheValueFromKey(key);
+            String cachedNewsJson = redisService.getHashValueFromKey(key, innerKey);
             if (cachedNewsJson != null) {
-                System.out.println("取得緩存");
                 return ResponseEntity.ok().body(cachedNewsJson);
             } else {
                 Page<News> news;
                 if (asset != null){
                     news = newsService.getAllNewsByAsset(asset, page);
                 } else {
-                    news = newsService.getAllNewsByType(type, page);
+                    news = newsService.getAllNewsByType(category, page);
                 }
 
                 String newsJson = newsService.formatNewsListToJson(news);
@@ -216,7 +214,7 @@ public class ApiUserController {
                     result.put("result", "沒有新聞");
                     return ResponseEntity.ok().body(result);
                 } else {
-                    redisService.saveValueToCache(key, newsJson, 4);
+                    redisService.saveHashToCache(key,innerKey, newsJson, 4);
                     return ResponseEntity.ok().body(newsJson);
                 }
             }
@@ -224,4 +222,5 @@ public class ApiUserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
         }
     }
+
 }

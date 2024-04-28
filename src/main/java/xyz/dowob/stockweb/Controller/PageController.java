@@ -124,6 +124,15 @@ public class PageController {
         return "assetInfo";
     }
 
+    @GetMapping("/news/{category}")
+    public String news () {
+        return "news";
+    }
+
+    @GetMapping("/info/{category}")
+    public String info () {
+        return "info";
+    }
 
 
 }

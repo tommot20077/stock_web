@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Model.Common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.redis.core.RedisHash;
@@ -37,6 +38,7 @@ public class News implements Serializable {
     @Enumerated(value = EnumType.STRING)
     private NewsType newsType;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     private Asset asset = null;
 }

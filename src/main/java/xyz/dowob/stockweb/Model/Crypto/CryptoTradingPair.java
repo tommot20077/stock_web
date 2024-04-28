@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Model.Crypto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,6 +30,7 @@ public class CryptoTradingPair extends Asset implements Serializable {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "crypto_subscribers", joinColumns = @JoinColumn(name = "asset_id"))
     @Column(name = "user_id")
+    @JsonIgnore
     private Set<Long> subscribers = new HashSet<>();
 
     @Column(name = "has_any_subscribed", nullable = false)

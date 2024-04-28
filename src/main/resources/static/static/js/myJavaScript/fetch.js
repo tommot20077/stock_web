@@ -795,14 +795,13 @@ async function fetchStatisticsOverview () {
     }
 }
 
-async function fetchIndexNewsData(pageNumber, type, asset) {
+async function fetchIndexNewsData(pageNumber, category, asset) {
     let queryParams = new URLSearchParams({
-        type: type,
         asset: asset,
         page: pageNumber
     });
     try {
-        let response = await fetch(`/api/user/common/getNews?${queryParams}`, {
+        let response = await fetch(`/api/user/common/getNews/${category}?${queryParams}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -820,11 +819,11 @@ async function fetchIndexNewsData(pageNumber, type, asset) {
     }
 }
 
-async function fetchAssetInfoData(assetId, type, method) {
+async function fetchKlineInfoData(assetId, type, method) {
     if (method === 'handle') {
-        method = 'handleAssetInfo'
+        method = 'handleKlineInfo'
     } else if (method === 'get') {
-        method = 'getAssetInfo'
+        method = 'getKlineInfo'
     } else {
         throw new Error('不支援的操作方法：' + method);
     }
@@ -845,6 +844,47 @@ async function fetchAssetInfoData(assetId, type, method) {
         throw new Error(errorText);
     }
 }
+
+async function fetchAssetInfoData(assetId) {
+    let queryParams = new URLSearchParams({
+        id: assetId,
+    });
+    let response = await fetch(`/api/user/asset/getAssetInfo?${queryParams}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    if (response.ok) {
+        return await response.json();
+    } else {
+        let errorText = await response.text();
+        throw new Error(errorText);
+    }
+}
+
+async function fetchAssetListData(pageNumber, category) {
+    let queryParams = new URLSearchParams({
+        page: pageNumber,
+        isFrontEnd: true,
+        isCache: false
+
+    });
+    let response = await fetch(`/api/user/asset/getAssetList/${category}?${queryParams}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    if (response.ok) {
+        return await response.json();
+    } else {
+        let errorText = await response.text();
+        throw new Error(errorText);
+    }
+
+}
+
 
 
 

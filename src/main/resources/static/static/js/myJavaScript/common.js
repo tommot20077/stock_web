@@ -1,6 +1,4 @@
 function generateStatisticsTable(title, value1, value2) {
-    console.log("title: ", title, "value1: ", value1, "value2: ", value2);
-
     let display1 = value1;
     let display2 = value2;
     if (value2 === "數據不足") {
@@ -31,7 +29,26 @@ function generateStatisticsTable(title, value1, value2) {
             <h3 class="rate-percentage">${display1}</h3>
             <p class="${parseFloat(display2) < 0 ? 'text-danger' : 'text-success'} d-flex"><i class="mdi ${parseFloat(display2) < 0 ? 'mdi-menu-down' : 'mdi-menu-up'}"></i><span>${display2}%</span></p>
         </div>
-    `
+    `;
+}
 
+function generateAssetListTable(asset) {
+    let assetId = asset.assetId;
+    let assetName = asset.assetName;
+    let type = asset.type;
+    let isSubscribed = asset.isSubscribed;
+    let row = document.createElement("tr");
+    row.innerHTML =
+        `   
+            <td><a href="/asset_info/${assetId}">${assetId}</a></td}">
+            <td>${assetName}</td>
+            <td>${getAssetType(type)}</td>
+            <td>${isSubscribed === true ? "已有用戶訂閱" : "未有用戶訂閱"}</td>
+        `
+    return row;
+}
 
+function getAssetParamFromUrl() {
+    const pathArray = window.location.pathname.split('/');
+    return pathArray[pathArray.length - 1];
 }

@@ -147,9 +147,9 @@ async function displayStatisticsOverview () {
         console.error(error);
     }
 }
-async function displayNewsTable(pageNumber, type, asset) {
+async function displayNewsTable(pageNumber, category, asset) {
     let tableBody = document.getElementById("newsTableBody");
-    let newsData = await fetchIndexNewsData(pageNumber, type, asset);
+    let newsData = await fetchIndexNewsData(pageNumber, category, asset);
     if (!newsData) {
         console.log("請求新聞時發生錯誤");
         return
@@ -174,7 +174,7 @@ async function displayNewsTable(pageNumber, type, asset) {
 
         row.innerHTML = `
             <td><a href="${news.url}" target="_blank">${news.title}</a></td}">
-            <td>${news.newsType}</td>
+            <td>${getAssetType(news.newsType)}</td>
             <td>${new Date(news.publishedAt).toLocaleString()}</td>
             <td>${news.sourceName}</td>
         `;
@@ -185,10 +185,10 @@ async function displayNewsTable(pageNumber, type, asset) {
 }
 
 
-async function updateNewsTable(prevPageButton, nextPageButton, currentPageElement, page, type, asset) {
+async function updateNewsTable(prevPageButton, nextPageButton, currentPageElement, page, category, asset) {
     let currentPage = page;
     currentPageElement.textContent = currentPage;
-    let isLastPage = await displayNewsTable(currentPage, type, asset);
+    let isLastPage = await displayNewsTable(currentPage, category, asset);
 
     nextPageButton.classList.toggle('disabled',isLastPage);
     nextPageButton.style.display = isLastPage ? 'none' : '';
@@ -201,30 +201,29 @@ async function updateNewsTable(prevPageButton, nextPageButton, currentPageElemen
     nextPageButton.removeEventListener('click', nextPageButton.nextHandler);
 
     if (!isLastPage) {
-        nextPageButton.nextHandler = createHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, type, asset);
+        nextPageButton.nextHandler = createNewsHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
         nextPageButton.addEventListener('click', nextPageButton.nextHandler);
     }
 
     if (currentPage > 1) {
-        prevPageButton.prevHandler = createHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, type, asset);
+        prevPageButton.prevHandler = createNewsHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
         prevPageButton.addEventListener('click', prevPageButton.prevHandler);
     }
-
 }
 
 
-function createHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, type, asset) {
+function createNewsHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
     return function(e) {
         e.preventDefault();
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, type, asset);
+        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
         scrollToElement('newsTableBody');
     };
 }
 
-function createHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, type, asset) {
+function createNewsHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
     return function(e) {
         e.preventDefault();
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, type, asset);
+        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
         scrollToElement('newsTableBody');
     };
 }
@@ -233,4 +232,73 @@ function scrollToElement(elementId) {
     if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+}
+
+
+async function displayAssetsList(pageNumber, category) {
+    let tableBody = document.getElementById("assetsListTableBody");
+    let assetListData = await fetchAssetListData(pageNumber, category);
+    if (assetListData) {
+        tableBody.innerHTML = `
+            <thead>
+                <tr>
+                <th>ID</th>
+                <th>名稱</th>
+                <th>類型</th>
+                <th>資產訂閱狀態</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        `;
+        let tbody = tableBody.querySelector("tbody");
+        assetListData.forEach(asset => {
+            let row = generateAssetListTable(asset);
+            tbody.appendChild(row);
+        })
+    } else {
+        console.log("請求資產列表時發生錯誤");
+    }
+}
+
+async function updateAssetsList(prevPageButton, nextPageButton, currentPageElement, page, category) {
+    let currentPage = page;
+    currentPageElement.textContent = currentPage;
+    let isLastPage = await displayAssetsList(currentPage, category);
+
+    nextPageButton.classList.toggle('disabled', isLastPage);
+    nextPageButton.style.display = isLastPage ? 'none' : '';
+    nextPageButton.href = `#newsTableBody`;
+    prevPageButton.classList.toggle('disabled', currentPage <= 1);
+    prevPageButton.style.display = currentPage <= 1 ? 'none' : '';
+    prevPageButton.href = currentPage > 1 ? `#newsTableBody` : '#';
+
+    prevPageButton.removeEventListener('click', prevPageButton.prevHandler);
+    nextPageButton.removeEventListener('click', nextPageButton.nextHandler);
+
+    if (!isLastPage) {
+        nextPageButton.nextHandler = createAssetListHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, category);
+        nextPageButton.addEventListener('click', nextPageButton.nextHandler);
+    }
+
+    if (currentPage > 1) {
+        prevPageButton.prevHandler = createAssetListHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category);
+        prevPageButton.addEventListener('click', prevPageButton.prevHandler);
+    }
+}
+
+function createAssetListHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
+    return function(e) {
+        e.preventDefault();
+        updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
+        scrollToElement('newsTableBody');
+    };
+}
+
+function createAssetListHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
+    return function(e) {
+        e.preventDefault();
+        updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
+        scrollToElement('newsTableBody');
+    };
 }
