@@ -2,10 +2,10 @@ package xyz.dowob.stockweb.Dto.Subscription;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import xyz.dowob.stockweb.Model.Common.Asset;
 
-import java.util.List;
-
+/**
+ * @author yuan
+ */
 @Data
 @AllArgsConstructor
 public class UserSubscriptionDto {

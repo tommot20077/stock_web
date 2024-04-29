@@ -9,6 +9,9 @@ import xyz.dowob.stockweb.Model.Currency.Currency;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * @author yuan
+ */
 public interface CurrencyRepository extends JpaRepository<Currency, Long> {
     Optional<Currency> findByCurrency(String currency);
     @Query("SELECT DISTINCT c.currency FROM Currency c")
@@ -18,6 +21,4 @@ public interface CurrencyRepository extends JpaRepository<Currency, Long> {
     Page<String> findAllCurrenciesByPage(Pageable pageable);
 
     List<Currency> findAllByOrderByCurrencyAsc();
-
-
 }

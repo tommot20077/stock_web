@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.micrometer.common.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +35,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 
+/**
+ * @author yuan
+ */
 @Service
 public class NewsService {
 
@@ -96,6 +102,7 @@ public class NewsService {
 
         return inquiryUrl;
     }
+
     @Async
     public void sendNewsRequest(boolean isHeadline, int page, String keyword, Asset asset) {
 
@@ -103,11 +110,10 @@ public class NewsService {
         RestTemplate restTemplate = new RestTemplate();
         URI uri = URI.create(inquiryUrl);
 
-        RequestEntity<?> requestEntity = RequestEntity
-                .get(uri)
-                .header("Authorization", "Bearer " + newsApiToken)
-                .accept(MediaType.APPLICATION_JSON)
-                .build();
+        RequestEntity<?> requestEntity = RequestEntity.get(uri)
+                                                      .header("Authorization", "Bearer " + newsApiToken)
+                                                      .accept(MediaType.APPLICATION_JSON)
+                                                      .build();
         try {
             ResponseEntity<String> response = restTemplate.exchange(requestEntity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
@@ -150,7 +156,6 @@ public class NewsService {
 
             JsonElement titleElement = articleJson.get("title");
             String title = titleElement.isJsonNull() ? null : titleElement.getAsString();
-
 
 
             if (titleList.contains(title)) {
@@ -223,7 +228,6 @@ public class NewsService {
     }
 
 
-
     public Page<News> getAllNewsByType(String categoryString, int page) {
         try {
             NewsType type = NewsType.valueOf(categoryString.toUpperCase());
@@ -235,7 +239,7 @@ public class NewsService {
         }
     }
 
-    public Page<News> getAllNewsByAsset(Asset asset, int page){
+    public Page<News> getAllNewsByAsset(Asset asset, int page) {
         PageRequest pageRequest = PageRequest.of(page - 1, 50);
         return newsRepository.findAllByAssetOrderByPublishedAtDesc(asset, pageRequest);
     }
@@ -256,9 +260,6 @@ public class NewsService {
             throw new RuntimeException(e);
         }
     }
-
-
-
 
 
 }

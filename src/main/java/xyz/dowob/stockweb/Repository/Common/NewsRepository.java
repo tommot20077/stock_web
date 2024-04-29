@@ -11,6 +11,9 @@ import xyz.dowob.stockweb.Model.Common.News;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 public interface NewsRepository extends JpaRepository<News, String> {
 
     void deleteAllByPublishedAtBefore(LocalDateTime publishedAt);

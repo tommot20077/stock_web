@@ -13,6 +13,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author yuan
+ */
 @Service
 public class ProgressTracker implements DisposableBean {
     private final TaskRepository taskRepository;
@@ -20,7 +23,8 @@ public class ProgressTracker implements DisposableBean {
 
     private final ConcurrentHashMap<String, Progress> progressMap = new ConcurrentHashMap<>();
 
-    public ProgressTracker(TaskRepository taskRepository, DynamicThreadPoolManager dynamicThreadPoolManager) {this.taskRepository = taskRepository;
+    public ProgressTracker(TaskRepository taskRepository, DynamicThreadPoolManager dynamicThreadPoolManager) {
+        this.taskRepository = taskRepository;
         this.dynamicThreadPoolManager = dynamicThreadPoolManager;
     }
 

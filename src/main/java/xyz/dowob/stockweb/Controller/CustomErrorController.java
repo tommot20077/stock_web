@@ -8,6 +8,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+/**
+ * @author yuan
+ */
 @Controller
 public class CustomErrorController implements ErrorController {
 

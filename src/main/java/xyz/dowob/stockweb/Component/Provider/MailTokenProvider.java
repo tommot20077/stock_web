@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Component.Provider;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,20 +24,20 @@ public class MailTokenProvider {
     private final JavaMailSender javaMailSender;
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
+
     @Autowired
     public MailTokenProvider(TokenRepository tokenRepository, JavaMailSender javaMailSender) {
         this.tokenRepository = tokenRepository;
         this.javaMailSender = javaMailSender;
     }
 
-    @Value(value = "${security.email.receive.url}")
-    private String emailReceiveUrl;
+    @Value(value = "${security.email.receive.url}") private String emailReceiveUrl;
 
-    @Value(value = "${spring.mail.username}")
-    private String emailSender;
+    @Value(value = "${spring.mail.username}") private String emailSender;
 
-    @Value(value = "${security.email.expiration}")
-    private int expirationMinute;
+    @Value(value = "${security.email.expiration}") private int expirationMinute;
+
+    @Value(value = "${common.send_mail_times:3}") private int sendMailTimes;
 
     public void sendVerificationEmail(User user) throws RuntimeException {
         if (canSendEmail(user)) {
@@ -53,7 +54,7 @@ public class MailTokenProvider {
             message.setFrom(emailSender);
             message.setTo(user.getEmail());
             message.setSubject("請驗證您的電子郵件");
-            message.setText("請點擊以下鏈接完成驗證\n" + verificationLink + "\n(此鏈接在發送後"+ expirationMinute +"分鐘內有效)");
+            message.setText("請點擊以下鏈接完成驗證\n" + verificationLink + "\n(此鏈接在發送後" + expirationMinute + "分鐘內有效)");
             javaMailSender.send(message);
             logger.info("發送驗證信到用戶" + user.getEmail());
         } else {
@@ -61,15 +62,36 @@ public class MailTokenProvider {
         }
     }
 
-    private synchronized boolean canSendEmail(User user){
+    public void sendResetPasswordEmail(User user) throws RuntimeException {
+        if (canSendEmail(user)) {
+            String verificationCode = RandomStringUtils.randomNumeric(6);
+            String base64Token = Base64.getEncoder().encodeToString(verificationCode.getBytes());
+            Token usertoken = user.getToken();
+            usertoken.setEmailApiToken(base64Token);
+            usertoken.setEmailApiTokenExpiryTime(OffsetDateTime.now().plusMinutes(expirationMinute));
+            tokenRepository.save(usertoken);
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(emailSender);
+            message.setTo(user.getEmail());
+            message.setSubject("重設密碼驗證");
+            message.setText("這是你的驗證碼\n" + verificationCode + "\n(此驗證碼在發送後" + expirationMinute + "分鐘內有效)");
+            javaMailSender.send(message);
+            logger.info("發送驗證信到用戶" + user.getEmail());
+        } else {
+            throw new RuntimeException("目前已到達每小時發送電子郵件的限制，請稍後再試。");
+        }
+    }
+
+    private synchronized boolean canSendEmail(User user) {
         OffsetDateTime now = OffsetDateTime.now();
         Token usertoken = user.getToken();
-        if(now.isAfter(usertoken.getEmailApiTokenResetTime())){
+        if (now.isAfter(usertoken.getEmailApiTokenResetTime())) {
             usertoken.setEmailApiTokenResetTime(now.plusHours(1));
             usertoken.setEmailApiRequestCount(0);
         }
-        boolean canSend = usertoken.getEmailApiRequestCount() < 3;
-        if(canSend){
+        boolean canSend = usertoken.getEmailApiRequestCount() < sendMailTimes;
+        if (canSend) {
             usertoken.setEmailApiRequestCount(usertoken.getEmailApiRequestCount() + 1);
             tokenRepository.save(usertoken);
         }
@@ -86,7 +108,7 @@ public class MailTokenProvider {
             throw new RuntimeException("無效的密鑰");
         } else if (usertoken.getEmailApiTokenExpiryTime().isBefore(OffsetDateTime.now(ZoneId.of((usertoken.getUser().getTimezone()))))) {
             throw new RuntimeException("密鑰已過期");
-        } else if ((usertoken.getEmailApiToken()).equals(base64Token)){
+        } else if ((usertoken.getEmailApiToken()).equals(base64Token)) {
             return usertoken.getUser();
         } else {
             throw new RuntimeException("無效的密鑰");

@@ -7,6 +7,9 @@ import xyz.dowob.stockweb.Exception.RetryException;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author yuan
+ */
 @Component
 public class RetryMethod {
     @Value("${common.max_retryTimes}")
@@ -14,7 +17,7 @@ public class RetryMethod {
     private AtomicInteger maxRetryTimes;
 
     @PostConstruct
-    private void init(){
+    private void init() {
         maxRetryTimes = new AtomicInteger(maxRetryTimesValue);
     }
 
@@ -33,12 +36,11 @@ public class RetryMethod {
         }
 
         public boolean checkAndRetry(Exception lastException) throws RetryException {
-            if(currentRetryTimes.get() < maxRetryTimes){
+            if (currentRetryTimes.get() < maxRetryTimes) {
                 currentRetryTimes.getAndIncrement();
                 return true;
             }
             throw new RetryException("已達到最大重試次數，最後一次錯誤信息：" + lastException.getMessage(), lastException);
         }
     }
-
 }

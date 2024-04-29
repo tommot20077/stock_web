@@ -17,22 +17,29 @@ import xyz.dowob.stockweb.Component.Provider.JwtTokenProvider;
 import xyz.dowob.stockweb.Service.User.CustomUserDetailsService;
 
 import java.io.IOException;
+
+/**
+ * @author yuan
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
-    @Autowired
-    private  CustomUserDetailsService customUserDetailsService;
+    @Autowired private CustomUserDetailsService customUserDetailsService;
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
-            if(StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
 
                 Long userId = Long.parseLong(jwtTokenProvider.getClaimsFromJwt(jwt).getSubject());
                 UserDetails userDetails = customUserDetailsService.loadUserById(userId);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
+                                                                                                             null,
+                                                                                                             userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
@@ -45,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if(StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
         return null;

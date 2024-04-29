@@ -15,8 +15,9 @@ import xyz.dowob.stockweb.Filter.JwtAuthenticationFilter;
 import xyz.dowob.stockweb.Filter.RememberMeAuthenticationFilter;
 import xyz.dowob.stockweb.Service.User.TokenService;
 
-
-
+/**
+ * @author yuan
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -34,46 +35,44 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
 
-        http
+        http.csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**"))
 
-                .csrf((csrf) -> csrf
-                        .csrfTokenRepository(csrfTokenRepository)
-                        .ignoringRequestMatchers("/api/**")
-                )
+            .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                                                   .sessionConcurrency((concurrency) -> concurrency.maximumSessions(1)
+                                                                                                   .maxSessionsPreventsLogin(false)
+                                                                                                   .expiredSessionStrategy(event -> event.getResponse()
+                                                                                                                                         .sendRedirect(
+                                                                                                                                                 "/login"))))
+            .addFilterBefore(rememberMeAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(jwtAuthenticationFilter(), RememberMeAuthenticationFilter.class)
 
-                .sessionManagement((session) -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .sessionConcurrency((concurrency) -> concurrency
-                                .maximumSessions(1)
-                                .maxSessionsPreventsLogin(false)
-                                .expiredSessionStrategy(event -> event.getResponse().sendRedirect("/login"))
-                        )
-                ).addFilterBefore(rememberMeAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class
-                ).addFilterAfter(jwtAuthenticationFilter(), RememberMeAuthenticationFilter.class)
-
-                .formLogin((form) -> form
-                        .loginPage("/login")
-                        .defaultSuccessUrl("/", true)
-                        .failureUrl("/error")
-                        .permitAll()
-                ).exceptionHandling((exception) -> exception
-                        .accessDeniedPage("/login")
-                ).authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers ("/api/user/common/login","/api/user/common/register","/api/user/common/verifyEmail","/login","/login_p", "/register","/error").permitAll()
-                        .requestMatchers("/static/**").permitAll()
-                        .requestMatchers("/api/admin/updateCurrencyData").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                ).logout((logout) -> logout
-                        .addLogoutHandler((request, response, authentication) -> {
-                            HttpSession session = request.getSession(false);
-                            if (session != null) {
-                                Cookie[] cookies = request.getCookies();
-                                tokenService.deleteRememberMeCookie(response, session, cookies);
-                                session.invalidate();
-                            }
-                        })
-                );
-
+            .formLogin((form) -> form.loginPage("/login").defaultSuccessUrl("/", true).failureUrl("/error").permitAll())
+            .exceptionHandling((exception) -> exception.accessDeniedPage("/login"))
+            .authorizeHttpRequests((authorize) -> authorize.requestMatchers("/api/user/common/login",
+                                                                            "/api/user/common/register",
+                                                                            "/api/user/common/verifyEmail",
+                                                                            "/api/user/common/sendResetPasswordEmail",
+                                                                            "/api/user/common/resetPassword",
+                                                                            "/login",
+                                                                            "/login_p",
+                                                                            "/register",
+                                                                            "/reset_password",
+                                                                            "/error")
+                                                           .permitAll()
+                                                           .requestMatchers("/static/**")
+                                                           .permitAll()
+                                                           .requestMatchers("/api/admin/**")
+                                                           .hasRole("ADMIN")
+                                                           .anyRequest()
+                                                           .authenticated())
+            .logout((logout) -> logout.addLogoutHandler((request, response, authentication) -> {
+                HttpSession session = request.getSession(false);
+                if (session != null) {
+                    Cookie[] cookies = request.getCookies();
+                    tokenService.deleteRememberMeCookie(response, session, cookies);
+                    session.invalidate();
+                }
+            }));
         return http.build();
     }
 
@@ -81,11 +80,10 @@ public class SecurityConfig {
     public RememberMeAuthenticationFilter rememberMeAuthenticationFilter() {
         return new RememberMeAuthenticationFilter();
     }
+
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter();
     }
-
-
 }
 

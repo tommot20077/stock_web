@@ -11,23 +11,29 @@ import org.springframework.util.StringUtils;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.User.UserRepository;
 
+/**
+ * @author yuan
+ */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
     Logger logger = LoggerFactory.getLogger(CustomUserDetailsService.class);
     private final UserRepository userRepository;
+
     @Autowired
     public CustomUserDetailsService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException("找不到用戶為ID : " + userId)
-                );
+        User user = userRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("找不到用戶為ID : " + userId));
 
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
-                true, true, true, true, user.getAuthorities());
+        return new org.springframework.security.core.userdetails.User(user.getEmail(),
+                                                                      user.getPassword(),
+                                                                      true,
+                                                                      true,
+                                                                      true,
+                                                                      true,
+                                                                      user.getAuthorities());
     }
 
     @Override
@@ -37,12 +43,18 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("郵件地址不能為空");
         }
         User user = userRepository.findByEmail(mail).orElse(null);
+        logger.debug("找到用戶為 : " + user);
 
-        if (user == null ) {
+        if (user == null) {
             throw new RuntimeException("找不到用戶mail為 : " + mail);
         } else {
-            return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
-                    true, true, true, true, user.getAuthorities());
+            return new org.springframework.security.core.userdetails.User(user.getEmail(),
+                                                                          user.getPassword(),
+                                                                          true,
+                                                                          true,
+                                                                          true,
+                                                                          true,
+                                                                          user.getAuthorities());
         }
     }
 }

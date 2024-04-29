@@ -146,7 +146,6 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             releaseResources();
             isRunning = false;
         }
-
     }
 
 
@@ -392,7 +391,5 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.error("釋放資源時發生錯誤", e);
         }
     }
-
-
 }
 

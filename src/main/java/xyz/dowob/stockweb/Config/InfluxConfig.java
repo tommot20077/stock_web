@@ -39,7 +39,6 @@ public class InfluxConfig {
     private String propertySummaryBucket;
 
 
-
     @Bean(name = "CryptoInfluxClient")
     public InfluxDBClient cryptoInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
@@ -49,14 +48,17 @@ public class InfluxConfig {
     public InfluxDBClient cryptoHistoryBucket() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoHistoryBucket);
     }
+
     @Bean(name = "StockTwInfluxClient")
     public InfluxDBClient stockTwInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockTwBucket);
     }
+
     @Bean(name = "StockTwHistoryInfluxClient")
     public InfluxDBClient stockTwHistoryInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockTwHistoryBucket);
     }
+
     @Bean(name = "CurrencyInfluxClient")
     public InfluxDBClient currencyInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, currencyBucket);
@@ -65,5 +67,10 @@ public class InfluxConfig {
     @Bean(name = "propertySummaryInfluxClient")
     public InfluxDBClient propertySummaryInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, propertySummaryBucket);
+    }
+
+    @Bean(name = "influxClient")
+    public InfluxDBClient influxClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org);
     }
 }

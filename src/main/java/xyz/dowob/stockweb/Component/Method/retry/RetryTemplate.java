@@ -5,7 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Exception.RetryException;
 
-
+/**
+ * @author yuan
+ */
 @Component
 public class RetryTemplate {
     private final RetryMethod retryMethod;

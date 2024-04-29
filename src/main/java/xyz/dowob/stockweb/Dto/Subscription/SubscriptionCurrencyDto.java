@@ -4,6 +4,9 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 @Data
 public class SubscriptionCurrencyDto {
     private List<Subscription> subscriptions;

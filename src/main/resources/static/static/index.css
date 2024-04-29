@@ -3,6 +3,7 @@ body, html {
     padding: 0;
     font-family: Arial, sans-serif;
 }
+
 .navbar {
     background-color: #333;
     color: white;
@@ -12,6 +13,7 @@ body, html {
     top: 0;
     z-index: 1000;
 }
+
 .sidebar {
     background-color: #555;
     color: white;
@@ -24,6 +26,7 @@ body, html {
     transition: 0.5s;
     z-index: 999;
 }
+
 .content {
     margin-top: 60px;
     margin-left: 20px;

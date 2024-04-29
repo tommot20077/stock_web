@@ -3,13 +3,14 @@ package xyz.dowob.stockweb.Model.Common;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import org.springframework.data.redis.core.RedisHash;
 import xyz.dowob.stockweb.Enum.NewsType;
 
-import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * @author yuan
+ */
 @Data
 @Entity
 public class News implements Serializable {

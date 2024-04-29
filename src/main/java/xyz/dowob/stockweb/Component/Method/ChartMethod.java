@@ -2,20 +2,25 @@ package xyz.dowob.stockweb.Component.Method;
 
 import com.influxdb.query.FluxTable;
 import org.springframework.stereotype.Component;
+import xyz.dowob.stockweb.Model.Currency.Currency;
 
-
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+/**
+ * @author yuan
+ */
 @Component
 public class ChartMethod {
     private String formatDate(Instant instant) {
         return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC).format(instant);
     }
 
-    public Map<String, List<Map<String, Object>>> formatToChartData(Map<String, List<FluxTable>> userSummary) {
+    public Map<String, List<Map<String, Object>>> formatToChartData(Map<String, List<FluxTable>> userSummary, Currency preferCurrency) {
         Map<String, List<Map<String, Object>>> chartData = new HashMap<>();
         Map<String, Map<String, Object>> latestRecord = new HashMap<>();
         chartData.put("total_sum", new ArrayList<>());
@@ -23,6 +28,7 @@ public class ChartMethod {
         chartData.put("crypto_sum", new ArrayList<>());
         chartData.put("stock_tw_sum", new ArrayList<>());
         chartData.put("latest", new ArrayList<>());
+        BigDecimal exchangeRate = preferCurrency.getExchangeRate();
 
         userSummary.forEach((key, tables) -> {
             tables.forEach(table -> {
@@ -35,10 +41,21 @@ public class ChartMethod {
                         dataPoint.put("field", field);
                         dataPoint.put("date_instant", time);
                         dataPoint.put("date_Format", formatDate(time));
-                        dataPoint.put("value", record.getValueByKey("_value"));
+
+
+                        Double value = (Double) record.getValueByKey("_value");
+                        if (value != null) {
+                            BigDecimal exchangeValue = new BigDecimal(value).multiply(exchangeRate).setScale(3, RoundingMode.HALF_UP);
+                            dataPoint.put("value", exchangeValue);
+                        } else {
+                            dataPoint.put("value", record.getValueByKey("_value"));
+                        }
+
                         dataPoints.add(dataPoint);
 
-                        if (!latestRecord.containsKey(field) || Objects.requireNonNull(time).compareTo((Instant) latestRecord.get(field).get("date_instant")) > 0) {
+                        if (!latestRecord.containsKey(field) || Objects.requireNonNull(time)
+                                                                       .compareTo((Instant) latestRecord.get(field)
+                                                                                                        .get("date_instant")) > 0) {
                             latestRecord.put(field, dataPoint);
                         }
                     }

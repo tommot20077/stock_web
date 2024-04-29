@@ -3,8 +3,11 @@ package xyz.dowob.stockweb.Dto.Property;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
+
+/**
+ * @author yuan
+ */
 @Data
 public class RoiDataDto {
     private LocalDateTime date;

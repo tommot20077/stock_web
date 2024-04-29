@@ -112,15 +112,12 @@ html,body{
 .signin .container-fluid {
     padding: 0;
 }
-/*single-sign*/
-.single-sign{
-    
-}
+
 .single-sign .sign-bg {
     background: url(../images/log-in.webp)no-repeat;
     background-size: cover;
     background-position: center;
-    height: 974px;
+    min-height: 100vh
 }
 /*single-sign*/
 

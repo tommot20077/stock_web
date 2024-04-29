@@ -1,27 +1,25 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
-import xyz.dowob.stockweb.Dto.Common.Progress;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionCryptoDto;
-import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.User;
-import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.UserService;
-import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
-
+/**
+ * @author yuan
+ */
 @Controller
 @RequestMapping("/api/user/crypto")
 public class ApiCryptoController {
@@ -29,6 +27,7 @@ public class ApiCryptoController {
     private final CryptoService cryptoService;
 
     private final UserService userService;
+
     @Autowired
     public ApiCryptoController(CryptoService cryptoService, UserService userService) {
         this.cryptoService = cryptoService;
@@ -37,7 +36,8 @@ public class ApiCryptoController {
 
 
     @PostMapping("/subscribe")
-    public ResponseEntity<?> subscribeSymbol(@RequestBody SubscriptionCryptoDto request, HttpSession session) {
+    public ResponseEntity<?> subscribeSymbol(
+            @RequestBody SubscriptionCryptoDto request, HttpSession session) {
         try {
             if (session.getAttribute("currentUserId") == null) {
                 return ResponseEntity.status(401).body("請先登入");
@@ -75,7 +75,8 @@ public class ApiCryptoController {
     }
 
     @PostMapping("/unsubscribe")
-    public ResponseEntity<?> unsubscribeSymbol(@RequestBody SubscriptionCryptoDto request, HttpSession session) {
+    public ResponseEntity<?> unsubscribeSymbol(
+            @RequestBody SubscriptionCryptoDto request, HttpSession session) {
         try {
             if (session.getAttribute("currentUserId") == null) {
                 return ResponseEntity.status(401).body("請先登入");
@@ -112,7 +113,6 @@ public class ApiCryptoController {
     }
 
 
-
     @GetMapping("/getAllTradingPairs")
     public ResponseEntity<?> getAllTradingPairs() {
         try {
@@ -122,7 +122,6 @@ public class ApiCryptoController {
             return ResponseEntity.badRequest().body("取得所有加密貨幣清單失敗: " + e.getMessage());
         }
     }
-
 
 
     @GetMapping("/ws/status")

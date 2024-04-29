@@ -3,6 +3,9 @@ package xyz.dowob.stockweb.Dto.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * @author yuan
+ */
 @Data
 @AllArgsConstructor
 public class RegisterUserDto {
@@ -10,6 +13,4 @@ public class RegisterUserDto {
     private String email;
     private String firstName;
     private String lastName;
-
-
 }

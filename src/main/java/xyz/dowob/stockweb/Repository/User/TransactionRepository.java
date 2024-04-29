@@ -6,6 +6,9 @@ import xyz.dowob.stockweb.Model.User.User;
 
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
     List<Transaction> findByUserOrderByTransactionDateDesc(User user);

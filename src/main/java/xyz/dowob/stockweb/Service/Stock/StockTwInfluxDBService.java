@@ -3,10 +3,8 @@ package xyz.dowob.stockweb.Service.Stock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
-import com.influxdb.query.FluxTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +18,9 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
+/**
+ * @author yuan
+ */
 @Service
 public class StockTwInfluxDBService {
     private final InfluxDBClient StockTwInfluxDBClient;
@@ -31,7 +32,9 @@ public class StockTwInfluxDBService {
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
-    public StockTwInfluxDBService(@Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient")InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+    public StockTwInfluxDBService(
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
+            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -54,30 +57,28 @@ public class StockTwInfluxDBService {
             if (Objects.equals(msgNode.path("z").asText(), "-")) {
                 continue;
             }
-            logger.debug("z = " + Double.parseDouble(msgNode.path("z").asText())
-                    + ", c = " + msgNode.path("c").asText()
-                    + ", tlong = " + msgNode.path("tlong").asText()
-                    + ", o = " + Double.parseDouble(msgNode.path("o").asText())
-                    + ", h = " + Double.parseDouble(msgNode.path("h").asText())
-                    + ", l = " + Double.parseDouble(msgNode.path("l").asText())
-                    + ", v = " + Double.parseDouble(msgNode.path("v").asText())
-            );
+            logger.debug("z = " + Double.parseDouble(msgNode.path("z").asText()) + ", c = " + msgNode.path("c")
+                                                                                                     .asText() + ", tlong = " + msgNode.path(
+                    "tlong").asText() + ", o = " + Double.parseDouble(msgNode.path("o")
+                                                                             .asText()) + ", h = " + Double.parseDouble(msgNode.path("h")
+                                                                                                                               .asText()) + ", l = " + Double.parseDouble(
+                    msgNode.path("l").asText()) + ", v = " + Double.parseDouble(msgNode.path("v").asText()));
             Double price = Double.parseDouble(msgNode.path("z").asText());
             Double high = Double.parseDouble(msgNode.path("h").asText());
             Double open = Double.parseDouble(msgNode.path("o").asText());
             Double low = Double.parseDouble(msgNode.path("l").asText());
             Double volume = Double.parseDouble(msgNode.path("v").asText());
-            String time  = msgNode.path("tlong").asText();
+            String time = msgNode.path("tlong").asText();
             String stockId = msgNode.path("c").asText();
 
             Point point = Point.measurement("kline_data")
-                    .addTag("stock_tw", stockId)
-                    .addField("close", price)
-                    .addField("high", high)
-                    .addField("low", low)
-                    .addField("open", open)
-                    .addField("volume", volume)
-                    .time(Long.parseLong(time), WritePrecision.MS);
+                               .addTag("stock_tw", stockId)
+                               .addField("close", price)
+                               .addField("high", high)
+                               .addField("low", low)
+                               .addField("open", open)
+                               .addField("volume", volume)
+                               .time(Long.parseLong(time), WritePrecision.MS);
             logger.debug("建立InfluxDB Point");
             assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, point);
         }
@@ -96,12 +97,7 @@ public class StockTwInfluxDBService {
             String lowestPrice = dataEntry.get(5).asText();
             String closingPrice = dataEntry.get(6).asText();
 
-            logger.debug("日期: " + dateStr
-                    + ", 成交股數: " + numberOfStocksVolume
-                    + ", 開盤價: " + openingPrice
-                    + ", 最高價: " + highestPrice
-                    + ", 最低價: " + lowestPrice
-                    + ", 收盤價: " + closingPrice);
+            logger.debug("日期: " + dateStr + ", 成交股數: " + numberOfStocksVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
 
             writeKlineDataPoint(tLong, stockCode, numberOfStocksVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
         }
@@ -116,12 +112,7 @@ public class StockTwInfluxDBService {
         String lowestPrice = node.path("LowestPrice").asText();
         String closingPrice = node.path("ClosingPrice").asText();
 
-        logger.debug("日期(Long): " + todayTlong.toString()
-                + ", 成交股數: " + tradeVolume
-                + ", 開盤價: " + openingPrice
-                + ", 最高價: " + highestPrice
-                + ", 最低價: " + lowestPrice
-                + ", 收盤價: " + closingPrice);
+        logger.debug("日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
 
         writeKlineDataPoint(todayTlong, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
     }
@@ -138,7 +129,6 @@ public class StockTwInfluxDBService {
         Instant instant = localDate.atStartOfDay(ZoneId.of("Asia/Taipei")).toInstant();
         return instant.toEpochMilli();
     }
-
 
 
     public void deleteDataByStockCode(String stockCode) {

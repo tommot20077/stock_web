@@ -21,9 +21,6 @@ import xyz.dowob.stockweb.Model.User.User;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,8 +74,7 @@ public class PropertyInfluxService {
                                                .addTag("asset_type", userPropertiesDto.getAssetType().toString())
                                                .addTag("asset_id", userPropertiesDto.getAssetId().toString())
                                                .addField("current_price", userPropertiesDto.getCurrentPrice())
-                                               .addField("current_total_price",
-                                                         userPropertiesDto.getCurrentTotalPrice())
+                                               .addField("current_total_price", userPropertiesDto.getCurrentTotalPrice())
                                                .addField("quantity", userPropertiesDto.getQuantity())
                                                .time(time, WritePrecision.MS);
                     logger.debug("建立InfluxDB specificPoint");
@@ -134,7 +130,11 @@ public class PropertyInfluxService {
 
         Map<String, List<FluxTable>> netCashFlowTablesMap = queryByUser(propertySummaryBucket, "net_cash_flow", user, "3d", true);
         BigDecimal originNetCashFlow = BigDecimal.valueOf(0);
-        if (!netCashFlowTablesMap.containsKey("net_cash_flow") || netCashFlowTablesMap.get("net_cash_flow").isEmpty() || netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().isEmpty()) {
+        if (!netCashFlowTablesMap.containsKey("net_cash_flow") || netCashFlowTablesMap.get("net_cash_flow")
+                                                                                      .isEmpty() || netCashFlowTablesMap.get("net_cash_flow")
+                                                                                                                        .getFirst()
+                                                                                                                        .getRecords()
+                                                                                                                        .isEmpty()) {
             logger.debug("沒有該用戶的資料，設定初始值0");
             newNetFlow = BigDecimal.valueOf(0);
         } else {
@@ -150,7 +150,10 @@ public class PropertyInfluxService {
         BigDecimal newNetCashFlow = originNetCashFlow.add(newNetFlow);
         try {
             retryTemplate.doWithRetry(() -> {
-                Point netCashFlowPoint = Point.measurement("net_cash_flow").addTag("user_id", user.getId().toString()).addField("net_flow", newNetCashFlow).time(Instant.now().toEpochMilli(), WritePrecision.MS);
+                Point netCashFlowPoint = Point.measurement("net_cash_flow")
+                                              .addTag("user_id", user.getId().toString())
+                                              .addField("net_flow", newNetCashFlow)
+                                              .time(Instant.now().toEpochMilli(), WritePrecision.MS);
 
                 logger.debug("建立InfluxDB netCashFlowPoint");
                 assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, netCashFlowPoint);
@@ -182,9 +185,11 @@ public class PropertyInfluxService {
     }
 
     private String createInquiryPredicateWithUserAndTimeInRange(String propertySummaryBucket, String measurement, User user, String dateRange, boolean isLast) {
-        String baseQuery = String.format(
-                "from(bucket: \"%s\")" + " |> range(start: -%s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
-                propertySummaryBucket, dateRange, measurement, user.getId());
+        String baseQuery = String.format("from(bucket: \"%s\")" + " |> range(start: -%s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
+                                         propertySummaryBucket,
+                                         dateRange,
+                                         measurement,
+                                         user.getId());
         if (isLast) {
             baseQuery += " |> last()";
         }
@@ -193,17 +198,15 @@ public class PropertyInfluxService {
     }
 
 
-
-
-
     public void writeUserRoiDataToInflux(ObjectNode node, User user, Long time) {
         logger.debug("讀取資料: " + node);
         Point roiPoint = Point.measurement("roi")
-                .addTag("user_id", user.getId().toString())
-                .addField("day", "數據不足".equals(node.get("day").asText()) ? null : node.get("day").asDouble())
-                .addField("week", "數據不足".equals(node.get("week").asText()) ? null : node.get("week").asDouble())
-                .addField("month", "數據不足".equals(node.get("month").asText()) ? null : node.get("month").asDouble())
-                .addField("year", "數據不足".equals(node.get("year").asText()) ? null : node.get("year").asDouble()).time(time, WritePrecision.MS);
+                              .addTag("user_id", user.getId().toString())
+                              .addField("day", "數據不足".equals(node.get("day").asText()) ? null : node.get("day").asDouble())
+                              .addField("week", "數據不足".equals(node.get("week").asText()) ? null : node.get("week").asDouble())
+                              .addField("month", "數據不足".equals(node.get("month").asText()) ? null : node.get("month").asDouble())
+                              .addField("year", "數據不足".equals(node.get("year").asText()) ? null : node.get("year").asDouble())
+                              .time(time, WritePrecision.MS);
 
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, roiPoint);
 

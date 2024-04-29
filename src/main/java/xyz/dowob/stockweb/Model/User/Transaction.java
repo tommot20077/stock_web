@@ -11,6 +11,9 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * @author yuan
+ */
 @Entity
 @Data
 @Table(name = "user_asset_transactions")
@@ -20,10 +23,7 @@ public class Transaction implements Serializable {
     private int id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JoinColumn(name = "user_id") @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private User user;
 
     @Enumerated(EnumType.STRING)
@@ -33,9 +33,7 @@ public class Transaction implements Serializable {
     private String assetName;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private Asset asset;
 
     @Column(name = "amount", precision = 25, scale = 8)
@@ -47,9 +45,7 @@ public class Transaction implements Serializable {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_currency_id", referencedColumnName = "id")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private Asset unitCurrency;
 
     @Column(name = "unit_currency_name")

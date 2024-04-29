@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+/**
+ * @author yuan
+ */
 @Service
 public class UserService {
     private final UserRepository userRepository;
@@ -51,7 +55,9 @@ public class UserService {
     Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
-    public UserService(UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
+    public UserService(
+            UserRepository userRepository, TokenRepository tokenRepository,
+            @Lazy TokenService tokenService, CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.tokenService = tokenService;
@@ -61,7 +67,6 @@ public class UserService {
         this.mailTokenProvider = mailTokenProvider;
 
     }
-
 
 
     @Transactional(rollbackFor = {Exception.class})
@@ -76,7 +81,8 @@ public class UserService {
         user.setLastName(userDto.getLastName());
         user.setUsername(user.extractUsernameFromEmail(userDto.getEmail()));
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
-        user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(()-> new RuntimeException("貨幣資料更新中，請稍後再嘗試一次，若是狀況持續發生，請聯繫管理員")));
+        user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
+                                                    .orElseThrow(() -> new RuntimeException("貨幣資料更新中，請稍後再嘗試一次，若是狀況持續發生，請聯繫管理員")));
 
         if (userRepository.findAll().isEmpty()) {
             logger.warn("唯一一位用戶，設定為管理員");
@@ -95,8 +101,7 @@ public class UserService {
         if (userDto == null) {
             throw new RuntimeException("資料格式錯誤");
         } else {
-            User user = userRepository.findByEmail(userDto.getEmail())
-                    .orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
+            User user = userRepository.findByEmail(userDto.getEmail()).orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
 
             if (!passwordEncoder.matches(userDto.getPassword(), user.getPassword())) {
                 throw new RuntimeException("帳號或密碼錯誤");
@@ -112,7 +117,8 @@ public class UserService {
     public void updateUserDetail(User user, Map<String, String> userInfo) {
 
         String originalPassword = userInfo.get("originalPassword");
-        if (originalPassword != null && !originalPassword.isBlank() && passwordEncoder.matches(userInfo.get("originalPassword"), user.getPassword())) {
+        if (originalPassword != null && !originalPassword.isBlank() && passwordEncoder.matches(userInfo.get("originalPassword"),
+                                                                                               user.getPassword())) {
             if (userInfo.get("newPassword") != null && !userInfo.get("newPassword").isBlank()) {
                 validatePassword(userInfo.get("newPassword"));
                 user.setPassword(passwordEncoder.encode(userInfo.get("newPassword")));
@@ -158,7 +164,8 @@ public class UserService {
                     subscribeRepository.save(subscribe);
                 });
             } else {
-                user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(()-> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
+                user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
+                                                            .orElseThrow(() -> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
                 logger.warn("用戶 " + user.getEmail() + " 更改預設幣別失敗，使用預設幣別：USD");
                 throw new IllegalStateException("更改預設幣別失敗，使用預設幣別：USD");
             }
@@ -169,16 +176,16 @@ public class UserService {
     }
 
 
-
     public User getUserById(Long id) {
         return userRepository.findById(id).orElse(null);
     }
+
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
 
-    private void validatePassword(String userPassword) {
+    public void validatePassword(String userPassword) {
         if (userPassword.length() < 8) {
             throw new RuntimeException("密碼最少需要8個字元");
         }
@@ -194,9 +201,7 @@ public class UserService {
     }
 
 
-
-
-    public User getUserFromJwtTokenOrSession (HttpSession session) {
+    public User getUserFromJwtTokenOrSession(HttpSession session) {
         Long userId = (Long) session.getAttribute("currentUserId");
         if (userId == null) {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -230,7 +235,10 @@ public class UserService {
                     yield cryptoTradingPair.getTradingPair();
                 }
             };
-            subscriptionDtoList.add(new UserSubscriptionDto(asset.getId().toString(), asset.getAssetType().toString(), subscribeName, removeAble));
+            subscriptionDtoList.add(new UserSubscriptionDto(asset.getId().toString(),
+                                                            asset.getAssetType().toString(),
+                                                            subscribeName,
+                                                            removeAble));
         });
 
         ObjectMapper objectMapper = new ObjectMapper();
@@ -240,7 +248,6 @@ public class UserService {
             throw new RuntimeException("轉換Json時發生錯誤: " + e.getMessage());
         }
     }
-
 }
 
 

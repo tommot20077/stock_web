@@ -5,17 +5,17 @@
 
 <head>
 
-    <title>錯誤..</title>
+	<title>錯誤..</title>
 
-    <!-- Meta-Tags -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<!-- Meta-Tags -->
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 
-    <!-- style CSS -->
-    <link rel="stylesheet" href=/static/css/error.css type="text/css" media="all">
-    <!-- google fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+	<!-- style CSS -->
+	<link rel="stylesheet" href=/static/css/error.css type="text/css" media="all">
+	<!-- google fonts -->
+	<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <!-- //Head -->
 
@@ -23,25 +23,25 @@
 
 <body>
 
-    <section class="w3l-main">
-        <!-- /w3l-errorhny-->
-        <div class="error-page">
-            <div class="wrapper">
-                <div class="main-cover w3">
-                    <div class="lefterr">
-                        <h2 class="oopshny">(✘﹏✘)<br> 好像出錯了，請稍後再試。<br>如果持續看到這錯誤頁面，請聯繫我們。</h2>
-                        <a href=/index class="backw3l">返回首頁</a>
-                    </div>
-                    <h1 th:text="${statusCode}" class="cover-para w3ls">404</h1>
-                </div>
-            </div>
-        </div>
+<section class="w3l-main">
+	<!-- /w3l-errorhny-->
+	<div class="error-page">
+		<div class="wrapper">
+			<div class="main-cover w3">
+				<div class="lefterr">
+					<h2 class="oopshny">(✘﹏✘)<br> 好像出錯了，請稍後再試。<br>如果持續看到這錯誤頁面，請聯繫我們。</h2>
+					<a href=/index class="backw3l">返回首頁</a>
+				</div>
+				<h1 th:text="${statusCode}" class="cover-para w3ls">404</h1>
+			</div>
+		</div>
+	</div>
 
-        <!-- //w3l-errorhny-->
-        <div class="copyright">
-            <p>Copyright &copy; 2020.Company name All rights reserved.</p>
-        </div>
-    </section>
+	<!-- //w3l-errorhny-->
+	<div class="copyright">
+		<p>Copyright &copy; 2020.Company name All rights reserved.</p>
+	</div>
+</section>
 
 </body>
 <!-- //Body -->

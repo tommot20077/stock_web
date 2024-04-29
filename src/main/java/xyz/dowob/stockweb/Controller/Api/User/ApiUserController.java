@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * @author yuan
+ */
 @RequestMapping("/api/user/common")
 @RestController
 public class ApiUserController {
@@ -38,6 +41,7 @@ public class ApiUserController {
     private final NewsService newsService;
     private final RedisService redisService;
     private final AssetService assetService;
+
     @Autowired
     public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService) {
         this.userService = userService;
@@ -49,7 +53,8 @@ public class ApiUserController {
 
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody RegisterUserDto registerUserDto) {
+    public ResponseEntity<?> registerUser(
+            @RequestBody RegisterUserDto registerUserDto) {
         try {
             userService.registerUser(registerUserDto);
             return ResponseEntity.ok().body("註冊成功");
@@ -59,13 +64,15 @@ public class ApiUserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session){
+    public ResponseEntity<?> loginUser(
+            @RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session) {
         try {
             User user = userService.loginUser(loginUserDto, response);
             Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(auth);
             session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
             session.setAttribute("currentUserId", user.getId());
+            session.setAttribute("userMail", user.getEmail());
 
 
             String jwt = tokenService.generateJwtToken(user, response);
@@ -77,6 +84,29 @@ public class ApiUserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping("/sendResetPasswordEmail")
+    public ResponseEntity<?> sendResetPasswordEmail(@RequestBody Map<String, String> userInfo) {
+        try {
+            String email = userInfo.get("email");
+            tokenService.sendResetPasswordEmail(email);
+
+            return ResponseEntity.ok().body("已發送");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/resetPassword")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> userInfo) {
+        try {
+            tokenService.resetPassword(userInfo.get("email"), userInfo.get("token"), userInfo.get("newPassword"));
+            return ResponseEntity.ok().body("重設密碼成功");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 
     @GetMapping("/getUserDetail")
     public ResponseEntity<?> getUserDetail(HttpSession session) {
@@ -98,12 +128,13 @@ public class ApiUserController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 
     @PostMapping("/updateUserDetail")
-    public ResponseEntity<?> updateUserDetail(@RequestBody Map<String, String> userInfo, HttpSession session) {
+    public ResponseEntity<?> updateUserDetail(
+            @RequestBody Map<String, String> userInfo, HttpSession session) {
 
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
@@ -114,7 +145,7 @@ public class ApiUserController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("錯誤: " + e.getMessage());
         }
 
     }
@@ -126,27 +157,25 @@ public class ApiUserController {
             tokenService.sendVerificationEmail(session);
             return ResponseEntity.ok().body("已寄出驗證信");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 
     @GetMapping("/verifyEmail")
-    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<?> verifyEmail(
+            @RequestParam("token") String token) {
         try {
             tokenService.verifyEmail(token);
             return ResponseEntity.ok().body("驗證成功");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("驗證失敗: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("驗證失敗: " + e.getMessage());
         }
     }
 
     @GetMapping("/getTimeZoneList")
     public ResponseEntity<?> getTimeZoneList() {
 
-        List<String> timezones = ZoneId.getAvailableZoneIds()
-                .stream()
-                .sorted()
-                .collect(Collectors.toList());
+        List<String> timezones = ZoneId.getAvailableZoneIds().stream().sorted().collect(Collectors.toList());
 
         return ResponseEntity.ok().body(timezones);
     }
@@ -158,7 +187,7 @@ public class ApiUserController {
             CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
             return ResponseEntity.ok().body(csrfToken);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 
@@ -172,7 +201,7 @@ public class ApiUserController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 
@@ -202,7 +231,7 @@ public class ApiUserController {
                 return ResponseEntity.ok().body(cachedNewsJson);
             } else {
                 Page<News> news;
-                if (asset != null){
+                if (asset != null) {
                     news = newsService.getAllNewsByAsset(asset, page);
                 } else {
                     news = newsService.getAllNewsByType(category, page);
@@ -214,13 +243,12 @@ public class ApiUserController {
                     result.put("result", "沒有新聞");
                     return ResponseEntity.ok().body(result);
                 } else {
-                    redisService.saveHashToCache(key,innerKey, newsJson, 4);
+                    redisService.saveHashToCache(key, innerKey, newsJson, 4);
                     return ResponseEntity.ok().body(newsJson);
                 }
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
-
 }

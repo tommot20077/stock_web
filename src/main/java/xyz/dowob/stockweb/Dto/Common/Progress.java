@@ -4,9 +4,11 @@ import lombok.Data;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author yuan
+ */
 @Data
 public class Progress {
-
     private final AtomicInteger progressCount = new AtomicInteger(1);
     private final int totalTask;
     private final String taskName;
@@ -15,6 +17,7 @@ public class Progress {
         this.totalTask = totalTask;
         this.taskName = taskName;
     }
+
     public int getProgress() {
         return progressCount.get();
     }

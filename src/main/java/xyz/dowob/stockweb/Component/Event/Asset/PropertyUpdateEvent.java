@@ -4,6 +4,9 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import xyz.dowob.stockweb.Model.User.User;
 
+/**
+ * @author yuan
+ */
 @Getter
 public class PropertyUpdateEvent extends ApplicationEvent {
     private final User user;

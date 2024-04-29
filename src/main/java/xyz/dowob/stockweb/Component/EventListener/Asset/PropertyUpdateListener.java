@@ -15,13 +15,16 @@ import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 @Component
 public class PropertyUpdateListener implements ApplicationListener<PropertyUpdateEvent> {
-
     private final RetryTemplate retryTemplate;
     private final PropertyService propertyService;
     private final CrontabMethod crontabMethod;
     Logger logger = LoggerFactory.getLogger(PropertyUpdateListener.class);
+
     @Autowired
     public PropertyUpdateListener(RetryTemplate retryTemplate, PropertyService propertyService, CrontabMethod crontabMethod) {
         this.retryTemplate = retryTemplate;
@@ -30,23 +33,29 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
     }
 
     @Override
-    public void onApplicationEvent(@NotNull PropertyUpdateEvent event) {
-       try {
-           retryTemplate.doWithRetry(() -> {
-               if (event.getUser() != null) {
-                   logger.debug("指定用戶資產更新");
-                   List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(event.getUser(), false);
-                   List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(getAllPropertiesDtoList);
-                   propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, event.getUser());
-               } else {
-                   logger.debug("全部用戶資產更新");
-                   crontabMethod.recordUserPropertySummary();
-               }
-
-           });
-       } catch (RetryException e) {
-           logger.error("寫入資料失敗");
-           throw new RuntimeException("寫入資料失敗");
-       }
+    public void onApplicationEvent(
+            @NotNull PropertyUpdateEvent event) {
+        try {
+            retryTemplate.doWithRetry(() -> {
+                if (event.getUser() != null) {
+                    logger.debug("指定用戶資產更新");
+                    List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(event.getUser(),
+                                                                                                                             false);
+                    if (getAllPropertiesDtoList == null || getAllPropertiesDtoList.isEmpty()) {
+                        logger.debug("沒有用戶資產，停止紀錄用戶:" + event.getUser().getUsername());
+                        return;
+                    }
+                    List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(
+                            getAllPropertiesDtoList);
+                    propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, event.getUser());
+                } else {
+                    logger.debug("全部用戶資產更新");
+                    crontabMethod.recordUserPropertySummary();
+                }
+            });
+        } catch (RetryException e) {
+            logger.error("寫入資料失敗");
+            throw new RuntimeException("寫入資料失敗");
+        }
     }
 }

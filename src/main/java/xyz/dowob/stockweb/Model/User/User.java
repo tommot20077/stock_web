@@ -18,6 +18,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
+/**
+ * @author yuan
+ */
 @Entity
 @Data
 public class User implements Serializable {
@@ -50,10 +53,7 @@ public class User implements Serializable {
     private String timezone = "Etc/UTC";
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "currency_id")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JoinColumn(name = "currency_id") @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private Currency preferredCurrency;
 
     @Column(nullable = false)
@@ -65,28 +65,20 @@ public class User implements Serializable {
     private Gender gender = Gender.OTHER;
 
     @OneToOne(cascade = CascadeType.ALL, mappedBy = "user")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private Token token;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private List<Subscribe> subscriptions = new ArrayList<>();
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private List<Property> property = new ArrayList<>();
 
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private List<PropertySummary> propertySummary = new ArrayList<>();
 
 
@@ -100,7 +92,6 @@ public class User implements Serializable {
         created = OffsetDateTime.now(ZoneId.of(timezone));
         updated = OffsetDateTime.now(ZoneId.of(timezone));
     }
-
 
 
     public String extractUsernameFromEmail(String email) {
@@ -121,11 +112,8 @@ public class User implements Serializable {
         return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
             @Override
             protected boolean accept(Field f) {
-                return super.accept(f)
-                        && !"token".equals(f.getName())
-                        && !"subscriptions".equals(f.getName())
-                        && !"property".equals(f.getName())
-                        && !"propertySummary".equals(f.getName());
+                return super.accept(f) && !"token".equals(f.getName()) && !"subscriptions".equals(f.getName()) && !"property".equals(f.getName()) && !"propertySummary".equals(
+                        f.getName());
             }
         }).toString();
     }

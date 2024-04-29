@@ -17,8 +17,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
-import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
+import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Method.ChartMethod;
 import xyz.dowob.stockweb.Component.Method.EventCacheMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
@@ -48,6 +48,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+/**
+ * @author yuan
+ */
 @Service
 public class PropertyService {
     private final StockTwRepository stockTwRepository;
@@ -65,7 +68,9 @@ public class PropertyService {
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
-    public PropertyService(StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod, @Lazy EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
+    public PropertyService(
+            StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod,
+            @Lazy EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
@@ -79,9 +84,9 @@ public class PropertyService {
         this.eventCacheMethod = eventCacheMethod;
         this.eventPublisher = eventPublisher;
     }
+
     @Value("${db.influxdb.bucket.property_summary}")
     private String propertySummaryBucket;
-
 
 
     @Transactional(rollbackOn = Exception.class)
@@ -133,7 +138,7 @@ public class PropertyService {
                     }
                 }
 
-                if (description!= null) {
+                if (description != null) {
                     propertyToAdd.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
@@ -164,14 +169,16 @@ public class PropertyService {
                     throw new RuntimeException("刪除時必須有 id");
                 }
 
-                Property propertyToRemove = propertyRepository.findById(request.getId()).orElseThrow(() -> new RuntimeException("找不到指定的持有股票"));
+                Property propertyToRemove = propertyRepository.findById(request.getId())
+                                                              .orElseThrow(() -> new RuntimeException("找不到指定的持有股票"));
 
                 if (!propertyToRemove.getUser().equals(user)) {
                     logger.debug("無法刪除其他人的持有股票");
                     throw new RuntimeException("無法刪除其他人的持有股票");
                 }
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(propertyToRemove.getQuantity().negate(), propertyToRemove.getAsset());
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(propertyToRemove.getQuantity().negate(),
+                                                                                propertyToRemove.getAsset());
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 });
                 future.whenComplete((f, e) -> {
@@ -201,7 +208,8 @@ public class PropertyService {
                     throw new RuntimeException("更新時必須有 id");
                 }
 
-                Property propertyToUpdate = propertyRepository.findById(request.getId()).orElseThrow(() -> new RuntimeException("找不到指定的持有股票"));
+                Property propertyToUpdate = propertyRepository.findById(request.getId())
+                                                              .orElseThrow(() -> new RuntimeException("找不到指定的持有股票"));
 
                 if (!propertyToUpdate.getUser().equals(user)) {
                     logger.debug("無法更新其他人的持有股票");
@@ -216,14 +224,15 @@ public class PropertyService {
                     propertyToUpdate.setQuantity(quantity);
                 }
 
-                if (description!= null) {
+                if (description != null) {
                     propertyToUpdate.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
                     propertyToUpdate.setDescription("");
                 }
 
-                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()), propertyToUpdate.getAsset());
+                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()),
+                                                                            propertyToUpdate.getAsset());
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 logger.debug("發布更新用戶資產事件");
                 eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
@@ -239,6 +248,7 @@ public class PropertyService {
 
         }
     }
+
     @Transactional(rollbackOn = Exception.class)
     public void modifyCurrency(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
@@ -252,7 +262,8 @@ public class PropertyService {
         Currency currency = null;
         if (request.formatOperationTypeEnum() == OperationType.ADD) {
             logger.debug("新增或更新操作");
-            currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase()).orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
+            currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase())
+                                         .orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
             logger.debug("貨幣: " + currency);
         }
         BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, currency);
@@ -281,7 +292,7 @@ public class PropertyService {
                     propertyToAdd.setQuantity(quantity.add(propertyToAdd.getQuantity()));
                 }
 
-                if (description!= null) {
+                if (description != null) {
                     propertyToAdd.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
@@ -346,14 +357,14 @@ public class PropertyService {
                     propertyToUpdate.setQuantity(quantity);
                 }
 
-                if (description!= null) {
+                if (description != null) {
                     propertyToUpdate.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
                     propertyToUpdate.setDescription("");
                 }
 
-                if (quantity.subtract(propertyToUpdate.getQuantity()).compareTo(BigDecimal.ZERO) > 0){
+                if (quantity.subtract(propertyToUpdate.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 } else {
                     propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
@@ -372,6 +383,7 @@ public class PropertyService {
                 throw new RuntimeException("不支援的操作類型");
         }
     }
+
     @Transactional(rollbackOn = Exception.class)
     public void modifyCrypto(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
@@ -387,7 +399,8 @@ public class PropertyService {
         CryptoTradingPair tradingPair = null;
         if (request.formatOperationTypeEnum() == OperationType.ADD) {
             logger.debug("新增或更新操作");
-            tradingPair = cryptoRepository.findByTradingPair(cryptoTradingPair).orElseThrow(() -> new RuntimeException("找不到指定的加密貨幣"));
+            tradingPair = cryptoRepository.findByTradingPair(cryptoTradingPair)
+                                          .orElseThrow(() -> new RuntimeException("找不到指定的加密貨幣"));
             logger.debug("虛擬貨幣: " + tradingPair);
         }
 
@@ -416,7 +429,7 @@ public class PropertyService {
                     logger.debug("新增時的數量: " + quantity.add(propertyToAdd.getQuantity()));
                 }
 
-                if (description!= null) {
+                if (description != null) {
                     propertyToAdd.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
@@ -426,7 +439,7 @@ public class PropertyService {
                 subscribeMethod.subscribeProperty(propertyToAdd, user);
                 recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
 
-                if (tradingPair != null && tradingPair.isHasAnySubscribed()){
+                if (tradingPair != null && tradingPair.isHasAnySubscribed()) {
                     logger.debug("寫入InfluxDB");
                     BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, tradingPair);
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
@@ -447,14 +460,16 @@ public class PropertyService {
                     throw new RuntimeException("刪除時必須有 id");
                 }
 
-                Property propertyToRemove = propertyRepository.findById(id).orElseThrow(() ->new IllegalStateException("找不到指定的持有加密貨幣"));
+                Property propertyToRemove = propertyRepository.findById(id)
+                                                              .orElseThrow(() -> new IllegalStateException("找不到指定的持有加密貨幣"));
 
                 if (!propertyToRemove.getUser().equals(user)) {
                     logger.debug("無法刪除其他人的持有加密貨幣");
                     throw new RuntimeException("無法刪除其他人的持有加密貨幣");
                 }
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(propertyToRemove.getQuantity().negate(), propertyToRemove.getAsset());
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(propertyToRemove.getQuantity().negate(),
+                                                                                propertyToRemove.getAsset());
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 });
 
@@ -481,7 +496,8 @@ public class PropertyService {
                     throw new RuntimeException("更新時必須有 id");
                 }
 
-                Property propertyToUpdate = propertyRepository.findById(id).orElseThrow(() -> new IllegalStateException("找不到指定的持有加密貨幣"));
+                Property propertyToUpdate = propertyRepository.findById(id)
+                                                              .orElseThrow(() -> new IllegalStateException("找不到指定的持有加密貨幣"));
 
                 if (!propertyToUpdate.getUser().equals(user)) {
                     logger.debug("無法更新其他人的持有加密貨幣");
@@ -497,14 +513,15 @@ public class PropertyService {
                     propertyToUpdate.setQuantity(quantity);
                 }
 
-                if (description!= null) {
+                if (description != null) {
                     propertyToUpdate.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
                     propertyToUpdate.setDescription("");
                 }
 
-                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()), propertyToUpdate.getAsset());
+                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()),
+                                                                            propertyToUpdate.getAsset());
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 logger.debug("發布更新用戶資產事件");
                 eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
@@ -520,6 +537,7 @@ public class PropertyService {
 
         }
     }
+
     @Async
     protected void recordTransaction(User user, Property property, OperationType operationType) {
         logger.debug("自動記錄交易");
@@ -532,15 +550,21 @@ public class PropertyService {
         if (Objects.equals(operationType.toString(), "ADD")) {
             transaction.setType(TransactionType.DEPOSIT);
             logger.debug("設定交易類型: 存款");
-            transaction.setDescription("系統自動備註: 新增持有" + property.getAssetName() + "數量: " + property.getQuantity().stripTrailingZeros().toPlainString());
+            transaction.setDescription("系統自動備註: 新增持有" + property.getAssetName() + "數量: " + property.getQuantity()
+                                                                                                               .stripTrailingZeros()
+                                                                                                               .toPlainString());
         } else if (Objects.equals(operationType.toString(), "REMOVE")) {
             transaction.setType(TransactionType.WITHDRAW);
             logger.debug("設定交易類型: 取款");
-            transaction.setDescription("系統自動備註: 刪除持有" + property.getAssetName() + "數量: " + property.getQuantity().stripTrailingZeros().toPlainString());
+            transaction.setDescription("系統自動備註: 刪除持有" + property.getAssetName() + "數量: " + property.getQuantity()
+                                                                                                               .stripTrailingZeros()
+                                                                                                               .toPlainString());
         } else if (Objects.equals(operationType.toString(), "UPDATE")) {
             transaction.setType(TransactionType.UPDATE);
             logger.debug("設定交易類型: 更新");
-            transaction.setDescription("系統自動備註: 更新持有" + property.getAssetName() + "數量: " + property.getQuantity().stripTrailingZeros().toPlainString());
+            transaction.setDescription("系統自動備註: 更新持有" + property.getAssetName() + "數量: " + property.getQuantity()
+                                                                                                               .stripTrailingZeros()
+                                                                                                               .toPlainString());
         }
         logger.debug("設定交易金額: " + property.getQuantity());
 
@@ -561,57 +585,60 @@ public class PropertyService {
     public List<PropertyListDto.getAllPropertiesDto> getUserAllProperties(User user, boolean isFormattedToPreferredCurrency) {
         List<Property> propertyList = propertyRepository.findAllByUser(user);
         logger.debug("格式資料: " + propertyList);
-        Currency Usd = currencyRepository.findByCurrency("USD").orElseThrow(() -> new RuntimeException("系統找不到 USD 貨幣兌，請聯繫管理員"));
+        if (propertyList.isEmpty()) {
+            logger.debug("沒有持有資產");
+            return null;
+        }
+        Currency usd = currencyRepository.findByCurrency("USD")
+                                         .orElseThrow(() -> new RuntimeException("系統找不到 USD 貨幣兌，請聯繫管理員"));
         Map<String, Property> propertyMap = propertyList.stream()
-                .collect(Collectors.toMap(
-                        property -> property.getAsset().getId().toString(),
-                        property -> property,
-                        (existing, replacement) -> {
-                            existing.setQuantity(existing.getQuantity().add(replacement.getQuantity()));
-                            return existing;
-                        })
-                );
-        return new ArrayList<>(propertyMap.values()).stream()
-                .map(property -> {
-                    BigDecimal currentPrice = assetInfluxMethod.getLatestPrice(property.getAsset());
-                    logger.debug("目前價格: " + currentPrice);
-                    BigDecimal exchangeRate;
-                    if (isFormattedToPreferredCurrency) {
-                        exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user.getPreferredCurrency());
-                    } else {
-                        exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, Usd);
-                    }
+                                                        .collect(Collectors.toMap(property -> property.getAsset().getId().toString(),
+                                                                                  property -> property,
+                                                                                  (existing, replacement) -> {
+                                                                                      existing.setQuantity(existing.getQuantity()
+                                                                                                                   .add(replacement.getQuantity()));
+                                                                                      return existing;
+                                                                                  }));
+        return new ArrayList<>(propertyMap.values()).stream().map(property -> {
+            BigDecimal currentPrice = assetInfluxMethod.getLatestPrice(property.getAsset());
+            logger.debug("目前價格: " + currentPrice);
+            BigDecimal exchangeRate;
+            if (isFormattedToPreferredCurrency) {
+                exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user.getPreferredCurrency());
+            } else {
+                exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, usd);
+            }
 
-                    BigDecimal currentTotalPrice;
-                    BigDecimal currentPropertyValue;
-                    if (exchangeRate.compareTo(BigDecimal.valueOf(-1)) == 0) {
-                        currentPropertyValue = BigDecimal.valueOf(0);
-                        currentTotalPrice = BigDecimal.valueOf(0);
-                    } else {
-                        BigDecimal quantity = property.getQuantity();
-                        currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
-                        currentTotalPrice = exchangeRate.multiply(quantity).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
-                    }
-                    return new PropertyListDto.getAllPropertiesDto(property, currentPropertyValue, currentTotalPrice);
-                }).collect(Collectors.toList());
+            BigDecimal currentTotalPrice;
+            BigDecimal currentPropertyValue;
+            if (exchangeRate.compareTo(BigDecimal.valueOf(-1)) == 0) {
+                currentPropertyValue = BigDecimal.valueOf(0);
+                currentTotalPrice = BigDecimal.valueOf(0);
+            } else {
+                BigDecimal quantity = property.getQuantity();
+                currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
+                currentTotalPrice = exchangeRate.multiply(quantity).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
+            }
+            return new PropertyListDto.getAllPropertiesDto(property, currentPropertyValue, currentTotalPrice);
+        }).collect(Collectors.toList());
 
     }
 
     public List<PropertyListDto.writeToInfluxPropertyDto> convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(List<PropertyListDto.getAllPropertiesDto> getUserAllProperties) {
         return getUserAllProperties.stream()
-                .map(prop -> new PropertyListDto.writeToInfluxPropertyDto(
-                        prop.getUserId(),
-                        prop.getAssetId(),
-                        prop.getAssetType(),
-                        0L,
-                        prop.getCurrentPrice(),
-                        prop.getQuantity(),
-                        prop.getCurrentTotalPrice())
-                ).toList();
+                                   .map(prop -> new PropertyListDto.writeToInfluxPropertyDto(prop.getUserId(),
+                                                                                             prop.getAssetId(),
+                                                                                             prop.getAssetType(),
+                                                                                             0L,
+                                                                                             prop.getCurrentPrice(),
+                                                                                             prop.getQuantity(),
+                                                                                             prop.getCurrentTotalPrice()))
+                                   .toList();
 
 
     }
-    public String writeAllPropertiesToJson (List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto) {
+
+    public String writeAllPropertiesToJson(List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto) {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new Hibernate5JakartaModule());
@@ -627,7 +654,7 @@ public class PropertyService {
     }
 
 
-    public void writeAllPropertiesToInflux (List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
+    public void writeAllPropertiesToInflux(List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
         try {
             propertyInfluxService.writePropertyDataToInflux(writeToInfluxPropertyDto, user);
         } catch (Exception e) {
@@ -636,7 +663,7 @@ public class PropertyService {
         }
     }
 
-    public Map<String, String> getAllNameByPropertyType (String propertyType) {
+    public Map<String, String> getAllNameByPropertyType(String propertyType) {
         logger.debug("取得所有 " + propertyType + " 的名稱");
         Map<String, String> map = new LinkedHashMap<>();
 
@@ -680,9 +707,13 @@ public class PropertyService {
 
 
     public String getPropertySummary(User user) {
-        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket, "summary_property", user, "7d", false);
+        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket,
+                                                                                     "summary_property",
+                                                                                     user,
+                                                                                     "7d",
+                                                                                     false);
         logger.debug("取得 InfluxDB 的資料: " + userSummary);
-        Map<String, List<Map<String, Object>>>formatToChartData = chartMethod.formatToChartData(userSummary);
+        Map<String, List<Map<String, Object>>> formatToChartData = chartMethod.formatToChartData(userSummary, user.getPreferredCurrency());
 
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -695,6 +726,7 @@ public class PropertyService {
             throw new RuntimeException("轉換 JSON 時發生錯誤", e);
         }
     }
+
     public List<String> prepareRoiDataAndCalculate(User user) {
         List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         List<String> roiResult = new ArrayList<>();
@@ -702,13 +734,25 @@ public class PropertyService {
         List<RoiDataDto> roiDataDtoList = new ArrayList<>();
         Map<LocalDateTime, BigDecimal> netCashFlowMap = new TreeMap<>();
         Map<LocalDateTime, BigDecimal> totalSumMap = new TreeMap<>();
-        filters.put("_field","total_sum");
+        filters.put("_field", "total_sum");
 
 
-        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = assetInfluxMethod.queryByTimeAndUser(
-                propertySummaryBucket, "net_cash_flow", new HashMap<>(), user, localDateList, 12, true, false);
-        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = assetInfluxMethod.queryByTimeAndUser(
-                propertySummaryBucket, "summary_property", filters, user, localDateList, 12, true, false);
+        Map<LocalDateTime, List<FluxTable>> netCashFlowResult = assetInfluxMethod.queryByTimeAndUser(propertySummaryBucket,
+                                                                                                     "net_cash_flow",
+                                                                                                     new HashMap<>(),
+                                                                                                     user,
+                                                                                                     localDateList,
+                                                                                                     12,
+                                                                                                     true,
+                                                                                                     false);
+        Map<LocalDateTime, List<FluxTable>> netPropertySumResult = assetInfluxMethod.queryByTimeAndUser(propertySummaryBucket,
+                                                                                                        "summary_property",
+                                                                                                        filters,
+                                                                                                        user,
+                                                                                                        localDateList,
+                                                                                                        12,
+                                                                                                        true,
+                                                                                                        false);
         logger.debug("取得 InfluxDB 的淨流量資料: " + netCashFlowResult);
         logger.debug("取得 InfluxDB 的資產量資料: " + netPropertySumResult);
 
@@ -751,7 +795,7 @@ public class PropertyService {
         }
         Duration maxDifference = Duration.ofHours(3);
         for (LocalDateTime time : netCashFlowMap.keySet()) {
-            logger.debug("開始尋找符合資料: " +time);
+            logger.debug("開始尋找符合資料: " + time);
             BigDecimal netCashFlowValue = netCashFlowMap.get(time);
             logger.debug("淨流量: " + netCashFlowValue);
             if (netCashFlowValue != null) {
@@ -782,7 +826,10 @@ public class PropertyService {
                     BigDecimal summaryIncrease = (todayDto.getTotalSum().subtract(historyDto.getTotalSum()));
                     BigDecimal cashFlowDecrease = (todayDto.getNetCashFlow().subtract(historyDto.getNetCashFlow()));
                     if (historyDto.getTotalSum().compareTo(BigDecimal.ZERO) != 0) {
-                        BigDecimal roi = (summaryIncrease.subtract(cashFlowDecrease)).divide(historyDto.getTotalSum(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+                        BigDecimal roi = (summaryIncrease.subtract(cashFlowDecrease)).divide(historyDto.getTotalSum(),
+                                                                                             4,
+                                                                                             RoundingMode.HALF_UP)
+                                                                                     .multiply(BigDecimal.valueOf(100));
                         logger.debug("Roi: {}%", roi);
                         roiResult.add(roi.toString());
                     } else {
@@ -803,81 +850,86 @@ public class PropertyService {
     }
 
 
+    public String getUserPropertyOverview(User user) throws JsonProcessingException {
+        Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
+        Map<String, List<FluxTable>> cashFlowDataTable = propertyInfluxService.queryByUser(propertySummaryBucket,
+                                                                                           "net_cash_flow",
+                                                                                           user,
+                                                                                           "12h",
+                                                                                           true);
+        logger.debug("取得 InfluxDB 的 ROI 資料: " + roiDataTable);
+        logger.debug("取得 InfluxDB 的淨流量資料: " + cashFlowDataTable);
 
-        public String getUserPropertyOverview (User user) throws JsonProcessingException {
-            Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
-            Map<String, List<FluxTable>> cashFlowDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "net_cash_flow", user, "12h", true);
-            logger.debug("取得 InfluxDB 的 ROI 資料: " + roiDataTable);
-            logger.debug("取得 InfluxDB 的淨流量資料: " + cashFlowDataTable);
-
-            List<String> keys =Arrays.asList("day", "week", "month", "year");
-            Map<String, String> propertyOverviewResult = keys.stream().collect(Collectors.toMap(k -> k, k -> "數據不足"));
+        List<String> keys = Arrays.asList("day", "week", "month", "year");
+        Map<String, String> propertyOverviewResult = keys.stream().collect(Collectors.toMap(k -> k, k -> "數據不足"));
 
 
-            if (!roiDataTable.containsKey("roi") || roiDataTable.get("roi").isEmpty() || roiDataTable.get("roi").getFirst().getRecords().isEmpty()) {
-                for (String key : keys) {
-                    propertyOverviewResult.put(key, "數據不足");
-                }
-            } else {
-                roiDataTable.get("roi").getFirst().getRecords().forEach(record -> {
-                    logger.debug("取得 ROI 資料: " + record.getValues());
-                    String field = record.getField();
-                    String value =  Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString).orElse("數據不足");
-                    propertyOverviewResult.put(field, value);
-                });
+        if (!roiDataTable.containsKey("roi") || roiDataTable.get("roi").isEmpty() || roiDataTable.get("roi")
+                                                                                                 .getFirst()
+                                                                                                 .getRecords()
+                                                                                                 .isEmpty()) {
+            for (String key : keys) {
+                propertyOverviewResult.put(key, "數據不足");
             }
-
-
-
-
-            if (!cashFlowDataTable.containsKey("net_cash_flow") || cashFlowDataTable.get("net_cash_flow").isEmpty() || cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().isEmpty()) {
-                propertyOverviewResult.put("cash_flow", "數據不足");
-            } else {
-                FluxRecord record = cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().getFirst();
-                logger.debug("取得淨流量資料: " + record.getValueByKey("_value"));
-                String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(value -> {
-                    DecimalFormat df = new DecimalFormat("#.###");
-                    return df.format(Double.parseDouble(value.toString()));
-                }).orElse("數據不足");
-                propertyOverviewResult.put("cash_flow", dayNetCashFlow);
-            }
-
-
-            logger.debug("ROI 結果: " + propertyOverviewResult);
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.writeValueAsString(propertyOverviewResult);
+        } else {
+            roiDataTable.get("roi").getFirst().getRecords().forEach(record -> {
+                logger.debug("取得 ROI 資料: " + record.getValues());
+                String field = record.getField();
+                String value = Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString).orElse("數據不足");
+                propertyOverviewResult.put(field, value);
+            });
         }
 
-        public ObjectNode formatToObjectNode (List < String > roiResult) {
 
-            ObjectMapper mapper = new ObjectMapper();
-            ObjectNode objectNode = mapper.createObjectNode();
-            String day = !roiResult.isEmpty() ? roiResult.get(0) : "數據不足";
-            String week = roiResult.size() > 1 ? roiResult.get(1) : "數據不足";
-            String month = roiResult.size() > 2 ? roiResult.get(2) : "數據不足";
-            String year = roiResult.size() > 3 ? roiResult.get(3) : "數據不足";
-
-            objectNode.put("day", day);
-            objectNode.put("week", week);
-            objectNode.put("month", month);
-            objectNode.put("year", year);
-            logger.debug("返回結果: " + objectNode);
-            return objectNode;
+        if (!cashFlowDataTable.containsKey("net_cash_flow") || cashFlowDataTable.get("net_cash_flow").isEmpty() || cashFlowDataTable.get(
+                "net_cash_flow").getFirst().getRecords().isEmpty()) {
+            propertyOverviewResult.put("cash_flow", "數據不足");
+        } else {
+            FluxRecord record = cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().getFirst();
+            logger.debug("取得淨流量資料: " + record.getValueByKey("_value"));
+            String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(value -> {
+                DecimalFormat df = new DecimalFormat("#.###");
+                return df.format(Double.parseDouble(value.toString()));
+            }).orElse("數據不足");
+            propertyOverviewResult.put("cash_flow", dayNetCashFlow);
         }
 
-        public LocalDateTime findClosestTime (Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference){
-            LocalDateTime closestTime = null;
-            long smallestDifference = maxDifference.toMinutes();
 
-            for (LocalDateTime time : times) {
-                logger.debug("time: " + time + " targetTime: " + targetTime);
-                long difference = Math.abs(Duration.between(time, targetTime).toMinutes());
-                if (difference < smallestDifference && difference <= maxDifference.toMinutes()) {
-                    smallestDifference = difference;
-                    closestTime = time;
-                }
+        logger.debug("ROI 結果: " + propertyOverviewResult);
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.writeValueAsString(propertyOverviewResult);
+    }
+
+    public ObjectNode formatToObjectNode(List<String> roiResult) {
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode objectNode = mapper.createObjectNode();
+        String day = !roiResult.isEmpty() ? roiResult.get(0) : "數據不足";
+        String week = roiResult.size() > 1 ? roiResult.get(1) : "數據不足";
+        String month = roiResult.size() > 2 ? roiResult.get(2) : "數據不足";
+        String year = roiResult.size() > 3 ? roiResult.get(3) : "數據不足";
+
+        objectNode.put("day", day);
+        objectNode.put("week", week);
+        objectNode.put("month", month);
+        objectNode.put("year", year);
+        logger.debug("返回結果: " + objectNode);
+        return objectNode;
+    }
+
+    public LocalDateTime findClosestTime(Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference) {
+        LocalDateTime closestTime = null;
+        long smallestDifference = maxDifference.toMinutes();
+
+        for (LocalDateTime time : times) {
+            logger.debug("time: " + time + " targetTime: " + targetTime);
+            long difference = Math.abs(Duration.between(time, targetTime).toMinutes());
+            if (difference < smallestDifference && difference <= maxDifference.toMinutes()) {
+                smallestDifference = difference;
+                closestTime = time;
             }
-            return closestTime;
         }
+        return closestTime;
+    }
 
 }

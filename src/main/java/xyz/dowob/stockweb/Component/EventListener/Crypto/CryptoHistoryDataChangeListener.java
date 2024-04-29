@@ -14,6 +14,9 @@ import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 
+/**
+ * @author yuan
+ */
 @Component
 public class CryptoHistoryDataChangeListener implements ApplicationListener<CryptoHistoryDataChangeEvent> {
     private final Logger logger = LoggerFactory.getLogger(CryptoHistoryDataChangeListener.class);
@@ -23,18 +26,21 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
-    public CryptoHistoryDataChangeListener(CryptoService cryptoService, ProgressTracker progressTracker, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {this.cryptoService = cryptoService;
+    public CryptoHistoryDataChangeListener(CryptoService cryptoService, ProgressTracker progressTracker, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {
+        this.cryptoService = cryptoService;
         this.progressTracker = progressTracker;
         this.retryTemplate = retryTemplate;
         this.eventPublisher = eventPublisher;
     }
 
     @Override
-    public void onApplicationEvent(@NotNull CryptoHistoryDataChangeEvent event) {
+    public void onApplicationEvent(
+            @NotNull CryptoHistoryDataChangeEvent event) {
         logger.info("收到虛擬貨幣資料變更通知");
         if ("add".equals(event.getAddOrRemove())) {
-            if (progressTracker.getAllProgressInfo().stream().anyMatch(
-                    x -> x.getTaskName().equals(event.getCryptoTradingPair().getTradingPair()))) {
+            if (progressTracker.getAllProgressInfo()
+                               .stream()
+                               .anyMatch(x -> x.getTaskName().equals(event.getCryptoTradingPair().getTradingPair()))) {
                 logger.debug("該虛擬貨幣已經在執行中，不處理");
                 return;
             }
@@ -46,8 +52,6 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
             } catch (Exception e) {
                 throw new RuntimeException("追蹤歷史資料失敗: " + e.getMessage());
             }
-
-
         } else if ("remove".equals(event.getAddOrRemove())) {
             try {
                 retryTemplate.doWithRetry(() -> {
@@ -64,7 +68,5 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
         } else {
             logger.warn("未知動作，不處理");
         }
-
-
     }
 }

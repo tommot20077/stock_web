@@ -12,8 +12,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User.User;
@@ -21,21 +23,23 @@ import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
+import static xyz.dowob.stockweb.Enum.Role.ADMIN;
 
+/**
+ * @author yuan
+ */
 @Controller
 public class PageController {
 
     private final UserService userService;
     private final TokenService tokenService;
-    private final AssetService assetService;
+
+
     @Autowired
-    public PageController(UserService userService, TokenService tokenService, AssetService assetService) {
+    public PageController(UserService userService, TokenService tokenService) {
         this.userService = userService;
         this.tokenService = tokenService;
-        this.assetService = assetService;
     }
-
-
 
 
     @GetMapping("/login")
@@ -44,13 +48,15 @@ public class PageController {
     }
 
     @PostMapping("/login_p")
-    public ResponseEntity<?> loginUser(@RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session){
+    public ResponseEntity<?> loginUser(
+            @RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session) {
         try {
             User user = userService.loginUser(loginUserDto, response);
             Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(auth);
             session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
             session.setAttribute("currentUserId", user.getId());
+            session.setAttribute("userMail", user.getEmail());
 
             return ResponseEntity.ok().body("登入成功");
         } catch (RuntimeException e) {
@@ -59,16 +65,14 @@ public class PageController {
     }
 
 
-
-
-
     @GetMapping("/register")
     public String register() {
         return "register";
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody RegisterUserDto registerUserDto) {
+    public ResponseEntity<?> registerUser(
+            @RequestBody RegisterUserDto registerUserDto) {
         try {
             userService.registerUser(registerUserDto);
             return ResponseEntity.ok().body("註冊成功");
@@ -79,7 +83,7 @@ public class PageController {
 
 
     @GetMapping({"/index", "/"})
-    public String index2 (HttpSession session, Model model) {
+    public String index2(HttpSession session, Model model) {
         if (session.getAttribute("currentUserId") != null) {
             User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
             model.addAttribute(user);
@@ -88,13 +92,15 @@ public class PageController {
     }
 
     @GetMapping("/profile")
-    public String profile () {
+    public String profile() {
         return "profile";
     }
 
 
     @GetMapping("/logout")
-    public void logout(HttpSession session, HttpServletRequest request, HttpServletResponse response, @RequestParam(required = false, name = "redirection", defaultValue = "true") boolean redirection) {
+    public void logout(
+            HttpSession session, HttpServletRequest request, HttpServletResponse response,
+            @RequestParam(required = false, name = "redirection", defaultValue = "true") boolean redirection) {
         Cookie[] cookies = request.getCookies();
         tokenService.deleteRememberMeCookie(response, session, cookies);
         session.invalidate();
@@ -104,35 +110,49 @@ public class PageController {
         }
     }
 
+    @GetMapping("/reset_password")
+    public String resetPassword() {
+        return "resetPassword";
+    }
+
     @GetMapping("/property_info")
-    public String propertyEdit () {
+    public String propertyEdit() {
         return "propertyInfo";
     }
 
     @GetMapping("/transaction_info")
-    public String transactionEdit () {
+    public String transactionEdit() {
         return "transactionInfo";
     }
 
     @GetMapping("/user_subscribe")
-    public String userSubscribe () {
+    public String userSubscribe() {
         return "subscribeInfo";
     }
 
     @GetMapping("/asset_info/{assetId}")
-    public String assetInfo () {
+    public String assetInfo() {
         return "assetInfo";
     }
 
     @GetMapping("/news/{category}")
-    public String news () {
+    public String news() {
         return "news";
     }
 
     @GetMapping("/info/{category}")
-    public String info () {
+    public String info() {
         return "info";
     }
 
-
+    @GetMapping("/admin/serverManage")
+    public String adminServerConfig(HttpSession session) {
+        User user = userService.getUserFromJwtTokenOrSession(session);
+        if (user == null) {
+            return "redirect:/login";
+        } else if (!user.getRole().equals(ADMIN)) {
+            return "redirect:/";
+        }
+        return "serverManage";
+    }
 }

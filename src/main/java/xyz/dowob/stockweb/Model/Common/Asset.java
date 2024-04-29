@@ -6,6 +6,9 @@ import xyz.dowob.stockweb.Enum.AssetType;
 
 import java.io.Serializable;
 
+/**
+ * @author yuan
+ */
 @Entity
 @Data
 @Inheritance(strategy = InheritanceType.JOINED)

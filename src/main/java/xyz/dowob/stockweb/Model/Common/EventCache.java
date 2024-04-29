@@ -3,11 +3,13 @@ package xyz.dowob.stockweb.Model.Common;
 import jakarta.persistence.*;
 import lombok.Data;
 import xyz.dowob.stockweb.Model.User.Property;
-import xyz.dowob.stockweb.Model.User.User;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 
+/**
+ * @author yuan
+ */
 @Data
 @Entity
 public class EventCache implements Serializable {

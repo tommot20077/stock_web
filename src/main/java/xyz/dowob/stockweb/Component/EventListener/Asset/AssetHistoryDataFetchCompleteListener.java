@@ -19,14 +19,17 @@ import java.math.BigDecimal;
 import java.util.List;
 
 
+/**
+ * @author yuan
+ */
 @Component
 public class AssetHistoryDataFetchCompleteListener implements ApplicationListener<AssetHistoryDataFetchCompleteEvent> {
     private final PropertyInfluxService propertyInfluxService;
     private final EventCacheMethod eventCacheMethod;
     private final RetryTemplate retryTemplate;
     private final ApplicationEventPublisher eventPublisher;
-
     Logger logger = LoggerFactory.getLogger(AssetHistoryDataFetchCompleteListener.class);
+
     @Autowired
     public AssetHistoryDataFetchCompleteListener(PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {
         this.propertyInfluxService = propertyInfluxService;
@@ -36,7 +39,8 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
     }
 
     @Override
-    public void onApplicationEvent(@NotNull AssetHistoryDataFetchCompleteEvent event) {
+    public void onApplicationEvent(
+            @NotNull AssetHistoryDataFetchCompleteEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getSuccess()) {
@@ -45,10 +49,8 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
                         List<EventCache> assetEventCaches = eventCacheMethod.getEventCacheWithAsset(event.getAsset());
                         if (!assetEventCaches.isEmpty()) {
                             for (EventCache eventCache : assetEventCaches) {
-                                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(
-                                        eventCache.getQuantity(),
-                                        eventCache.getProperty().getAsset()
-                                );
+                                BigDecimal netFlow = propertyInfluxService.calculateNetFlow(eventCache.getQuantity(),
+                                                                                            eventCache.getProperty().getAsset());
                                 propertyInfluxService.writeNetFlowToInflux(netFlow, eventCache.getProperty().getUser());
                                 eventCacheMethod.deleteEventCache(eventCache);
                             }
@@ -72,6 +74,5 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
             logger.error("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
             throw new RuntimeException("操作失敗: " + lastException.getMessage(), lastException);
         }
-
     }
 }

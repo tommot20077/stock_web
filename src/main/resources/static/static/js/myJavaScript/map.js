@@ -44,7 +44,7 @@ function getRole(role) {
     return map[role] || "未知用戶";
 }
 
-function getPropertySummaryName (summaryName) {
+function getPropertySummaryName(summaryName) {
     const map = {
         "total_sum": "總資產",
         "currency_sum": "貨幣資產",

@@ -24,7 +24,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-
+/**
+ * @author yuan
+ */
 @Service
 public class CurrencyService {
     @Value(value = "${currency.api.url}")
@@ -44,8 +46,6 @@ public class CurrencyService {
     }
 
 
-
-
     @Async
     @Transactional(rollbackFor = {Exception.class})
     public void updateCurrencyData() {
@@ -63,16 +63,14 @@ public class CurrencyService {
             JsonNode jsonNode = objectMapper.readTree(jsonData);
 
 
-
             jsonNode.fields().forEachRemaining(entry -> {
                 String currency;
                 String key = entry.getKey();
-                if("USD".equals(entry.getKey())) {
+                if ("USD".equals(entry.getKey())) {
                     currency = "USD";
-                }else if("USDUSD".equals(entry.getKey())) {
+                } else if ("USDUSD".equals(entry.getKey())) {
                     return;
-                }
-                else if(key.startsWith("USD") && !Character.isDigit(key.charAt(3))) {
+                } else if (key.startsWith("USD") && !Character.isDigit(key.charAt(3))) {
                     currency = key.replace("USD", "");
                 } else {
                     currency = key;
@@ -90,7 +88,7 @@ public class CurrencyService {
                     logger.debug(currency + "的匯率資料已存在");
                     Currency data = existingData.get();
                     if (data.getExchangeRate().compareTo(exRate) != 0) {
-                        logger.debug("開始更新"+ currency + "的匯率資料");
+                        logger.debug("開始更新" + currency + "的匯率資料");
                         data.setExchangeRate(exRate);
                         data.setUpdateTime(updateTime);
                         currencyRepository.save(data);
@@ -106,7 +104,7 @@ public class CurrencyService {
                     currencyData.setUpdateTime(updateTime);
                     currencyData.setAssetType(AssetType.CURRENCY);
                     currencyRepository.save(currencyData);
-                    logger.debug(currency+ "的匯率資料新增完成");
+                    logger.debug(currency + "的匯率資料新增完成");
                 }
             });
             logger.info("匯率資料新增完成");
@@ -122,9 +120,8 @@ public class CurrencyService {
         Currency originCurrencyData = currencyRepository.findByCurrency(originCurrency).orElse(null);
         Currency targetCurrencyData = currencyRepository.findByCurrency(targetCurrency).orElse(null);
         if (originCurrencyData != null && targetCurrencyData != null) {
-            return amountDecimal.multiply(
-                    targetCurrencyData.getExchangeRate().divide(
-                            originCurrencyData.getExchangeRate(), 6, RoundingMode.HALF_UP));
+            return amountDecimal.multiply(targetCurrencyData.getExchangeRate()
+                                                            .divide(originCurrencyData.getExchangeRate(), 6, RoundingMode.HALF_UP));
         }
         throw new RuntimeException("無法轉換指定貨幣的資料");
     }
@@ -137,8 +134,8 @@ public class CurrencyService {
             if (currencyData != null) {
                 rates.put("USD" + currency, currencyData.getExchangeRate());
             } else {
-                rates.put("USD"+currency, BigDecimal.ZERO);
-                logger.warn("無法取得"+ currency +"的匯率資料");
+                rates.put("USD" + currency, BigDecimal.ZERO);
+                logger.warn("無法取得" + currency + "的匯率資料");
             }
         }
         return rates;
@@ -151,12 +148,14 @@ public class CurrencyService {
         Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
 
-        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency()).ifPresent(subscribe -> {
-            throw new RuntimeException("已訂閱過此貨幣對" + from + "  ⇄  " + to);
-        });
-        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency()).ifPresent(subscribe -> {
-            throw new RuntimeException("已訂閱過此貨幣對" + from + "  ⇄  " + to);
-        });
+        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency())
+                           .ifPresent(subscribe -> {
+                               throw new RuntimeException("已訂閱過此貨幣對" + from + "  ⇄  " + to);
+                           });
+        subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency())
+                           .ifPresent(subscribe -> {
+                               throw new RuntimeException("已訂閱過此貨幣對" + from + "  ⇄  " + to);
+                           });
 
 
         logger.debug("用戶主動訂閱，此訂閱設定可刪除");
@@ -177,10 +176,12 @@ public class CurrencyService {
         }
         Currency fromCurrency = currencyRepository.findByCurrency(to).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
         Currency toCurrency = currencyRepository.findByCurrency(from).orElseThrow(() -> new RuntimeException("無此貨幣資料"));
-        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), toCurrency.getId(), fromCurrency.getCurrency()).orElse(null);
+        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                                   toCurrency.getId(),
+                                                                                   fromCurrency.getCurrency()).orElse(null);
         if (subscribe == null) {
             subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), fromCurrency.getId(), toCurrency.getCurrency())
-                    .orElseThrow(() -> new RuntimeException("未訂閱過此貨幣對" + from + "  ⇄  " + to));
+                                           .orElseThrow(() -> new RuntimeException("未訂閱過此貨幣對" + from + "  ⇄  " + to));
         }
         if (subscribe.isRemoveAble()) {
             subscribeRepository.delete(subscribe);

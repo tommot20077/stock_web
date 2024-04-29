@@ -14,6 +14,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author yuan
+ */
 @Service
 public class DynamicThreadPoolManager {
     @Value("${common.global_thread_limit:6}")
@@ -28,6 +31,7 @@ public class DynamicThreadPoolManager {
     public void init() {
         this.executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(globalThreadLimit);
     }
+
     public ExecutorService getExecutorService() {
         return executorService;
     }
@@ -43,7 +47,7 @@ public class DynamicThreadPoolManager {
             logger.debug("線程池減少一個線程");
         }
         logger.debug("線程池現在有" + activeTaskCount + "個線程");
-        //todo 檢查
+        // todo 檢查
     }
 
     public void onTaskStart() {
@@ -51,11 +55,13 @@ public class DynamicThreadPoolManager {
         adjustThreadPoolBasedOnLoad();
         logger.debug("現在有" + activeTasks + "個任務");
     }
+
     public void onTaskComplete() {
         activeTasks.decrementAndGet();
         adjustThreadPoolBasedOnLoad();
         logger.debug("現在有" + activeTasks + "個任務");
     }
+
     public int getCurrentCorePoolSize() {
         return executorService.getCorePoolSize();
     }

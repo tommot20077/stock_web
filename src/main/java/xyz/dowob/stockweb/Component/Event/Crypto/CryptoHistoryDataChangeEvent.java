@@ -3,6 +3,10 @@ package xyz.dowob.stockweb.Component.Event.Crypto;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
+
+/**
+ * @author yuan
+ */
 @Getter
 public class CryptoHistoryDataChangeEvent extends ApplicationEvent {
     private final CryptoTradingPair cryptoTradingPair;

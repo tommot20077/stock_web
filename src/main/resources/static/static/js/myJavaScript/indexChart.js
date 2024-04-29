@@ -54,7 +54,8 @@ function fillData(datasets, labels, summaryData, numPerDay) {
     });
     return maxValue;
 }
-async function userPropertySummaryLineChart () {
+
+async function userPropertySummaryLineChart() {
     try {
         const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
         const datasets = [
@@ -113,7 +114,7 @@ async function userPropertySummaryLineChart () {
                                 unit: 'day',
                             },
                             ticks: {
-                                callback: function(value, index, values) {
+                                callback: function (value, index, values) {
                                     try {
                                         const timestamp = Number(value);
                                         return dateFns.format(new Date(timestamp), "yyyy-MM-dd");
@@ -158,7 +159,7 @@ async function userPropertySummaryLineChart () {
     }
 }
 
-async function userPropertySummaryPieChart(){
+async function userPropertySummaryPieChart() {
     try {
         const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
         const latestData = summaryData.latest.filter(dataPoint => dataPoint.field !== "total_sum");

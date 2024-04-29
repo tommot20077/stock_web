@@ -1,4 +1,4 @@
-package xyz.dowob.stockweb.Component;
+package xyz.dowob.stockweb.Component.Method.Initial;
 
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -14,7 +14,9 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 
-import java.util.List;
+/**
+ * @author yuan
+ */
 @Component
 public class AssetDataInitial {
     Logger logger = LoggerFactory.getLogger(AssetDataInitial.class);
@@ -25,7 +27,8 @@ public class AssetDataInitial {
     private final CryptoService cryptoService;
     private final CryptoRepository cryptoRepository;
 
-    public AssetDataInitial(CurrencyService currencyService, CurrencyRepository currencyRepository, StockTwService stockTwService, StockTwRepository stockTwRepository, CryptoService cryptoService, CryptoRepository cryptoRepository) {this.currencyService = currencyService;
+    public AssetDataInitial(CurrencyService currencyService, CurrencyRepository currencyRepository, StockTwService stockTwService, StockTwRepository stockTwRepository, CryptoService cryptoService, CryptoRepository cryptoRepository) {
+        this.currencyService = currencyService;
         this.currencyRepository = currencyRepository;
         this.stockTwService = stockTwService;
         this.stockTwRepository = stockTwRepository;

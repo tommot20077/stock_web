@@ -11,8 +11,8 @@ import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Service.Common.AssetService;
-import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Common.NewsService;
+import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -22,6 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * @author yuan
+ */
 @Controller
 @RequestMapping("/api/admin")
 public class ApiAdminController {
@@ -33,6 +36,7 @@ public class ApiAdminController {
     private final ProgressTracker progressTracker;
     private final CrontabMethod crontabMethod;
     private final AssetService assetService;
+
     @Autowired
     public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTracker progressTracker, CrontabMethod crontabMethod, AssetService assetService) {
         this.currencyService = currencyService;
@@ -47,7 +51,6 @@ public class ApiAdminController {
 
     /**
      * 管理員-加密貨幣類
-     *
      */
 
     @PostMapping("/crypto/updateCryptoList")
@@ -104,9 +107,11 @@ public class ApiAdminController {
     }
 
     @PostMapping("/crypto/trackCryptoHistoryData")
-    public CompletableFuture<?> trackCryptoHistoryData(@RequestParam String tradingPair) {
+    public CompletableFuture<?> trackCryptoHistoryData(
+            @RequestParam String tradingPair) {
         CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
-        return cryptoService.trackCryptoHistoryPrices(tradingPairs).thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
+        return cryptoService.trackCryptoHistoryPrices(tradingPairs)
+                            .thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
     }
 
     @PostMapping("/crypto/trackCryptoDailyData")
@@ -120,41 +125,47 @@ public class ApiAdminController {
     }
 
 
-
     @GetMapping("/crypto/getAllTaskProgress")
     @ResponseBody
     public List<Progress.ProgressDto> getAllTaskProgress() {
         List<Progress.ProgressDto> progressList = new ArrayList<>();
         for (Progress progress : progressTracker.getAllProgressInfo()) {
-            Progress.ProgressDto dto = new Progress.ProgressDto(
-                    progress.getTaskName(),
-                    progress.getProgressCount(),
-                    progress.getTotalTask(),
-                    progress.getProgressPercentage() * 100
-            );
+            Progress.ProgressDto dto = new Progress.ProgressDto(progress.getTaskName(),
+                                                                progress.getProgressCount(),
+                                                                progress.getTotalTask(),
+                                                                progress.getProgressPercentage() * 100);
             progressList.add(dto);
         }
         return progressList;
     }
 
+    @PostMapping("/crypto/checkAndReconnectWebSocket")
+    public ResponseEntity<?> checkAndReconnectWebSocket() {
+        try {
+            crontabMethod.checkAndReconnectWebSocket();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
 
     /**
      * 管理員-台灣股票類
-     *
      */
 
     @PostMapping("/stock/tw/updateStockList")
     public ResponseEntity<?> updateStockList() {
         try {
             stockTwService.updateStockList();
-            return ResponseEntity.ok().body("股票列表更新成功");
+            return ResponseEntity.ok().body("操作成功");
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
         }
 
     }
 
-    @PostMapping("/stock/tw/getStockDetail")
+    @PostMapping("/stock/tw/updateStockDetail")
     public ResponseEntity<?> getSubscriptionStocksCurrentPrice() {
         try {
             Map<String, List<String>> result = stockTwService.checkSubscriptionValidity();
@@ -166,8 +177,10 @@ public class ApiAdminController {
         }
 
     }
-    @PostMapping("/stock/tw/getStockHistoryData")
-    public ResponseEntity<?> getSpecificStocksHistoryPriceByStockCode(@RequestParam String stockCode) {
+
+    @PostMapping("/stock/tw/trackStockHistoryData")
+    public ResponseEntity<?> getSpecificStocksHistoryPriceByStockCode(
+            @RequestParam String stockCode) {
         try {
             StockTw stockTw = stockTwService.getStockTwByStockCode(stockCode);
             stockTwService.trackStockTwHistoryPrices(stockTw);
@@ -185,27 +198,34 @@ public class ApiAdminController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(e.getMessage());
         }
+    }
 
+    @PostMapping("/stock/tw/checkSubscriptions")
+    public ResponseEntity<?> checkSubscriptions() {
+        try {
+            crontabMethod.checkSubscriptions();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
     }
 
     /**
      * 管理員-貨幣類
-     *
      */
 
     @PostMapping("/currency/updateCurrencyData")
     public ResponseEntity<?> updateCurrencyData() {
         try {
             currencyService.updateCurrencyData();
-            return ResponseEntity.ok().body("匯率更新成功");
+            return ResponseEntity.ok().body("操作成功");
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body("操作成功" + e.getMessage());
         }
     }
 
     /**
      * 管理員-一般類
-     *
      */
     @PostMapping("/common/updateRoiData")
     public ResponseEntity<?> updateRoiData() {
@@ -272,5 +292,48 @@ public class ApiAdminController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping("/common/cleanExpiredTokens")
+    public ResponseEntity<?> cleanExpiredTokens() {
+        try {
+            crontabMethod.cleanExpiredTokens();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+
+    @PostMapping("/common/checkHistoryData")
+    public ResponseEntity<?> checkHistoryData() {
+        try {
+            crontabMethod.checkHistoryData();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
+
+    @PostMapping("/common/removeExpiredNews")
+    public ResponseEntity<?> removeExpiredNews() {
+        try {
+            crontabMethod.removeExpiredNews();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/common/updateAssetListCache")
+    public ResponseEntity<?> updateAssetListCache() {
+        try {
+            crontabMethod.updateAssetListCache();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
 }
 

@@ -19,11 +19,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * @author yuan
+ */
 public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     Optional<StockTw> findByStockCode(String stockCode);
 
     @Query("SELECT DISTINCT s.stockCode, s.stockName FROM StockTw s order by s.stockCode")
     List<Object[]> findDistinctStockCodeAndName();
+
     @Query("SELECT s.stockCode, s.stockName FROM StockTw s ORDER BY s.stockCode")
     List<Object[]> findAllByOrderByStockCode();
 
@@ -31,7 +35,8 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     Page<String> findAllStockCodeByPage(Pageable pageable);
 
     @Query("SELECT COUNT(sub) FROM StockTw s JOIN s.subscribers sub WHERE s = :stockTw")
-    int countStockTwSubscribersNumber(@Param("stockTw") StockTw stockTw);
+    int countStockTwSubscribersNumber(
+            @Param("stockTw") StockTw stockTw);
 
     @Query("SELECT DISTINCT s.stockCode, s.stockType FROM StockTw s JOIN s.subscribers subscriber")
     Set<Object[]> findAllStockCodeAndTypeBySubscribers();
@@ -40,8 +45,6 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     Set<String> findAllStockCodeBySubscribers();
 
     Set<StockTw> findAllByHasAnySubscribed(boolean hasAnySubscribed);
-
-
 
 
     Logger logger = LoggerFactory.getLogger(StockTwRepository.class);
@@ -103,15 +106,6 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
             });
         }
     }
-
-
-
-
-
-
-
-
-
 
 
 }

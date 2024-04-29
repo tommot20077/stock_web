@@ -7,11 +7,11 @@ function displayError(error, elementId) {
     element.style.color = 'red';
 }
 
-function showSpinner() {
+function showSpinnerNone() {
     document.getElementById('loading-spinner').style.display = 'flex';
     document.getElementById('successModal').style.display = 'none';
 }
-function hideSpinner() {
+function hideSpinnerNone() {
     document.getElementById('loading-spinner').style.display = 'none';
 }
 function hideRings() {

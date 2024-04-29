@@ -2,7 +2,6 @@ package xyz.dowob.stockweb.Service.Crypto;
 
 
 import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxTable;
@@ -34,11 +33,10 @@ public class CryptoInfluxService {
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
 
-
-
-
     @Autowired
-    public CryptoInfluxService(@Qualifier("CryptoInfluxClient")InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+    public CryptoInfluxService(
+            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
+            @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.cryptoInfluxDBClient = cryptoInfluxClient;
         this.cryptoHistoryInfluxDBClient = cryptoHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -65,13 +63,13 @@ public class CryptoInfluxService {
         Double volume = Double.parseDouble(kline.get("v").toString());
 
         Point point = Point.measurement("kline_data")
-                .addTag("tradingPair", kline.get("s").toString())
-                .addField("open", open)
-                .addField("close", close)
-                .addField("high", high)
-                .addField("low", low)
-                .addField("volume", volume)
-                .time(Long.parseLong(time), WritePrecision.MS);
+                           .addTag("tradingPair", kline.get("s").toString())
+                           .addField("open", open)
+                           .addField("close", close)
+                           .addField("high", high)
+                           .addField("low", low)
+                           .addField("volume", volume)
+                           .time(Long.parseLong(time), WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
 
         assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
@@ -85,21 +83,16 @@ public class CryptoInfluxService {
             Double low = Double.parseDouble(record[3]);
             Double close = Double.parseDouble(record[4]);
             Double volume = Double.parseDouble(record[5]);
-            logger.debug("time = " + time
-                    + ", open = " + open
-                    + ", high = " + high
-                    + ", low = " + low
-                    + ", close = " + close
-                    + ", volume = " + volume);
+            logger.debug("time = " + time + ", open = " + open + ", high = " + high + ", low = " + low + ", close = " + close + ", volume = " + volume);
 
             Point point = Point.measurement("kline_data")
-                    .addTag("tradingPair", tradingPair)
-                    .addField("open", open)
-                    .addField("close", close)
-                    .addField("high", high)
-                    .addField("low", low)
-                    .addField("volume", volume)
-                    .time(time, WritePrecision.MS);
+                               .addTag("tradingPair", tradingPair)
+                               .addField("open", open)
+                               .addField("close", close)
+                               .addField("high", high)
+                               .addField("low", low)
+                               .addField("volume", volume)
+                               .time(time, WritePrecision.MS);
 
             assetInfluxMethod.writeToInflux(cryptoHistoryInfluxDBClient, point);
         }
@@ -117,8 +110,8 @@ public class CryptoInfluxService {
                     cryptoHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoHistoryBucket, org);
                     logger.info("刪除資料成功");
                 } catch (Exception e) {
-                    logger.error("刪除資料時發生錯誤: "+ e.getMessage());
-                    throw new RuntimeException("刪除資料時發生錯誤: "+ e.getMessage());
+                    logger.error("刪除資料時發生錯誤: " + e.getMessage());
+                    throw new RuntimeException("刪除資料時發生錯誤: " + e.getMessage());
                 }
             });
         } catch (RetryException e) {
@@ -131,13 +124,9 @@ public class CryptoInfluxService {
         var ref = new Object() {
             FluxTable result;
         };
-        String query = String.format(
-                "from(bucket: \"%s\") |> range(start: -14d)" +
-                        " |> filter(fn: (r) => r[\"_measurement\"] == \"kline_data\")" +
-                        " |> filter(fn: (r) => r[\"tradingPair\"] == \"%s\")" +
-                        " |> last()",
-                cryptoHistoryBucket, tradingPair
-        );
+        String query = String.format("from(bucket: \"%s\") |> range(start: -14d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"kline_data\")" + " |> filter(fn: (r) => r[\"tradingPair\"] == \"%s\")" + " |> last()",
+                                     cryptoHistoryBucket,
+                                     tradingPair);
         try {
             retryTemplate.doWithRetry(() -> {
                 ref.result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast();

@@ -15,15 +15,14 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
+import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
-import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
-import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -89,7 +88,7 @@ public class CrontabMethod {
 
 
     @Scheduled(cron = "0 0 1 * * ?")
-    public void cleanExpiredTokens(){
+    public void cleanExpiredTokens() {
         tokenService.removeExpiredTokens();
     }
 
@@ -129,7 +128,7 @@ public class CrontabMethod {
         if (!trackableStocks.isEmpty()) {
             logger.debug("已經獲取列表");
             LocalTime now = LocalTime.now(ZoneId.of("Asia/Taipei"));
-            if (now.isAfter(LocalTime.of(13,30)) && now.getMinute() % 10 == 0) {
+            if (now.isAfter(LocalTime.of(13, 30)) && now.getMinute() % 10 == 0) {
                 logger.debug("收盤時間:更新速度為10分鐘");
                 stockTwService.trackStockNowPrices(trackableStocks);
             } else {
@@ -169,7 +168,12 @@ public class CrontabMethod {
             for (User user : users) {
                 logger.debug("正在記錄使用者 " + user.getUsername() + " 的資產總價");
                 List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(user, false);
-                List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(getAllPropertiesDtoList);
+                if (getAllPropertiesDtoList == null) {
+                    logger.debug("用戶:" + user.getUsername() + "沒有資產可以記錄，跳過");
+                    continue;
+                }
+                List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(
+                        getAllPropertiesDtoList);
                 propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, user);
             }
             logger.debug("記錄完成");
@@ -198,7 +202,7 @@ public class CrontabMethod {
         Long time = Instant.now().toEpochMilli();
         List<User> users = userService.getAllUsers();
         for (User user : users) {
-            List<String>roiResult = propertyService.prepareRoiDataAndCalculate(user);
+            List<String> roiResult = propertyService.prepareRoiDataAndCalculate(user);
             ObjectNode roiObject = propertyService.formatToObjectNode(roiResult);
             propertyInfluxService.writeUserRoiDataToInflux(roiObject, user, time);
         }
@@ -225,12 +229,14 @@ public class CrontabMethod {
         logger.info("開始更新頭條新聞");
         redisService.deleteByPattern("news_headline_page_*");
         logger.debug("刪除緩存完成");
-        newsService.sendNewsRequest(true, 1, null , null);
+        newsService.sendNewsRequest(true, 1, null, null);
         logger.info("開始更新訂閱資產的新聞");
-        List<Asset> subscribeAsset = assetService.findHasSubscribeAsset(newsAutoupdateCrypto, newsAutoupdateStockTw, newsAutoupdateCurrency);
+        List<Asset> subscribeAsset = assetService.findHasSubscribeAsset(newsAutoupdateCrypto,
+                                                                        newsAutoupdateStockTw,
+                                                                        newsAutoupdateCurrency);
         for (Asset asset : subscribeAsset) {
             logger.debug("正在更新 " + asset.getId() + " 的新聞");
-            newsService.sendNewsRequest(false, 1, null , asset);
+            newsService.sendNewsRequest(false, 1, null, asset);
         }
         logger.info("新聞更新完成");
     }
@@ -245,7 +251,7 @@ public class CrontabMethod {
                 int totalPage = assetService.findAssetTotalPage(key, pageSize);
                 for (int page = 1; page <= totalPage; page++) {
                     logger.debug("正在更新 " + key + " 的第 " + page + " 頁資產列表緩存");
-                    String innerKey = key + "_page_" + page;
+                    String innerKey = keys + "_page_" + page;
                     List<Asset> assetsList = assetService.findAssetPageByType(key, page, false);
                     assetService.formatStringAssetListToFrontendType(assetsList, innerKey);
                 }
@@ -253,13 +259,8 @@ public class CrontabMethod {
             logger.info("資產列表緩存更新完成");
         } catch (Exception e) {
             logger.error("更新資產列表緩存失敗", e);
-            throw new  RuntimeException("更新資產列表緩存失敗", e);
+            throw new RuntimeException("更新資產列表緩存失敗", e);
         }
     }
-
-
-
-
-
 }
 

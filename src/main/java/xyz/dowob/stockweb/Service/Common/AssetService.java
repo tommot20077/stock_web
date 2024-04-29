@@ -36,6 +36,9 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+/**
+ * @author yuan
+ */
 @Service
 public class AssetService {
     private final AssetRepository assetRepository;
@@ -48,6 +51,7 @@ public class AssetService {
     private final CryptoRepository cryptoRepository;
 
     Logger logger = LoggerFactory.getLogger(AssetService.class);
+
     @Autowired
     public AssetService(AssetRepository assetRepository, AssetInfluxMethod assetInfluxMethod, ObjectMapper objectMapper, RedisService redisService, AssetHandler assetHandler, CurrencyRepository currencyRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository) {
         this.assetRepository = assetRepository;
@@ -82,14 +86,14 @@ public class AssetService {
         logger.info("開始處理資產: " + asset.getId());
         try {
 
-            switch (type){
+            switch (type) {
                 case "history":
                     redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
                     tableMap = assetInfluxMethod.queryByAsset(asset, true, timestamp);
                     if (nodataMethod(asset, type, tableMap, listKey, hashInnerKey)) {
                         return;
                     }
-                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey,"history");
+                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, "history");
                     break;
                 case "current":
                     redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
@@ -97,7 +101,7 @@ public class AssetService {
                     if (nodataMethod(asset, type, tableMap, listKey, hashInnerKey)) {
                         return;
                     }
-                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey,"current");
+                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, "current");
                     break;
                 default:
                     throw new RuntimeException("錯誤的查詢類型");
@@ -110,7 +114,7 @@ public class AssetService {
     }
 
     private boolean nodataMethod(Asset asset, String type, Map<String, List<FluxTable>> tableMap, String listKey, String hashInnerKey) {
-        logger.debug("tableMap: "+ tableMap );
+        logger.debug("tableMap: " + tableMap);
         if (tableMap.get("%s_%s".formatted(asset.getId(), type)).isEmpty()) {
             List<String> listCache = redisService.getCacheListValueFromKey(listKey + "data");
             if (listCache.isEmpty()) {
@@ -128,7 +132,7 @@ public class AssetService {
     private void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey, String type) {
         try {
             Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
-            String lastTimePoint  = null;
+            String lastTimePoint = null;
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
             for (Map.Entry<String, List<FluxTable>> entry : tableMap.entrySet()) {
@@ -201,7 +205,7 @@ public class AssetService {
         }
     }
 
-    public List<String> getAssetStatisticsAndSaveToRedis (Asset asset, String key) {
+    public List<String> getAssetStatisticsAndSaveToRedis(Asset asset, String key) {
         List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         Map<LocalDateTime, String> priceMap = new TreeMap<>();
         Map<String, String> filters = new HashMap<>();
@@ -232,7 +236,14 @@ public class AssetService {
             }
         }
 
-        Map<LocalDateTime, List<FluxTable>> queryResultMap = assetInfluxMethod.queryByTimeAndUser(select[0].toString(), select[1].toString(), filters, null, localDateList, 72, true, false);
+        Map<LocalDateTime, List<FluxTable>> queryResultMap = assetInfluxMethod.queryByTimeAndUser(select[0].toString(),
+                                                                                                  select[1].toString(),
+                                                                                                  filters,
+                                                                                                  null,
+                                                                                                  localDateList,
+                                                                                                  72,
+                                                                                                  true,
+                                                                                                  false);
         for (Map.Entry<LocalDateTime, List<FluxTable>> entry : queryResultMap.entrySet()) {
             if (entry.getValue().isEmpty() || entry.getValue().getFirst().getRecords().isEmpty()) {
                 logger.debug(entry.getKey() + " 取得指定資產價格資料: " + null);
@@ -308,7 +319,7 @@ public class AssetService {
 
     public String formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey) {
         ArrayNode mergeArray = objectMapper.createArrayNode();
-        Map <String, Object> resultMap = new HashMap<>();
+        Map<String, Object> resultMap = new HashMap<>();
 
         List<String> cacheDataList = redisService.getCacheListValueFromKey(listKey + "data");
         String timestamp = redisService.getHashValueFromKey("kline", hashInnerKey + "last_timestamp");
@@ -352,7 +363,9 @@ public class AssetService {
     public List<Asset> findAssetPageByType(String category, int page, boolean isCache) throws JsonProcessingException {
 
         PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
-        List<Asset> assetsList = getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest).getContent() : assetRepository.findAll(pageRequest).getContent();
+        List<Asset> assetsList = getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest)
+                                                                                 .getContent() : assetRepository.findAll(pageRequest)
+                                                                                                                .getContent();
 
         if (isCache) {
             String key = "asset";
@@ -367,7 +380,6 @@ public class AssetService {
         if (assetList == null || assetList.isEmpty()) {
             return null;
         }
-        logger.info("準備處理assetList放入Map: " + assetList);
 
         if (assetList.getFirst() instanceof Asset) {
             for (Object a : assetList) {
@@ -406,11 +418,11 @@ public class AssetService {
         return cacheHashDataToRedis("frontendAssetList", innerKey, resultList, 24);
 
     }
+
     public List<Map<String, Object>> formatJsonToAssetList(String assetJson) throws JsonProcessingException {
         if (assetJson == null) {
             return null;
         }
-        logger.info("轉換assetList: " + assetJson);
         objectMapper.registerModule(new JavaTimeModule());
         List<Map<String, Object>> assetList = objectMapper.readValue(assetJson, new TypeReference<>() {});
         return assetList;
@@ -429,8 +441,10 @@ public class AssetService {
 
     public int findAssetTotalPage(String category, int pageSize) {
         PageRequest pageRequest = PageRequest.of(0, pageSize);
-        return getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest).getTotalPages() : assetRepository.findAll(pageRequest).getTotalPages();
+        return getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest)
+                                                               .getTotalPages() : assetRepository.findAll(pageRequest).getTotalPages();
     }
+
     private AssetType getAssetType(String category) {
         return switch (category) {
             case "crypto" -> AssetType.CRYPTO;

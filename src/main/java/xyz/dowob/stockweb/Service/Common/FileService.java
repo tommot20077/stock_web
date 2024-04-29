@@ -4,10 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.http.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -16,6 +19,9 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+/**
+ * @author yuan
+ */
 @Service
 public class FileService {
     @Value("${common.download.path:./}")
@@ -37,10 +43,7 @@ public class FileService {
             }
             File zipFile = new File(dir, fileName);
             try {
-                ResponseEntity<byte[]> response = restTemplate.exchange(
-                        url,
-                        HttpMethod.GET,
-                        null, byte[].class);
+                ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, null, byte[].class);
                 logger.debug("HTTP響應狀態碼: " + response.getStatusCode());
                 logger.debug("檔案大小: " + response.getHeaders().getContentLength());
 

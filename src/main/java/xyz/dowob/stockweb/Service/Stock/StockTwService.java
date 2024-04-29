@@ -26,7 +26,10 @@ import xyz.dowob.stockweb.Repository.Common.TaskRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
-import java.time.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -53,6 +56,7 @@ public class StockTwService {
     private String stockTwHistoryDateline;
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
+
     @Autowired
     public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxDBService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher) {
         this.stockTwRepository = stockTwRepository;
@@ -62,6 +66,7 @@ public class StockTwService {
         this.objectMapper = objectMapper;
         this.applicationEventPublisher = applicationEventPublisher;
     }
+
     @Transactional(rollbackFor = Exception.class)
     public void addStockSubscribeToUser(String stockId, User user) {
         StockTw stock = stockTwRepository.findByStockCode(stockId).orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼"));
@@ -88,9 +93,11 @@ public class StockTwService {
 
     @Transactional(rollbackFor = Exception.class)
     public void removeStockSubscribeToUser(String stockId, User user) {
-        StockTw stock = stockTwRepository.findByStockCode(stockId).orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼: " + stockId));
+        StockTw stock = stockTwRepository.findByStockCode(stockId)
+                                         .orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼: " + stockId));
         Long assetId = stock.getId();
-        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId).orElseThrow(() -> new RuntimeException("沒有找到指定的訂閱"));
+        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId)
+                                                 .orElseThrow(() -> new RuntimeException("沒有找到指定的訂閱"));
         if (subscribe.isUserSubscribed()) {
             if (subscribe.isRemoveAble()) {
                 if (stock.checkUserIsSubscriber(user)) {
@@ -105,6 +112,7 @@ public class StockTwService {
             subscribeRepository.delete(subscribe);
         }
     }
+
     @Transactional
     @Async
     public void updateStockList() {
@@ -153,10 +161,10 @@ public class StockTwService {
             String stockCode = subscribe[0].toString();
             String stockType = subscribe[1].toString();
             if ("twse".equals(stockType)) {
-                inquiry ="tse_" + stockCode + ".tw";
+                inquiry = "tse_" + stockCode + ".tw";
                 url = stockCurrentPriceUrl + inquiry;
             } else if ("otc".equals(stockType)) {
-                inquiry ="otc_" + stockCode + ".tw";
+                inquiry = "otc_" + stockCode + ".tw";
                 url = stockCurrentPriceUrl + inquiry;
             } else {
                 logger.warn("暫時不支援此類型: " + stockCode + "-" + stockType);
@@ -177,7 +185,6 @@ public class StockTwService {
             }
             rateLimiter.acquire();
         });
-
 
 
         Map<String, List<String>> result = new HashMap<>();
@@ -214,7 +221,8 @@ public class StockTwService {
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMM01");
                 String formattedDate = date.format(formatter);
                 String url = String.format("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=%s&stockNo=%s",
-                                           formattedDate, stockTw.getStockCode());
+                                           formattedDate,
+                                           stockTw.getStockCode());
                 logger.debug("要追蹤價格的股票: " + stockTw.getStockCode());
                 logger.debug("查詢網址: " + url);
 
@@ -222,8 +230,7 @@ public class StockTwService {
                 JsonNode rootNode = getJsonNodeByUrl(url);
                 int total = rootNode.path("total").asInt();
                 if (total > 0) {
-                    logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path(
-                            "date") + " 有資料，開始處理資料");
+                    logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") + " 有資料，開始處理資料");
                     ArrayNode dataArray = (ArrayNode) rootNode.path("data");
                     stockTwInfluxDBService.writeStockTwHistoryToInflux(dataArray, stockTw.getStockCode());
                     date = date.minusMonths(1);
@@ -246,6 +253,7 @@ public class StockTwService {
         taskRepository.save(task);
 
     }
+
     @Async
     public void trackStockHistoryPricesWithUpdateDaily() {
         Set<String> needToUpdateStockCodes = stockTwRepository.findAllStockCodeBySubscribers();
@@ -307,6 +315,7 @@ public class StockTwService {
             return null;
         }
     }
+
     public StockTw getStockTwByStockCode(String stockCode) {
         return stockTwRepository.findByStockCode(stockCode).orElseThrow(() -> new RuntimeException("沒有找到指定的股票代碼: " + stockCode));
     }

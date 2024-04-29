@@ -2,6 +2,9 @@ package xyz.dowob.stockweb.Exception;
 
 import lombok.Getter;
 
+/**
+ * @author yuan
+ */
 public class RetryException extends Exception {
     @Getter
     private Exception lastException;

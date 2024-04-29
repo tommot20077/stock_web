@@ -21,20 +21,22 @@ import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.io.IOException;
+
+/**
+ * @author yuan
+ */
 @Component
 public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
-    @Autowired
-    private  UserService userService;
+    @Autowired private UserService userService;
     @Autowired
     private TokenService tokenService;
-    @Autowired
-    private  CacheManager cacheManager;
-
-
+    @Autowired private CacheManager cacheManager;
 
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         User user = null;
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("currentUserId") == null) {
@@ -56,7 +58,8 @@ public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
                                 session = request.getSession(true);
                                 Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                                 SecurityContextHolder.getContext().setAuthentication(auth);
-                                session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
+                                session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                                                     SecurityContextHolder.getContext());
                                 session.setAttribute("currentUserId", user.getId());
                             }
                         }

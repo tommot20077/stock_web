@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TransactionListDto {

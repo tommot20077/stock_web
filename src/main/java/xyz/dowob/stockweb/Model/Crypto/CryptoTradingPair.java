@@ -11,6 +11,9 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * @author yuan
+ */
 @EqualsAndHashCode(callSuper = true)
 @PrimaryKeyJoinColumn(name = "asset_id")
 @Entity
@@ -39,8 +42,6 @@ public class CryptoTradingPair extends Asset implements Serializable {
     public boolean checkUserIsSubscriber(User user) {
         return subscribers.contains(user.getId());
     }
-
-
 
 
 }

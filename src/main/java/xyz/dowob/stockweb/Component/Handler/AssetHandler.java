@@ -8,12 +8,14 @@ import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Currency.Currency;
-import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-
+/**
+ * @author yuan
+ */
 @Component
 public class AssetHandler {
     private final CurrencyRepository currencyRepository;
@@ -51,12 +53,10 @@ public class AssetHandler {
     }
 
 
-
     private BigDecimal getTwdCurrency() {
         if (twdCurrency == null) {
             throw new IllegalStateException("台幣匯率未初始化");
         }
         return twdCurrency.getExchangeRate();
     }
-
 }

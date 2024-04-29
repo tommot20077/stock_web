@@ -20,6 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author yuan
+ */
 @Controller
 @RequestMapping("/api/user/property")
 public class ApiPropertyController {
@@ -35,7 +38,8 @@ public class ApiPropertyController {
     }
 
     @PostMapping("/modify/stock_tw")
-    public ResponseEntity<?> modifyStock(@RequestBody PropertyListDto propertyListDto, HttpSession session) {
+    public ResponseEntity<?> modifyStock(
+            @RequestBody PropertyListDto propertyListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {
@@ -72,7 +76,8 @@ public class ApiPropertyController {
     }
 
     @PostMapping("/modify/currency")
-    public ResponseEntity<?> modifyCurrency(@RequestBody PropertyListDto propertyListDto, HttpSession session) {
+    public ResponseEntity<?> modifyCurrency(
+            @RequestBody PropertyListDto propertyListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {
@@ -108,7 +113,8 @@ public class ApiPropertyController {
     }
 
     @PostMapping("/modify/crypto")
-    public ResponseEntity<?> modifyCrypto(@RequestBody PropertyListDto propertyListDto, HttpSession session) {
+    public ResponseEntity<?> modifyCrypto(
+            @RequestBody PropertyListDto propertyListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {
@@ -151,6 +157,9 @@ public class ApiPropertyController {
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
             List<PropertyListDto.getAllPropertiesDto> allProperties = propertyService.getUserAllProperties(user, true);
+            if (allProperties == null) {
+                return ResponseEntity.status(445).body("沒有資產");
+            }
             String json = propertyService.writeAllPropertiesToJson(allProperties);
 
             return ResponseEntity.ok().body(json);
@@ -169,12 +178,11 @@ public class ApiPropertyController {
     }
 
     @GetMapping("/getAllNameByPropertyType")
-    public ResponseEntity<?> getAllNameByPropertyType(@RequestParam String type){
+    public ResponseEntity<?> getAllNameByPropertyType(
+            @RequestParam String type) {
         try {
             CacheControl cacheControl = CacheControl.maxAge(1, TimeUnit.HOURS);
-            return ResponseEntity.ok()
-                    .cacheControl(cacheControl)
-                    .body(propertyService.getAllNameByPropertyType(type.trim().toUpperCase()));
+            return ResponseEntity.ok().cacheControl(cacheControl).body(propertyService.getAllNameByPropertyType(type.trim().toUpperCase()));
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }

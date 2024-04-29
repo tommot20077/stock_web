@@ -3,6 +3,7 @@ package xyz.dowob.stockweb.Service.User;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,9 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * @author yuan
+ */
 @Service
 public class TokenService {
     private final UserRepository userRepository;
@@ -37,6 +41,7 @@ public class TokenService {
     private final RetryTemplate retryTemplate;
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
+
     @Autowired
     public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, UserService userService, RetryTemplate retryTemplate) {
         this.userRepository = userRepository;
@@ -73,10 +78,33 @@ public class TokenService {
         }
     }
 
+    public void sendResetPasswordEmail(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("找不到用戶: " + email));
+        if (user.getRole().equals(Role.UNVERIFIED_USER)) {
+            throw new RuntimeException("未驗證信箱用戶，無法重置密碼");
+        }
+        mailTokenProvider.sendResetPasswordEmail(user);
+    }
+
+    public void resetPassword(String email, String token, String newPassword) {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("找不到用戶: " + email));
+        String confirmToken = new String(Base64.getDecoder().decode(user.getToken().getEmailApiToken()), StandardCharsets.UTF_8);
+        if (!confirmToken.equals(token)) {
+            logger.warn(user.getEmail() + " 重置密碼的驗證碼不正確");
+            throw new RuntimeException("驗證碼不正確");
+        }
+        userService.validatePassword(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        logger.info("用戶 " + user.getEmail() + " 重置密碼成功");
+    }
+
 
     public void generateRememberMeToken(HttpServletResponse response, User user) {
         Token userToken = user.getToken();
-        if (userToken.getRememberMeToken() == null || userToken.getRememberMeToken().isBlank() || userToken.getRememberMeTokenExpireTime().isBefore(OffsetDateTime.now(ZoneId.of(user.getTimezone())))) {
+        if (userToken.getRememberMeToken() == null || userToken.getRememberMeToken().isBlank() || userToken.getRememberMeTokenExpireTime()
+                                                                                                           .isBefore(OffsetDateTime.now(
+                                                                                                                   ZoneId.of(user.getTimezone())))) {
             String token = UUID.randomUUID().toString();
             String hashedToken = passwordEncoder.encode(token);
             String base64Token = Base64.getEncoder().encodeToString(hashedToken.getBytes(StandardCharsets.UTF_8));
@@ -110,11 +138,11 @@ public class TokenService {
         return null;
     }
 
-    public void deleteRememberMeCookie(HttpServletResponse response, HttpSession session, Cookie[] cookies){
+    public void deleteRememberMeCookie(HttpServletResponse response, HttpSession session, Cookie[] cookies) {
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if ("REMEMBER_ME".equals(cookie.getName())) {
-                    User user  = userService.getUserById((Long) session.getAttribute("currentUserId"));
+                    User user = userService.getUserById((Long) session.getAttribute("currentUserId"));
                     Token userToken = user.getToken();
                     if (userToken.getRememberMeToken() != null) {
                         userToken.setRememberMeToken(null);
@@ -132,8 +160,8 @@ public class TokenService {
         }
     }
 
-    public String generateJwtToken (User user, HttpServletResponse response) {
-        String jwt = jwtTokenProvider.generateToken(user.getId(),user.getToken().getAndIncrementJwtApiCount());
+    public String generateJwtToken(User user, HttpServletResponse response) {
+        String jwt = jwtTokenProvider.generateToken(user.getId(), user.getToken().getAndIncrementJwtApiCount());
         tokenRepository.save(user.getToken());
         Cookie jwtCookie = new Cookie("JWT", jwt);
         jwtCookie.setPath("/");
@@ -144,7 +172,7 @@ public class TokenService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void removeExpiredTokens () {
+    public void removeExpiredTokens() {
         try {
             retryTemplate.doWithRetry(() -> {
                 logger.info("開始清理過期的token");

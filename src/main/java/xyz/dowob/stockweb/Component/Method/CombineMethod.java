@@ -8,6 +8,10 @@ import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 
 import java.util.List;
+
+/**
+ * @author yuan
+ */
 @Component
 public class CombineMethod {
     private final PropertyRepository propertyRepository;

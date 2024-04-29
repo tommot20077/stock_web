@@ -29,7 +29,7 @@ gulp.task('sass', function () {
 });
 
 // Static Server + watching scss/html files
-gulp.task('serve', gulp.series('sass', function() {
+gulp.task('serve', gulp.series('sass', function () {
 
     browserSync.init({
         port: 3000,
@@ -45,9 +45,8 @@ gulp.task('serve', gulp.series('sass', function() {
 }));
 
 
-
 // Static Server without watching scss files
-gulp.task('serve:lite', function() {
+gulp.task('serve:lite', function () {
 
     browserSync.init({
         server: "./",
@@ -62,7 +61,6 @@ gulp.task('serve:lite', function() {
 });
 
 
-
 gulp.task('sass:watch', function () {
     gulp.watch('./scss/**/*.scss');
 });
@@ -70,96 +68,95 @@ gulp.task('sass:watch', function () {
 
 /* inject partials like sidebar and navbar */
 gulp.task('injectPartial', function () {
-  return gulp.src("./*.html", { base: "./" })
-    .pipe(injectPartials())
-    .pipe(gulp.dest("."));
+    return gulp.src("./*.html", {base: "./"})
+        .pipe(injectPartials())
+        .pipe(gulp.dest("."));
 });
-
 
 
 /* inject Js and CCS assets into HTML */
 gulp.task('injectCommonAssets', function () {
-  return gulp.src('./**/*.html')
-    .pipe(inject(gulp.src([ 
-        './vendors/feather/feather.css',
-        './vendors/mdi/css/materialdesignicons.min.css',
-        './vendors/ti-icons/css/themify-icons.css',
-        './vendors/typicons/typicons.css',
-        './vendors/simple-line-icons/css/simple-line-icons.css',
-        './vendors/css/vendor.bundle.base.css', 
-        './vendors/js/vendor.bundle.base.js',
-    ], {read: false}), {name: 'plugins', relative: true}))
-    .pipe(inject(gulp.src([
-        './css/*.css', 
-        './js/off-canvas.js', 
-        './js/hoverable-collapse.js', 
-        './js/template.js', 
-        './js/settings.js', 
-        './js/todolist.js'
-    ], {read: false}), {relative: true}))
-    .pipe(gulp.dest('.'));
+    return gulp.src('./**/*.html')
+        .pipe(inject(gulp.src([
+            './vendors/feather/feather.css',
+            './vendors/mdi/css/materialdesignicons.min.css',
+            './vendors/ti-icons/css/themify-icons.css',
+            './vendors/typicons/typicons.css',
+            './vendors/simple-line-icons/css/simple-line-icons.css',
+            './vendors/css/vendor.bundle.base.css',
+            './vendors/js/vendor.bundle.base.js',
+        ], {read: false}), {name: 'plugins', relative: true}))
+        .pipe(inject(gulp.src([
+            './css/*.css',
+            './js/off-canvas.js',
+            './js/hoverable-collapse.js',
+            './js/template.js',
+            './js/settings.js',
+            './js/todolist.js'
+        ], {read: false}), {relative: true}))
+        .pipe(gulp.dest('.'));
 });
 
 /* inject Js and CCS assets into HTML */
 gulp.task('injectLayoutStyles', function () {
     var verticalLightStream = gulp.src(['./**/*.html',
-            './'])
+        './'])
         .pipe(inject(gulp.src([
-            './css/vertical-layout-light/style.css', 
+            './css/vertical-layout-light/style.css',
         ], {read: false}), {relative: true}))
         .pipe(gulp.dest('.'));
     return merge(verticalLightStream);
 });
 
 /*replace image path and linking after injection*/
-gulp.task('replacePath', function(){
-    var replacePath2 = gulp.src(['./pages/*.html'], { base: "./" })
+gulp.task('replacePath', function () {
+    var replacePath2 = gulp.src(['./pages/*.html'], {base: "./"})
         .pipe(replace('="images/', '="../images/'))
         .pipe(replace('"pages/', '"../pages/'))
         .pipe(replace('href="index.html"', 'href="/index"'))
         .pipe(gulp.dest('.'));
-    var replacePath3 = gulp.src(['./index.html'], { base: "./" })
+    var replacePath3 = gulp.src(['./index.html'], {base: "./"})
         .pipe(replace('="images/', '="images/'))
         .pipe(gulp.dest('.'));
-    return merge( replacePath2, replacePath3);
+    return merge(replacePath2, replacePath3);
 });
 
 /*sequence for injecting partials and replacing paths*/
-gulp.task('inject', gulp.series('injectPartial' , 'injectCommonAssets' , 'injectLayoutStyles', 'replacePath'));
+gulp.task('inject', gulp.series('injectPartial', 'injectCommonAssets', 'injectLayoutStyles', 'replacePath'));
 
 gulp.task('clean:vendors', function () {
     return del([
-      'vendors/**/*'
+        'vendors/**/*'
     ]);
 });
 
 /*Building vendor scripts needed for basic template rendering*/
-gulp.task('buildBaseVendorScripts', function() {
+gulp.task('buildBaseVendorScripts', function () {
     return gulp.src([
-        './node_modules/jquery/dist/jquery.min.js', 
+        './node_modules/jquery/dist/jquery.min.js',
         // './node_modules/popper.js/dist/umd/popper.min.js', 
-        './node_modules/bootstrap/dist/js/bootstrap.bundle.min.js', 
+        './node_modules/bootstrap/dist/js/bootstrap.bundle.min.js',
         './node_modules/perfect-scrollbar/dist/perfect-scrollbar.min.js'
     ])
-      .pipe(concat('vendor.bundle.base.js'))
-      .pipe(gulp.dest('./vendors/js'));
+        .pipe(concat('vendor.bundle.base.js'))
+        .pipe(gulp.dest('./vendors/js'));
 });
 
 /*Building vendor styles needed for basic template rendering*/
-gulp.task('buildBaseVendorStyles', function() {
+gulp.task('buildBaseVendorStyles', function () {
     return gulp.src(['./node_modules/perfect-scrollbar/css/perfect-scrollbar.css'])
-      .pipe(concat('vendor.bundle.base.css'))
-      .pipe(gulp.dest('./vendors/css'));
+        .pipe(concat('vendor.bundle.base.css'))
+        .pipe(gulp.dest('./vendors/css'));
 });
 
 /*Scripts for addons*/
-gulp.task('copyAddonsScripts', function() {
+gulp.task('copyAddonsScripts', function () {
     var aScript1 = gulp.src(['node_modules/chart.js/dist/chart.min.js'])
         .pipe(gulp.dest('./vendors/chart.js'));
     var aScript2 = gulp.src(['node_modules/jquery-bar-rating/dist/jquery.barrating.min.js'])
         .pipe(gulp.dest('./vendors/jquery-bar-rating'));
     var aScript3 = gulp.src(['node_modules/jquery-sparkline/jquery.sparkline.min.js'])
-        .pipe(gulp.dest('./vendors/jquery-sparkline')); 
+        .pipe(gulp.dest('./vendors/jquery-sparkline'));
     var aScript4 = gulp.src(['node_modules/progressbar.js/dist/progressbar.min.js'])
         .pipe(gulp.dest('./vendors/progressbar.js'));
     var aScript5 = gulp.src(['node_modules/moment/moment.js'])
@@ -237,17 +234,17 @@ gulp.task('copyAddonsScripts', function() {
     var aScript67 = gulp.src(['node_modules/jquery.avgrund/jquery.avgrund.min.js'])
         .pipe(gulp.dest('./vendors/jquery.avgrund'));
     var aScript68 = gulp.src(['node_modules/nouislider/distribute/nouislider.min.js'])
-        .pipe(gulp.dest('./vendors/nouislider')); 
+        .pipe(gulp.dest('./vendors/nouislider'));
     var aScript69 = gulp.src(['node_modules/ion-rangeslider/js/ion.rangeSlider.min.js'])
         .pipe(gulp.dest('./vendors/ion-rangeslider/js'));
     var aScript70 = gulp.src(['./node_modules/tinymce/**/*'])
         .pipe(gulp.dest('./vendors/tinymce'));
-    return merge(aScript1, aScript2, aScript3, aScript4, aScript5, aScript16, aScript18, aScript19, aScript20, aScript21, aScript22, aScript23, aScript24, aScript25, aScript26  , aScript27, aScript28, aScript29, aScript30, aScript31, aScript32, aScript33, aScript34, aScript35, aScript36, aScript37, aScript38, aScript39, aScript40, aScript41, aScript42, aScript43, aScript44, aScript45, aScript46, aScript60, aScript61, aScript64, aScript65, aScript66, aScript67, aScript68, aScript69, aScript70);
+    return merge(aScript1, aScript2, aScript3, aScript4, aScript5, aScript16, aScript18, aScript19, aScript20, aScript21, aScript22, aScript23, aScript24, aScript25, aScript26, aScript27, aScript28, aScript29, aScript30, aScript31, aScript32, aScript33, aScript34, aScript35, aScript36, aScript37, aScript38, aScript39, aScript40, aScript41, aScript42, aScript43, aScript44, aScript45, aScript46, aScript60, aScript61, aScript64, aScript65, aScript66, aScript67, aScript68, aScript69, aScript70);
 });
 
 
 /*Styles for addons*/
-gulp.task('copyAddonsStyles', function() {
+gulp.task('copyAddonsStyles', function () {
     var aStyle1 = gulp.src(['./node_modules/@mdi/font/css/materialdesignicons.min.css'])
         .pipe(gulp.dest('./vendors/mdi/css'));
     var aStyle2 = gulp.src(['./node_modules/@mdi/font/fonts/*'])
@@ -267,7 +264,7 @@ gulp.task('copyAddonsStyles', function() {
     var aStyle9 = gulp.src(['./node_modules/ti-icons/css/themify-icons.css'])
         .pipe(gulp.dest('./vendors/ti-icons/css'));
     var aStyle10 = gulp.src(['./node_modules/ti-icons/fonts/*'])
-        .pipe(gulp.dest('./vendors/ti-icons/fonts'));  
+        .pipe(gulp.dest('./vendors/ti-icons/fonts'));
     var aStyle15 = gulp.src(['node_modules/jquery-tags-input/dist/jquery.tagsinput.min.css'])
         .pipe(gulp.dest('./vendors/jquery-tags-input'));
     var aStyle16 = gulp.src(['node_modules/jquery-bar-rating/dist/themes/fontawesome-stars.css'])
@@ -307,7 +304,7 @@ gulp.task('copyAddonsStyles', function() {
     var aStyle33 = gulp.src(['node_modules/x-editable/dist/bootstrap3-editable/css/bootstrap-editable.css'])
         .pipe(gulp.dest('./vendors/x-editable'));
     var aStyle34 = gulp.src(['node_modules/select2/dist/css/select2.min.css'])
-        .pipe(gulp.dest('./vendors/select2')); 
+        .pipe(gulp.dest('./vendors/select2'));
     var aStyle35 = gulp.src(['node_modules/select2-bootstrap-theme/dist/select2-bootstrap.min.css'])
         .pipe(gulp.dest('./vendors/select2-bootstrap-theme'));
     var aStyle36 = gulp.src(['node_modules/codemirror/lib/codemirror.css'])
@@ -337,12 +334,12 @@ gulp.task('copyAddonsStyles', function() {
     var aStyle57 = gulp.src(['./node_modules/puse-icons-feather/fonts/*'])
         .pipe(gulp.dest('./vendors/feather/fonts'));
     var aStyle58 = gulp.src(['node_modules/typicons.font/src/font/*'])
-    .pipe(gulp.dest('./vendors/typicons'));
-    return merge(aStyle1, aStyle2, aStyle3, aStyle4, aStyle5, aStyle6, aStyle7, aStyle8, aStyle9, aStyle10, aStyle15, aStyle16, aStyle17, aStyle18, aStyle19, aStyle20, aStyle21, aStyle22, aStyle23, aStyle24, aStyle25, aStyle26, aStyle27, aStyle28, aStyle29, aStyle30, aStyle31, aStyle32, aStyle33, aStyle34, aStyle35, aStyle36, aStyle37, aStyle38, aStyle39, aStyle40, aStyle49, aStyle50, aStyle51, aStyle52, aStyle53, aStyle54, aStyle56, aStyle57,aStyle58);
+        .pipe(gulp.dest('./vendors/typicons'));
+    return merge(aStyle1, aStyle2, aStyle3, aStyle4, aStyle5, aStyle6, aStyle7, aStyle8, aStyle9, aStyle10, aStyle15, aStyle16, aStyle17, aStyle18, aStyle19, aStyle20, aStyle21, aStyle22, aStyle23, aStyle24, aStyle25, aStyle26, aStyle27, aStyle28, aStyle29, aStyle30, aStyle31, aStyle32, aStyle33, aStyle34, aStyle35, aStyle36, aStyle37, aStyle38, aStyle39, aStyle40, aStyle49, aStyle50, aStyle51, aStyle52, aStyle53, aStyle54, aStyle56, aStyle57, aStyle58);
 });
 
 //Copy essential map files
-gulp.task('copyMapFiles', function() {
+gulp.task('copyMapFiles', function () {
     var map1 = gulp.src('node_modules/bootstrap/dist/js/bootstrap.min.js.map')
         .pipe(gulp.dest('./vendors/js'));
     var map2 = gulp.src('node_modules/@mdi/font/css/materialdesignicons.min.css.map')
@@ -371,6 +368,6 @@ gulp.task('copyMapFiles', function() {
 });
 
 /*sequence for building vendor scripts and styles*/
-gulp.task('bundleVendors', gulp.series('clean:vendors', 'buildBaseVendorStyles','buildBaseVendorScripts', 'copyAddonsStyles', 'copyAddonsScripts', 'copyMapFiles'));
+gulp.task('bundleVendors', gulp.series('clean:vendors', 'buildBaseVendorStyles', 'buildBaseVendorScripts', 'copyAddonsStyles', 'copyAddonsScripts', 'copyMapFiles'));
 
 gulp.task('default', gulp.series('serve'));

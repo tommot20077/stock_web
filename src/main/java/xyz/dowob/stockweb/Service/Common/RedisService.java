@@ -13,10 +13,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author yuan
+ */
 @Service
 public class RedisService {
     private final RedisTemplate<String, String> redisTemplate;
     Logger logger = LoggerFactory.getLogger(RedisService.class);
+
     @Autowired
     public RedisService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -33,8 +37,9 @@ public class RedisService {
 
     /**
      * 使用新数据完全替换列表
-     * @param key 列表的键
-     * @param values 新的数据值
+     *
+     * @param key            列表的键
+     * @param values         新的数据值
      * @param expirationTime 过期时间，以小時为单位
      */
     public void saveListToCache(String key, List<String> values, long expirationTime) {
@@ -44,11 +49,13 @@ public class RedisService {
             redisTemplate.expire(key, expirationTime, TimeUnit.HOURS);
         }
     }
+
     /**
      * 將批次資料增量插入到缓存列表中。
-     * @param key             缓存的key值
-     * @param value           要插入的資料，應為JSON格式的字符串
-     * @param expirationTime  缓存過期時間（單位：小时）
+     *
+     * @param key            缓存的key值
+     * @param value          要插入的資料，應為JSON格式的字符串
+     * @param expirationTime 缓存過期時間（單位：小时）
      */
     public void rPushToCacheList(String key, String value, long expirationTime) {
         redisTemplate.opsForList().rightPush(key, value);
@@ -59,12 +66,13 @@ public class RedisService {
     public String getCacheValueFromKey(String key) {
         return redisTemplate.opsForValue().get(key);
     }
+
     public List<String> getCacheListValueFromKey(String key) {
         try {
             return redisTemplate.opsForList().range(key, 0, -1);
         } catch (Exception e) {
-            logger.error("讀取redis時發生錯誤: "+ e.getMessage());
-            throw new RuntimeException("讀取redis時發生錯誤"+ e.getMessage());
+            logger.error("讀取redis時發生錯誤: " + e.getMessage());
+            throw new RuntimeException("讀取redis時發生錯誤" + e.getMessage());
         }
     }
 
@@ -94,8 +102,8 @@ public class RedisService {
                 redisTemplate.delete(keysToDelete);
             }
         } catch (Exception e) {
-            logger.error("刪除redis時發生錯誤: "+ e.getMessage());
-            throw new RuntimeException("刪除redis時發生錯誤: "+ e.getMessage());
+            logger.error("刪除redis時發生錯誤: " + e.getMessage());
+            throw new RuntimeException("刪除redis時發生錯誤: " + e.getMessage());
         }
 
 

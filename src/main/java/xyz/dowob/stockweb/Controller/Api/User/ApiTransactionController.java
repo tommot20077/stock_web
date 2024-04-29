@@ -13,14 +13,19 @@ import xyz.dowob.stockweb.Dto.Property.TransactionListDto;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.User.TransactionService;
 import xyz.dowob.stockweb.Service.User.UserService;
+
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * @author yuan
+ */
 @Controller
 @RequestMapping("/api/user/transaction")
 public class ApiTransactionController {
     private final TransactionService transactionService;
     private final UserService userService;
+
     @Autowired
     public ApiTransactionController(TransactionService transactionService, UserService userService) {
         this.transactionService = transactionService;
@@ -29,7 +34,8 @@ public class ApiTransactionController {
     }
 
     @PostMapping("/operation")
-    public ResponseEntity<?> operation(@RequestBody TransactionListDto transactionListDto, HttpSession session) {
+    public ResponseEntity<?> operation(
+            @RequestBody TransactionListDto transactionListDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {
@@ -38,9 +44,10 @@ public class ApiTransactionController {
             Map<String, String> failureModify = new HashMap<>();
             for (TransactionListDto.TransactionDto transaction : transactionListDto.getTransactionList()) {
                 try {
-                transactionService.operation(user, transaction);
+                    transactionService.operation(user, transaction);
                 } catch (Exception e) {
-                    failureModify.put(transaction.getSymbol(), e.getMessage());}
+                    failureModify.put(transaction.getSymbol(), e.getMessage());
+                }
             }
             if (failureModify.isEmpty()) {
                 return ResponseEntity.ok().body("紀錄交易成功");

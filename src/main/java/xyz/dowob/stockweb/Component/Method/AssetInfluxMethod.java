@@ -19,15 +19,22 @@ import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 
 import java.math.BigDecimal;
-import java.time.*;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author yuan
+ */
 @Component
 public class AssetInfluxMethod {
     private final InfluxDBClient stockTwInfluxClient;
@@ -36,6 +43,7 @@ public class AssetInfluxMethod {
     private final InfluxDBClient stockTwHistoryInfluxClient;
     private final InfluxDBClient cryptoHistoryInfluxClient;
     private final InfluxDBClient propertySummaryInfluxClient;
+    private final CurrencyRepository currencyRepository;
     private final RetryTemplate retryTemplate;
 
 
@@ -72,15 +80,14 @@ public class AssetInfluxMethod {
             @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
             @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient,
             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient,
-            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient,
-            RetryTemplate retryTemplate
-    ) {
+            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
         this.stockTwHistoryInfluxClient = stockTwHistoryInfluxClient;
         this.cryptoHistoryInfluxClient = cryptoHistoryInfluxClient;
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
+        this.currencyRepository = currencyRepository;
         this.retryTemplate = retryTemplate;
     }
 
@@ -126,7 +133,12 @@ public class AssetInfluxMethod {
                 String field = (String) bucketAndClient[3];
                 String assetType = (String) bucketAndClient[4];
                 String symbol = (String) bucketAndClient[5];
-                String query = String.format("from(bucket: \"%s\") " + " |> range(start: -7d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" + " |> last()", bucket, measurement, field, assetType, symbol);
+                String query = String.format("from(bucket: \"%s\") " + " |> range(start: -7d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" + " |> last()",
+                                             bucket,
+                                             measurement,
+                                             field,
+                                             assetType,
+                                             symbol);
                 logger.debug("取得價格的查詢條件: " + query);
                 ref.tables = client.getQueryApi().query(query, org);
             });
@@ -143,6 +155,9 @@ public class AssetInfluxMethod {
         logger.debug("取得最新價格" + asset);
         List<FluxTable> tables = queryLatestPrice(asset, false);
         logger.debug("取得最新價格結果: " + tables);
+
+        Currency twd = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到 TWD"));
+
         if (tables.isEmpty() || tables.getFirst().getRecords().isEmpty()) {
             if (asset.getAssetType() == AssetType.CURRENCY) {
                 logger.debug("可能貨幣資料對更新時間太久，改以從MySQL取得: " + asset);
@@ -163,7 +178,11 @@ public class AssetInfluxMethod {
                 FluxRecord historyRecord = historyTables.getFirst().getRecords().getFirst();
                 Object historyValue = historyRecord.getValueByKey("_value");
                 if (historyValue instanceof Number) {
-                    return BigDecimal.valueOf(((Number) historyValue).doubleValue());
+                    if (asset instanceof StockTw) {
+                        return BigDecimal.valueOf(((Number) historyValue).doubleValue()).divide(twd.getExchangeRate(), 3, RoundingMode.HALF_UP);
+                    } else {
+                        return BigDecimal.valueOf(((Number) historyValue).doubleValue());
+                    }
                 } else {
                     logger.debug("取得最新歷史價格失敗 + " + asset);
                     return BigDecimal.valueOf(-1);
@@ -218,9 +237,11 @@ public class AssetInfluxMethod {
             start = timeStamp;
         } else {
             if (asset.getAssetType() == AssetType.CRYPTO) {
-                start = LocalDateTime.from(LocalDate.parse(cryptoHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay()).format(outFormatter);
+                start = LocalDateTime.from(LocalDate.parse(cryptoHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay())
+                                     .format(outFormatter);
             } else if (asset.getAssetType() == AssetType.STOCK_TW) {
-                start = LocalDateTime.from(LocalDate.parse(stockHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay()).format(outFormatter);
+                start = LocalDateTime.from(LocalDate.parse(stockHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay())
+                                     .format(outFormatter);
             } else {
                 start = "1970-01-01T00:00:00.000Z";
             }
@@ -234,7 +255,12 @@ public class AssetInfluxMethod {
                 String measurement = (String) bucketAndClient[2];
                 String assetType = (String) bucketAndClient[4];
                 String symbol = (String) bucketAndClient[5];
-                String query = String.format("from(bucket: \"%s\") " + " |> range(start: %s, stop: now())" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")", bucket, start, measurement, assetType, symbol);
+                String query = String.format("from(bucket: \"%s\") " + " |> range(start: %s, stop: now())" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")",
+                                             bucket,
+                                             start,
+                                             measurement,
+                                             assetType,
+                                             symbol);
                 logger.debug("取得價格的查詢條件: " + query);
                 ref.tables = client.getQueryApi().query(query, org);
             });
@@ -261,10 +287,11 @@ public class AssetInfluxMethod {
             String formattedStart = influxDateFormat.format(rangeStart);
             String formattedEnd = influxDateFormat.format(rangeEnd);
 
-            StringBuilder baseQuery = new StringBuilder(String.format(
-                    "from(bucket: \"%s\")" + " |> range(start: %s, stop: %s)" +
-                            " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")",
-                    propertySummaryBucket, formattedStart, formattedEnd, measurement));
+            StringBuilder baseQuery = new StringBuilder(String.format("from(bucket: \"%s\")" + " |> range(start: %s, stop: %s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")",
+                                                                      propertySummaryBucket,
+                                                                      formattedStart,
+                                                                      formattedEnd,
+                                                                      measurement));
             if (isLast) {
                 baseQuery.append(" |> last()");
             }
@@ -275,14 +302,15 @@ public class AssetInfluxMethod {
 
 
             if (needToFillData) {
-                baseQuery.append(
-                        " |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
+                baseQuery.append(" |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
             }
             if (!filters.isEmpty()) {
                 for (Map.Entry<String, String> additionalFilters : filters.entrySet()) {
                     String additionFilterKey = additionalFilters.getKey();
                     String additionFilterValue = additionalFilters.getValue();
-                    String additionalQuery = String.format("  |> filter(fn: (r) => r[\"%s\"] == \"%s\")", additionFilterKey, additionFilterValue);
+                    String additionalQuery = String.format("  |> filter(fn: (r) => r[\"%s\"] == \"%s\")",
+                                                           additionFilterKey,
+                                                           additionFilterValue);
                     baseQuery.append(additionalQuery);
                 }
             }
@@ -295,16 +323,14 @@ public class AssetInfluxMethod {
 
     public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
         Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
-        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(
-                bucket,
-                measurement,
-                filters,
-                user,
-                specificTimes,
-                allowRangeOfHour,
-                isLast,
-                needToFillData
-        );
+        Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket,
+                                                                                              measurement,
+                                                                                              filters,
+                                                                                              user,
+                                                                                              specificTimes,
+                                                                                              allowRangeOfHour,
+                                                                                              isLast,
+                                                                                              needToFillData);
 
         for (Map.Entry<LocalDateTime, String> entry : predicate.entrySet()) {
             LocalDateTime specificTime = entry.getKey();

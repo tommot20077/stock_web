@@ -19,10 +19,12 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
-import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
 
 import java.util.Set;
 
+/**
+ * @author yuan
+ */
 @Component
 public class SubscribeMethod {
     Logger logger = LoggerFactory.getLogger(SubscribeMethod.class);
@@ -30,6 +32,7 @@ public class SubscribeMethod {
     private final StockTwRepository stockTwRepository;
     private final CryptoRepository cryptoRepository;
     private final ApplicationEventPublisher eventPublisher;
+
     @Autowired
     public SubscribeMethod(SubscribeRepository subscribeRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher) {
         this.subscribeRepository = subscribeRepository;
@@ -37,16 +40,21 @@ public class SubscribeMethod {
         this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
     }
+
     @Transactional(rollbackFor = Exception.class)
     public void subscribeProperty(Property property, User user) {
         logger.debug("訂閱資產ID: " + property.getId());
         Subscribe subscribe;
         if (property.getAsset().getAssetType() == AssetType.CURRENCY) {
             logger.debug("訂閱貨幣匯率");
-            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), property.getAsset().getId(), user.getPreferredCurrency().getCurrency()).orElse(null);
+            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                             property.getAsset().getId(),
+                                                                             user.getPreferredCurrency().getCurrency()).orElse(null);
             if (subscribe == null) {
                 Currency currency = (Currency) property.getAsset();
-                subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), user.getPreferredCurrency().getId(), currency.getCurrency()).orElse(null);
+                subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                                 user.getPreferredCurrency().getId(),
+                                                                                 currency.getCurrency()).orElse(null);
             }
         } else {
             logger.debug("訂閱其他匯率");
@@ -107,10 +115,14 @@ public class SubscribeMethod {
         Subscribe subscribe;
         if (property.getAsset().getAssetType() == AssetType.CURRENCY) {
             logger.debug("取消訂閱貨幣匯率");
-            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), property.getAsset().getId(), user.getPreferredCurrency().getCurrency()).orElse(null);
+            subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                             property.getAsset().getId(),
+                                                                             user.getPreferredCurrency().getCurrency()).orElse(null);
             if (subscribe == null) {
                 Currency currency = (Currency) property.getAsset();
-                subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), user.getPreferredCurrency().getId(), currency.getCurrency()).orElse(null);
+                subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                                 user.getPreferredCurrency().getId(),
+                                                                                 currency.getCurrency()).orElse(null);
             }
         } else {
             logger.debug("取消訂閱其他匯率");
@@ -138,8 +150,6 @@ public class SubscribeMethod {
             logger.debug("用戶沒有此資產訂閱");
         }
     }
-
-
 
 
     private void addSubscriberToStockTw(StockTw stockTw, Long userId) {

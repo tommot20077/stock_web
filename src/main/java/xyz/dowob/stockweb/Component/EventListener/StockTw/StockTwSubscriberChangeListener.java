@@ -7,21 +7,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
-import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Component.Event.StockTw.StockTwSubscriberChangeEvent;
+import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 
-
+/**
+ * @author yuan
+ */
 @Component
 public class StockTwSubscriberChangeListener implements ApplicationListener<StockTwSubscriberChangeEvent> {
     Logger logger = LoggerFactory.getLogger(StockTwSubscriberChangeListener.class);
     private final CrontabMethod crontabMethod;
+
     @Autowired
     public StockTwSubscriberChangeListener(CrontabMethod crontabMethod) {
         this.crontabMethod = crontabMethod;
     }
 
     @Override
-    public void onApplicationEvent(@NotNull StockTwSubscriberChangeEvent event) {
+    public void onApplicationEvent(
+            @NotNull StockTwSubscriberChangeEvent event) {
         logger.info("收到股票訂閱變更");
         try {
             crontabMethod.checkSubscriptions();
@@ -31,5 +35,4 @@ public class StockTwSubscriberChangeListener implements ApplicationListener<Stoc
             throw new RuntimeException(e);
         }
     }
-
 }

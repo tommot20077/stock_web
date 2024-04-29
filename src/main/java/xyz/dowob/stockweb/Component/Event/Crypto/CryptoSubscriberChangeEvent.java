@@ -4,10 +4,11 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 
-
+/**
+ * @author yuan
+ */
 @Getter
 public class CryptoSubscriberChangeEvent extends ApplicationEvent {
-
     private final CryptoTradingPair cryptoTradingPair;
 
     public CryptoSubscriberChangeEvent(Object source, CryptoTradingPair cryptoTradingPair) {

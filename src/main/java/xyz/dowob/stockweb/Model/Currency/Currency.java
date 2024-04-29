@@ -12,6 +12,9 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * @author yuan
+ */
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Data
@@ -26,5 +29,4 @@ public class Currency extends Asset implements Serializable {
 
     @Column(name = "update_time")
     private LocalDateTime updateTime;
-
 }

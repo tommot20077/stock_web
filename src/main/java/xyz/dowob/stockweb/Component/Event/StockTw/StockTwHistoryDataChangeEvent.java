@@ -4,6 +4,9 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 
+/**
+ * @author yuan
+ */
 @Getter
 public class StockTwHistoryDataChangeEvent extends ApplicationEvent {
     private final String addOrRemove;

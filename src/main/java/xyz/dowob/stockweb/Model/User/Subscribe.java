@@ -8,6 +8,9 @@ import xyz.dowob.stockweb.Model.Common.Asset;
 
 import java.io.Serializable;
 
+/**
+ * @author yuan
+ */
 @Entity
 @Data
 @Table(name = "user_subscribe")
@@ -17,17 +20,11 @@ public class Subscribe implements Serializable {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JoinColumn(name = "user_id") @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "asset_id")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JoinColumn(name = "asset_id") @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private Asset asset;
 
     @Column(name = "is_user_subscribed", nullable = false, columnDefinition = "boolean default false")

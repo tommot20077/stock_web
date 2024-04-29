@@ -1,10 +1,10 @@
 async function displayPropertyTable() {
     let data = await fetchUserAllProperties();
-    if(data && Array.isArray(data)){
+    if (data && Array.isArray(data)) {
         let tableBody = document.getElementById("propertyTableBody");
         tableBody.innerHTML = "";
-
         data.forEach(function (item) {
+            let numTotal = +item.currentTotalPrice;
             let row = `
             <tr>
                 <td>${item.propertyId}</td>
@@ -12,7 +12,7 @@ async function displayPropertyTable() {
                 <td><a href="/asset_info/${item.assetId}">${item.assetName}</a></td>
                 <td>${item.quantity}</td>
                 <td style="text-align: right">${item.currentPrice}</td>
-                <td style="text-align: right">${item.currentTotalPrice}</td>
+                <td style="text-align: right">${numTotal.toFixed(3).replace(/\.?0+$/, "")}</td>
                 <td>${item.description}</td>
                 <td><a href="#" style="color: blue" onclick="displayEditProperty(this)">編輯</a>&nbsp&nbsp&nbsp<a id="deleteButton" data-property-type="${item.assetType}" data-property-id="${item.propertyId}" href="#" style="color: red" onclick="deleteProperty(this, this)">刪除</a></td>
             </tr>`;
@@ -25,15 +25,14 @@ async function displayPropertyTable() {
 
 async function displaySubscribeTable() {
     let data = await getUserAllSubscribes();
-    if(data && Array.isArray(data)){
+    if (data && Array.isArray(data)) {
         let tableBody = document.getElementById("subscribeTableBody");
         tableBody.innerHTML = "";
         data.forEach(function (item) {
-            if (item.removeAble === true) {
-                item.removeAble = '可以取消訂閱';
-            } else if (item.removeAble === false) {
-                item.removeAble = '此為用戶資產，由伺服器訂閱';
-            }
+            let removeAbleText = item.removeAble ? '可以取消訂閱' : '此為用戶資產，由伺服器管理訂閱，不可取消';
+            let deleteButton = item.removeAble ?
+                `<a class="deleteButton" data-subscribe-name="${item.subscribeName}" data-subscribe-type="${item.assetType}" href="#" style="color: red" onclick="deleteSubscription(this)">刪除</a>` :
+                `<span style="color: grey; cursor: not-allowed;">不可刪除</span>`;
 
 
             let row = `
@@ -41,14 +40,13 @@ async function displaySubscribeTable() {
                 <td>${item.assetId}</td>
                 <td>${getAssetType(item.assetType)}</td>
                 <td>${item.subscribeName}</td>
-                <td>${item.removeAble}</td>
-                <td><a id="deleteButton" data-subscribe-name="${item.subscribeName}" data-subscribe-type="${item.assetType}" href="#" style="color: red" onclick="deleteSubscription(this, this)">刪除</a></td>
+                <td>${removeAbleText}</td>
+                <td>${deleteButton}</td>
             </tr>`;
             tableBody.innerHTML += row;
         })
     }
 }
-
 
 
 function displayEditProperty(editButton) {
@@ -95,7 +93,7 @@ function displayProfileForm() {
 
 async function displayTransactionTable() {
     let data = await getUserAllTransactions();
-    if(data && Array.isArray(data)){
+    if (data && Array.isArray(data)) {
         let tableBody = document.getElementById("TransactionTableBody");
         tableBody.innerHTML = "";
         data.forEach(function (item) {
@@ -118,7 +116,7 @@ async function displayTransactionTable() {
     }
 }
 
-async function displayStatisticsOverview () {
+async function displayStatisticsOverview() {
     let tableBody = document.getElementById('statistics_overview');
     try {
         const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
@@ -138,15 +136,16 @@ async function displayStatisticsOverview () {
                 <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
             </div>
             ` +
-            generateStatisticsTable("日收益",(parseFloat(propertyOverviewData.day) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.day) +
-            generateStatisticsTable("周收益",(parseFloat(propertyOverviewData.week) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.week) +
-            generateStatisticsTable("月收益",(parseFloat(propertyOverviewData.month) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.month) +
-            generateStatisticsTable("年收益",(parseFloat(propertyOverviewData.year) * latestTotalSumFloat / 100).toFixed(3) , propertyOverviewData.year);
+            generateStatisticsTable("日收益", (parseFloat(propertyOverviewData.day) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.day) +
+            generateStatisticsTable("周收益", (parseFloat(propertyOverviewData.week) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.week) +
+            generateStatisticsTable("月收益", (parseFloat(propertyOverviewData.month) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.month) +
+            generateStatisticsTable("年收益", (parseFloat(propertyOverviewData.year) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.year);
 
     } catch (error) {
         console.error(error);
     }
 }
+
 async function displayNewsTable(pageNumber, category, asset) {
     let tableBody = document.getElementById("newsTableBody");
     let newsData = await fetchIndexNewsData(pageNumber, category, asset);
@@ -190,7 +189,7 @@ async function updateNewsTable(prevPageButton, nextPageButton, currentPageElemen
     currentPageElement.textContent = currentPage;
     let isLastPage = await displayNewsTable(currentPage, category, asset);
 
-    nextPageButton.classList.toggle('disabled',isLastPage);
+    nextPageButton.classList.toggle('disabled', isLastPage);
     nextPageButton.style.display = isLastPage ? 'none' : '';
     nextPageButton.href = `#newsTableBody`;
     prevPageButton.classList.toggle('disabled', currentPage <= 1);
@@ -213,7 +212,7 @@ async function updateNewsTable(prevPageButton, nextPageButton, currentPageElemen
 
 
 function createNewsHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
-    return function(e) {
+    return function (e) {
         e.preventDefault();
         updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
         scrollToElement('newsTableBody');
@@ -221,16 +220,17 @@ function createNewsHandlePrev(newPage, prevPageButton, nextPageButton, currentPa
 }
 
 function createNewsHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
-    return function(e) {
+    return function (e) {
         e.preventDefault();
         updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
         scrollToElement('newsTableBody');
     };
 }
+
 function scrollToElement(elementId) {
     const element = document.getElementById(elementId);
     if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        element.scrollIntoView({behavior: 'smooth', block: 'start'});
     }
 }
 
@@ -288,7 +288,7 @@ async function updateAssetsList(prevPageButton, nextPageButton, currentPageEleme
 }
 
 function createAssetListHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
-    return function(e) {
+    return function (e) {
         e.preventDefault();
         updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
         scrollToElement('newsTableBody');
@@ -296,7 +296,7 @@ function createAssetListHandlePrev(newPage, prevPageButton, nextPageButton, curr
 }
 
 function createAssetListHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
-    return function(e) {
+    return function (e) {
         e.preventDefault();
         updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
         scrollToElement('newsTableBody');

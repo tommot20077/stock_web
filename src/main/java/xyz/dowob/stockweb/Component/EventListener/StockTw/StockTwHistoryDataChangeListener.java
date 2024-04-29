@@ -12,24 +12,29 @@ import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Service.Common.ProgressTracker;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 
+/**
+ * @author yuan
+ */
 @Component
 public class StockTwHistoryDataChangeListener implements ApplicationListener<StockTwHistoryDataChangeEvent> {
     Logger logger = LoggerFactory.getLogger(StockTwHistoryDataChangeListener.class);
     private final StockTwService stockTwService;
     private final ProgressTracker progressTracker;
     private final RetryTemplate retryTemplate;
+
     @Autowired
-    public StockTwHistoryDataChangeListener(StockTwService stockTwService, ProgressTracker progressTracker, RetryTemplate retryTemplate) {this.stockTwService = stockTwService;
+    public StockTwHistoryDataChangeListener(StockTwService stockTwService, ProgressTracker progressTracker, RetryTemplate retryTemplate) {
+        this.stockTwService = stockTwService;
         this.progressTracker = progressTracker;
         this.retryTemplate = retryTemplate;
     }
 
     @Override
-    public void onApplicationEvent(@NotNull StockTwHistoryDataChangeEvent event) {
+    public void onApplicationEvent(
+            @NotNull StockTwHistoryDataChangeEvent event) {
         logger.info("收到股票歷史資料變更事件");
         if ("add".equals(event.getAddOrRemove())) {
-            if (progressTracker.getAllProgressInfo().stream().anyMatch(
-                    x -> x.getTaskName().equals(event.getStockTw().getStockCode()))) {
+            if (progressTracker.getAllProgressInfo().stream().anyMatch(x -> x.getTaskName().equals(event.getStockTw().getStockCode()))) {
                 logger.debug("該股票已經在執行中，不處理");
                 return;
             }
@@ -50,5 +55,4 @@ public class StockTwHistoryDataChangeListener implements ApplicationListener<Sto
             logger.warn("未知動作，不處理");
         }
     }
-
 }

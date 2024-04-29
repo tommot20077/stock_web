@@ -4,6 +4,9 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 import xyz.dowob.stockweb.Model.Common.Asset;
 
+/**
+ * @author yuan
+ */
 @Getter
 public class AssetHistoryDataFetchCompleteEvent extends ApplicationEvent {
     private final Boolean success;

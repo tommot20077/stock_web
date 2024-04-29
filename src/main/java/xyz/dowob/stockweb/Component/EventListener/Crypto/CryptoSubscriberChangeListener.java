@@ -9,18 +9,22 @@ import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Event.Crypto.CryptoSubscriberChangeEvent;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 
-
+/**
+ * @author yuan
+ */
 @Component
-public class CryptoSubscriberChangeListener
-        implements ApplicationListener<CryptoSubscriberChangeEvent> {
+public class CryptoSubscriberChangeListener implements ApplicationListener<CryptoSubscriberChangeEvent> {
     Logger logger = LoggerFactory.getLogger(CryptoSubscriberChangeListener.class);
     private final CryptoService cryptoService;
+
     @Autowired
     public CryptoSubscriberChangeListener(CryptoService cryptoService) {
-        this.cryptoService = cryptoService;}
+        this.cryptoService = cryptoService;
+    }
 
     @Override
-    public void onApplicationEvent(@NotNull CryptoSubscriberChangeEvent event) {
+    public void onApplicationEvent(
+            @NotNull CryptoSubscriberChangeEvent event) {
         logger.info("收到虛擬貨幣訂閱變更");
         if (cryptoService.isConnectionOpen()) {
             logger.info("重新訂閱虛擬貨幣，關閉現有連線");

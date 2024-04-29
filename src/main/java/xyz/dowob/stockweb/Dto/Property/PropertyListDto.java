@@ -5,10 +5,14 @@ import lombok.Data;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Model.User.Property;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PropertyListDto {
@@ -64,6 +68,7 @@ public class PropertyListDto {
         private BigDecimal currentPrice;
         private BigDecimal currentTotalPrice;
         private String description;
+
         public getAllPropertiesDto(Property property, BigDecimal currentPrice, BigDecimal currentTotalPrice) {
             this.userId = property.getId();
             this.preferredCurrency = property.getUser().getPreferredCurrency().getCurrency();
@@ -89,7 +94,7 @@ public class PropertyListDto {
         private BigDecimal currentPrice;
         private BigDecimal currentTotalPrice;
 
-        public writeToInfluxPropertyDto(Long userId, Long assetId, AssetType assetType, Long timeMillis, BigDecimal currentPrice,BigDecimal quantity, BigDecimal currentTotalPrice) {
+        public writeToInfluxPropertyDto(Long userId, Long assetId, AssetType assetType, Long timeMillis, BigDecimal currentPrice, BigDecimal quantity, BigDecimal currentTotalPrice) {
             this.userId = userId;
             this.assetId = assetId;
             this.assetType = assetType;

@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * @author yuan
+ */
 public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long> {
     Optional<CryptoTradingPair> findByTradingPair(String tradingPair);
 
@@ -38,17 +41,15 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
 
 
     @Query("SELECT COUNT(sub) FROM CryptoTradingPair c join c.subscribers sub WHERE c = :cryptoTradingPair")
-    int countCryptoSubscribersNumber(@Param("cryptoTradingPair") CryptoTradingPair cryptoTradingPair);
+    int countCryptoSubscribersNumber(
+            @Param("cryptoTradingPair") CryptoTradingPair cryptoTradingPair);
 
     @Query("SELECT DISTINCT c.tradingPair FROM CryptoTradingPair c JOIN c.subscribers subscriber")
     Set<String> findAllTradingPairBySubscribers();
 
 
-
-
-
-
     Logger logger = LoggerFactory.getLogger(CryptoRepository.class);
+
     @Transactional
     default void addAndCheckSubscriber(CryptoTradingPair cryptoTradingPair, Long userId, ApplicationEventPublisher eventPublisher) {
         boolean trackHistoryData = false;
@@ -81,7 +82,7 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
 
     @Transactional
     default void removeAndCheckSubscriber(CryptoTradingPair cryptoTradingPair, Long userId, ApplicationEventPublisher eventPublisher) {
-        if (countCryptoSubscribersNumber(cryptoTradingPair) <= 1 ) {
+        if (countCryptoSubscribersNumber(cryptoTradingPair) <= 1) {
             cryptoTradingPair.setHasAnySubscribed(false);
         }
 

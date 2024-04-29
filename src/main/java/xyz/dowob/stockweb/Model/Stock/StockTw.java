@@ -12,6 +12,9 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * @author yuan
+ */
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Data
@@ -42,7 +45,6 @@ public class StockTw extends Asset implements Serializable {
 
     @Column(name = "update_time")
     private LocalDate updateTime;
-
 
 
     public boolean checkUserIsSubscriber(User user) {

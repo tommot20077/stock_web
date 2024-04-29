@@ -9,6 +9,9 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+/**
+ * @author yuan
+ */
 
 @Data
 @Entity
@@ -73,7 +76,6 @@ public class Task implements Serializable {
         this.taskStatus = status;
         this.message = message;
     }
-
 
 
 }

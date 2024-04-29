@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
+/**
+ * @author yuan
+ */
 @Entity
 @Data
 @Table(name = "property_summary")
@@ -20,9 +23,7 @@ public class PropertySummary implements Serializable {
     private Long id;
 
 
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     @JoinColumn(name = "user_id", nullable = false)
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;

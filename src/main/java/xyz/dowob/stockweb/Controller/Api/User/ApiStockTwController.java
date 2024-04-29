@@ -4,7 +4,10 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionStockDto;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -15,6 +18,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author yuan
+ */
 @Controller
 @RequestMapping("/api/user/stock/tw")
 public class ApiStockTwController {
@@ -29,8 +35,9 @@ public class ApiStockTwController {
     }
 
     @PostMapping("/subscribe")
-    public ResponseEntity<?> addNewStock(@RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
-        if(session.getAttribute("currentUserId") == null){
+    public ResponseEntity<?> addNewStock(
+            @RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
+        if (session.getAttribute("currentUserId") == null) {
             return ResponseEntity.status(401).body("請先登入");
         }
         Long userId = (Long) session.getAttribute("currentUserId");
@@ -52,8 +59,9 @@ public class ApiStockTwController {
     }
 
     @PostMapping("/unsubscribe")
-    public ResponseEntity<?> removeStock(@RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
-        if(session.getAttribute("currentUserId") == null){
+    public ResponseEntity<?> removeStock(
+            @RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
+        if (session.getAttribute("currentUserId") == null) {
             return ResponseEntity.status(401).body("請先登入");
         }
         Long userId = (Long) session.getAttribute("currentUserId");
@@ -89,10 +97,6 @@ public class ApiStockTwController {
             return ResponseEntity.status(500).body(e.getMessage());
         }
     }
-
-
-
-
 
 
 }

@@ -2,6 +2,9 @@ package xyz.dowob.stockweb.Dto.Common;
 
 import lombok.Data;
 
+/**
+ * @author yuan
+ */
 @Data
 public class AssetKlineDataDto {
     private String timestamp;

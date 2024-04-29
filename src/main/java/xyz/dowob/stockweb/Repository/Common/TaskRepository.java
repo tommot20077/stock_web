@@ -6,6 +6,9 @@ import xyz.dowob.stockweb.Model.Common.Task;
 
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findAllByTaskStatus(TaskStatusType taskStatus);

@@ -13,20 +13,19 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Objects;
 
+/**
+ * @author yuan
+ */
 @Entity
 @Data
 @Table(name = "user_token")
 public class Token implements Serializable {
-
     @Id
     private Long id;
 
     @MapsId
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    @JsonIdentityInfo(
-            generator = ObjectIdGenerators.PropertyGenerator.class,
-            property = "id")
+    @JoinColumn(name = "user_id") @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private User user;
 
     @Column(name = "jwt_api_request_count", nullable = false)
@@ -52,8 +51,8 @@ public class Token implements Serializable {
     private OffsetDateTime rememberMeTokenExpireTime;
 
 
-    @Value(value = "${security.jwt.expiration}")
-    private int expirationMs ;
+    @Value(value = "${security.jwt.expiration}") private int expirationMs;
+
     public int getAndIncrementJwtApiCount() {
         if (jwtApiKeyExpiryTime.isBefore(OffsetDateTime.now())) {
             jwtApiCount = 0;
@@ -79,6 +78,7 @@ public class Token implements Serializable {
             }
         }).toString();
     }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

@@ -5,6 +5,7 @@ let isCurrentCheck = true
 let isHistoryCheck = true
 let count = 0
 let finalError;
+
 async function getAssetKlineChart(assetId, type, method) {
     if (isHistoryFetching && type === 'history') {
         return false;
@@ -27,7 +28,7 @@ async function getAssetKlineChart(assetId, type, method) {
                 chartContainer = document.getElementById('currentKlineChart');
             }
             chartContainer.innerHTML = '';
-            let kData = jsonData.data.map(function(d) {
+            let kData = jsonData.data.map(function (d) {
                 return {
                     timestamp: new Date(d.timestamp).getTime(),
                     open: +d.open,
@@ -74,7 +75,7 @@ async function getAssetKlineChart(assetId, type, method) {
             loaderId.style.display = 'flex';
             errorTextId.style.display = 'none';
             return false;
-        } else if (error.message ===  "此資產尚未有任何訂閱，請先訂閱後再做請求") {
+        } else if (error.message === "此資產尚未有任何訂閱，請先訂閱後再做請求") {
             loaderId.style.display = 'none';
             errorTextId.innerText = error;
             errorTextId.style.display = 'block';
@@ -83,7 +84,7 @@ async function getAssetKlineChart(assetId, type, method) {
             isCurrentFetching = true
             finalError = error
             return true
-        }else if (error.message === "找不到資產") {
+        } else if (error.message === "找不到資產") {
             loaderId.style.display = 'none';
             errorTextId.innerText = error;
             errorTextId.style.display = 'block';
@@ -91,7 +92,7 @@ async function getAssetKlineChart(assetId, type, method) {
             isHistoryFetching = true
             isCurrentFetching = true
             return true
-        } else if (error.message ===  "沒有請求過資產資料") {
+        } else if (error.message === "沒有請求過資產資料") {
             if (type === 'history' && isHistoryCheck) {
                 isHistoryCheck = false
                 loaderId.style.display = 'flex';
@@ -118,7 +119,7 @@ async function getAssetKlineChart(assetId, type, method) {
                 isCurrentFetching = true
                 return true
             }
-        }else {
+        } else {
             loaderId.style.display = 'none';
             errorTextId.innerText = error;
             errorTextId.style.display = 'block';
@@ -159,10 +160,10 @@ async function getAssetDetails(assetId) {
                         <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
                      </div>
                     ` +
-            generateStatisticsTable("昨日價格", day, ((today - day) / day).toFixed(3)*100) +
-            generateStatisticsTable("上周價格", week, ((today - week) / week).toFixed(3)*100) +
-            generateStatisticsTable("上月價格", month, ((today - month) / month).toFixed(3)*100)+
-            generateStatisticsTable("去年價格", year, ((today - year) / year).toFixed(3)*100);
+            generateStatisticsTable("昨日價格", day, ((today - day) / day).toFixed(3) * 100) +
+            generateStatisticsTable("上周價格", week, ((today - week) / week).toFixed(3) * 100) +
+            generateStatisticsTable("上月價格", month, ((today - month) / month).toFixed(3) * 100) +
+            generateStatisticsTable("去年價格", year, ((today - year) / year).toFixed(3) * 100);
     } catch (error) {
         console.error(error);
     }

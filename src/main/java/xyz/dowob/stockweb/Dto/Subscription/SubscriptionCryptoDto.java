@@ -4,6 +4,9 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * @author yuan
+ */
 @Data
 public class SubscriptionCryptoDto {
     private List<Subscription> subscriptions;

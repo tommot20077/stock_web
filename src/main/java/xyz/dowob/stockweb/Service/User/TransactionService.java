@@ -13,7 +13,6 @@ import xyz.dowob.stockweb.Component.Method.CombineMethod;
 import xyz.dowob.stockweb.Component.Method.EventCacheMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Dto.Property.TransactionListDto;
-import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -34,7 +33,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-
+/**
+ * @author yuan
+ */
 @Service
 public class TransactionService {
     private final TransactionRepository transactionRepository;
@@ -48,6 +49,7 @@ public class TransactionService {
     private final EventCacheMethod eventCacheMethod;
     private final ApplicationEventPublisher eventPublisher;
     Logger logger = LoggerFactory.getLogger(TransactionService.class);
+
     @Autowired
     public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod, PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
@@ -63,283 +65,284 @@ public class TransactionService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-        public void operation(User user, TransactionListDto.TransactionDto transaction) {
-            logger.debug("User: " + user);
-            logger.debug("紀錄交易: {}", transaction);
-            String symbol = transaction.getSymbol().toUpperCase();
-            String unit = transaction.getUnit().toUpperCase();
-            Asset asset = getAsset(symbol);
-            Asset unitAsset = getAsset(unit);
-            List<Property> userUnitPropertyList = propertyRepository.findByAssetAndUser(unitAsset, user);
-            List<Property> userSymbolPropertyList = propertyRepository.findByAssetAndUser(asset, user);
-            Property userUnitProperty = combineMethod.combinePropertyValues(userUnitPropertyList);
-            Property userSymbolProperty = combineMethod.combinePropertyValues(userSymbolPropertyList);
+    public void operation(User user, TransactionListDto.TransactionDto transaction) {
+        logger.debug("User: " + user);
+        logger.debug("紀錄交易: {}", transaction);
+        String symbol = transaction.getSymbol().toUpperCase();
+        String unit = transaction.getUnit().toUpperCase();
+        Asset asset = getAsset(symbol);
+        Asset unitAsset = getAsset(unit);
+        List<Property> userUnitPropertyList = propertyRepository.findByAssetAndUser(unitAsset, user);
+        List<Property> userSymbolPropertyList = propertyRepository.findByAssetAndUser(asset, user);
+        Property userUnitProperty = combineMethod.combinePropertyValues(userUnitPropertyList);
+        Property userSymbolProperty = combineMethod.combinePropertyValues(userSymbolPropertyList);
 
-            switch (transaction.formatOperationTypeEnum()) {
-                case BUY:
-                    logger.debug("買入{}", symbol);
-                    if (userUnitProperty == null || userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal()) < 0) {
-                        logger.debug("{} 資產不足", unit);
-                        throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + unit + "來完成交易");
-                    }
-                    logger.debug("扣除 {} 資產數量", unit);
-                    int diffAdd = userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal());
-                    userUnitProperty.setQuantity(userUnitProperty.getQuantity().subtract(transaction.formatAmountAsBigDecimal()));
+        switch (transaction.formatOperationTypeEnum()) {
+            case BUY:
+                logger.debug("買入{}", symbol);
+                if (userUnitProperty == null || userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal()) < 0) {
+                    logger.debug("{} 資產不足", unit);
+                    throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + unit + "來完成交易");
+                }
+                logger.debug("扣除 {} 資產數量", unit);
+                int diffAdd = userUnitProperty.getQuantity().compareTo(transaction.formatAmountAsBigDecimal());
+                userUnitProperty.setQuantity(userUnitProperty.getQuantity().subtract(transaction.formatAmountAsBigDecimal()));
 
-                    if (userSymbolProperty != null) {
-                        logger.debug("用戶已有資產");
-                        logger.debug("增加 {} 資產數量", symbol);
-                        userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().add(transaction.formatQuantityAsBigDecimal()));
+                if (userSymbolProperty != null) {
+                    logger.debug("用戶已有資產");
+                    logger.debug("增加 {} 資產數量", symbol);
+                    userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().add(transaction.formatQuantityAsBigDecimal()));
+                } else {
+                    logger.debug("建立 {} 資產", symbol);
+                    userSymbolProperty = new Property();
+                    logger.debug("設定用戶{}", user);
+                    userSymbolProperty.setUser(user);
+                    logger.debug("設定買入對象{}", asset);
+                    userSymbolProperty.setAsset(asset);
+                    logger.debug("設定交易數量{}", transaction.formatQuantityAsBigDecimal());
+                    userSymbolProperty.setQuantity(transaction.formatQuantityAsBigDecimal());
+
+                    if (asset instanceof StockTw) {
+                        logger.debug("交易對象是台股");
+                        logger.debug("設定買入對象名稱{}", (symbol + "-" + ((StockTw) asset).getStockName()));
+                        userSymbolProperty.setAssetName(symbol + "-" + ((StockTw) asset).getStockName());
                     } else {
-                        logger.debug("建立 {} 資產", symbol);
-                        userSymbolProperty = new Property();
-                        logger.debug("設定用戶{}",user);
-                        userSymbolProperty.setUser(user);
-                        logger.debug("設定買入對象{}",asset);
-                        userSymbolProperty.setAsset(asset);
-                        logger.debug("設定交易數量{}",transaction.formatQuantityAsBigDecimal());
-                        userSymbolProperty.setQuantity(transaction.formatQuantityAsBigDecimal());
+                        logger.debug("設定買入對象名稱{}", symbol);
+                        userSymbolProperty.setAssetName(symbol);
+                    }
+                }
 
-                        if (asset instanceof StockTw) {
-                            logger.debug("交易對象是台股");
-                            logger.debug("設定買入對象名稱{}",(symbol + "-" + ((StockTw) asset).getStockName()));
-                            userSymbolProperty.setAssetName(symbol + "-" + ((StockTw) asset).getStockName());
-                        } else {
-                            logger.debug("設定買入對象名稱{}",symbol);
-                            userSymbolProperty.setAssetName(symbol);
-                        }
+                if (transaction.getDescription() == null) {
+                    logger.debug("沒有備註，使用預設值");
+                    userSymbolProperty.setDescription("");
+                } else {
+                    logger.debug("備註為{}", transaction.getDescription());
+                    userSymbolProperty.setDescription(transaction.getDescription());
+                }
+
+
+                if (diffAdd == 0) {
+                    logger.debug("刪除支付資產");
+                    propertyRepository.delete(userUnitProperty);
+                } else {
+                    propertyRepository.save(userUnitProperty);
+                }
+                propertyRepository.save(userSymbolProperty);
+                subscribeMethod.subscribeProperty(userSymbolProperty, user);
+                logger.debug("儲存 {} 資產變更", symbol);
+
+                if (userSymbolProperty.getAsset() instanceof CryptoTradingPair cryptoTradingPair) {
+                    if (cryptoTradingPair.isHasAnySubscribed()) {
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+                    }
+                } else if (userSymbolProperty.getAsset() instanceof StockTw stockTw) {
+                    if (stockTw.isHasAnySubscribed()) {
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+                    }
+                }
+
+                break;
+
+            case SELL:
+                logger.debug("賣出 {}", symbol);
+                if (userSymbolProperty == null || userSymbolProperty.getQuantity()
+                                                                    .compareTo(transaction.formatQuantityAsBigDecimal()) < 0) {
+                    logger.debug("{} 資產不足", symbol);
+                    throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + symbol + "來完成交易");
+                } else {
+                    int diffSell = userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal());
+                    userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().subtract(transaction.formatQuantityAsBigDecimal()));
+                    logger.debug("扣除 {} 資產數量", symbol);
+                    logger.debug("建立 {} 資產", unit);
+
+                    if (userUnitProperty != null) {
+                        logger.debug("用戶已有資產");
+                        logger.debug("增加 {} 資產數量", unit);
+                        userUnitProperty.setQuantity(userUnitProperty.getQuantity().add(transaction.formatAmountAsBigDecimal()));
+                    } else {
+                        userUnitProperty = new Property();
+                        logger.debug("設定用戶 {}", user);
+                        userUnitProperty.setUser(user);
+                        logger.debug("設定賣出貨幣 {}", unitAsset);
+                        userUnitProperty.setAsset(unitAsset);
+                        logger.debug("設定交易對象名稱 {}", unit);
+                        userUnitProperty.setAssetName(unit);
+                        logger.debug("設定交易數量 {}", transaction.formatAmountAsBigDecimal());
+                        userUnitProperty.setQuantity(transaction.formatAmountAsBigDecimal());
                     }
 
                     if (transaction.getDescription() == null) {
                         logger.debug("沒有備註，使用預設值");
                         userSymbolProperty.setDescription("");
                     } else {
-                        logger.debug("備註為{}",transaction.getDescription());
+                        logger.debug("備註為{}", transaction.getDescription());
                         userSymbolProperty.setDescription(transaction.getDescription());
                     }
 
-
-
-
-                    if (diffAdd == 0) {
-                        logger.debug("刪除支付資產");
-                        propertyRepository.delete(userUnitProperty);
-                    } else {
+                    if (diffSell == 0) {
+                        logger.debug("刪除 {} 資產", symbol);
+                        subscribeMethod.unsubscribeProperty(userSymbolProperty, user);
+                        propertyRepository.delete(userSymbolProperty);
                         propertyRepository.save(userUnitProperty);
-                    }
-                    propertyRepository.save(userSymbolProperty);
-                    subscribeMethod.subscribeProperty(userSymbolProperty, user);
-                    logger.debug("儲存 {} 資產變更", symbol);
-
-                    if (userSymbolProperty.getAsset() instanceof CryptoTradingPair cryptoTradingPair) {
-                        if (cryptoTradingPair.isHasAnySubscribed()) {
-                            logger.debug("發布更新用戶資產事件");
-                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                        }
-                    } else if (userSymbolProperty.getAsset() instanceof StockTw stockTw) {
-                        if (stockTw.isHasAnySubscribed()) {
-                            logger.debug("發布更新用戶資產事件");
-                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                        }
-                    }
-
-                    break;
-
-                case SELL:
-                    logger.debug("賣出 {}", symbol);
-                    if (userSymbolProperty == null || userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) < 0) {
-                        logger.debug("{} 資產不足", symbol);
-                        throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + symbol + "來完成交易");
+                        break;
                     } else {
-                        int diffSell = userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal());
-                        userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().subtract(transaction.formatQuantityAsBigDecimal()));
-                        logger.debug("扣除 {} 資產數量", symbol);
-                        logger.debug("建立 {} 資產", unit);
+                        logger.debug("儲存 {} 資產變更", unit);
+                        propertyRepository.save(userUnitProperty);
+                        propertyRepository.save(userSymbolProperty);
+                    }
+                    logger.debug("發布更新用戶資產事件");
+                    eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+                }
+                break;
 
-                        if (userUnitProperty != null) {
-                            logger.debug("用戶已有資產");
-                            logger.debug("增加 {} 資產數量", unit);
-                            userUnitProperty.setQuantity(userUnitProperty.getQuantity().add(transaction.formatAmountAsBigDecimal()));
-                        } else {
-                            userUnitProperty = new Property();
-                            logger.debug("設定用戶 {}",user);
-                            userUnitProperty.setUser(user);
-                            logger.debug("設定賣出貨幣 {}",unitAsset);
-                            userUnitProperty.setAsset(unitAsset);
-                            logger.debug("設定交易對象名稱 {}", unit);
-                            userUnitProperty.setAssetName(unit);
-                            logger.debug("設定交易數量 {}",transaction.formatAmountAsBigDecimal());
-                            userUnitProperty.setQuantity(transaction.formatAmountAsBigDecimal());
-                        }
+            case WITHDRAW:
+                logger.debug("提款{}", symbol);
+                if (userSymbolProperty == null || userSymbolProperty.getQuantity()
+                                                                    .compareTo(transaction.formatQuantityAsBigDecimal()) < 0) {
+                    logger.debug("{} 資產不足", symbol);
+                    throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + symbol + "來完成交易");
+                } else {
+                    BigDecimal netFlow = propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal().negate(), asset);
+
+                    if (userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) == 0) {
+
+                        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                            propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                        });
+                        Property finalUserSymbolProperty = userSymbolProperty;
+                        future.whenComplete((f, e) -> {
+                            if (e != null) {
+                                logger.error("寫入 InfluxDB 時發生錯誤", e);
+                                throw new RuntimeException("寫入 InfluxDB 時發生錯誤");
+                            } else {
+                                logger.debug("寫入 InfluxDB 成功");
+                                logger.debug("刪除 {} 資產", symbol);
+                                subscribeMethod.unsubscribeProperty(finalUserSymbolProperty, user);
+                                propertyRepository.delete(finalUserSymbolProperty);
+                                logger.debug("發布更新用戶資產事件");
+                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
+                            }
+                        });
+                    } else {
+                        userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().subtract(transaction.formatQuantityAsBigDecimal()));
 
                         if (transaction.getDescription() == null) {
                             logger.debug("沒有備註，使用預設值");
                             userSymbolProperty.setDescription("");
                         } else {
-                            logger.debug("備註為{}",transaction.getDescription());
+                            logger.debug("備註為{}", transaction.getDescription());
                             userSymbolProperty.setDescription(transaction.getDescription());
                         }
-
-                        if (diffSell == 0) {
-                            logger.debug("刪除 {} 資產", symbol);
-                            subscribeMethod.unsubscribeProperty(userSymbolProperty, user);
-                            propertyRepository.delete(userSymbolProperty);
-                            propertyRepository.save(userUnitProperty);
-                            break;
-                        } else {
-                            logger.debug("儲存 {} 資產變更", unit);
-                            propertyRepository.save(userUnitProperty);
-                            propertyRepository.save(userSymbolProperty);
-                        }
+                        propertyRepository.save(userSymbolProperty);
+                        propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
                         logger.debug("發布更新用戶資產事件");
                         eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                     }
-                    break;
+                }
 
-                case WITHDRAW:
-                    logger.debug("提款{}", symbol);
-                    if (userSymbolProperty == null || userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) < 0) {
-                        logger.debug("{} 資產不足", symbol);
-                        throw new IllegalArgumentException("用戶資產中沒有沒有足夠的" + symbol + "來完成交易");
+                logger.debug("儲存 {} 資產變更", symbol);
+                break;
+
+            case DEPOSIT:
+                logger.debug("存款{}", symbol);
+
+                if (userSymbolProperty != null) {
+                    logger.debug("用戶已有資產");
+                    logger.debug("增加 {} 資產數量", symbol);
+                    userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().add(transaction.formatQuantityAsBigDecimal()));
+                } else {
+                    logger.debug("建立 {} 資產", symbol);
+                    userSymbolProperty = new Property();
+                    logger.debug("設定用戶{}", user);
+                    userSymbolProperty.setUser(user);
+                    logger.debug("設定存款對象{}", asset);
+                    userSymbolProperty.setAsset(asset);
+                    logger.debug("設定交易數量{}", transaction.formatQuantityAsBigDecimal());
+                    userSymbolProperty.setQuantity(transaction.formatQuantityAsBigDecimal());
+
+                    if (asset instanceof StockTw) {
+                        logger.debug("交易對象是台股");
+                        logger.debug("設定存款對象名稱{}", (symbol + "-" + ((StockTw) asset).getStockName()));
+                        userSymbolProperty.setAssetName(symbol + "-" + ((StockTw) asset).getStockName());
                     } else {
-                        BigDecimal netFlow = propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal().negate(), asset);
+                        logger.debug("設定存款對象名稱{}", symbol);
+                        userSymbolProperty.setAssetName(symbol);
+                    }
+                }
+                if (transaction.getDescription() == null) {
+                    logger.debug("沒有備註，使用預設值");
+                    userSymbolProperty.setDescription("");
+                } else {
+                    logger.debug("備註為{}", transaction.getDescription());
+                    userSymbolProperty.setDescription(transaction.getDescription());
+                }
 
-                        if (userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) == 0) {
+                propertyRepository.save(userSymbolProperty);
+                subscribeMethod.subscribeProperty(userSymbolProperty, user);
+                logger.debug("儲存 {} 資產變更", symbol);
 
-                            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                                propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
-                            });
-                            Property finalUserSymbolProperty = userSymbolProperty;
-                            future.whenComplete((f, e) -> {
-                                if (e != null){
-                                    logger.error("寫入 InfluxDB 時發生錯誤", e);
-                                    throw new RuntimeException("寫入 InfluxDB 時發生錯誤");
-                                } else {
-                                    logger.debug("寫入 InfluxDB 成功");
-                                    logger.debug("刪除 {} 資產", symbol);
-                                    subscribeMethod.unsubscribeProperty(finalUserSymbolProperty, user);
-                                    propertyRepository.delete(finalUserSymbolProperty);
-                                    logger.debug("發布更新用戶資產事件");
-                                    eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                                }
-                            });
+                switch (asset) {
+                    case StockTw stockTw -> {
+                        if (stockTw.isHasAnySubscribed()) {
+                            logger.debug("寫入 InfluxDB");
+                            propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), stockTw);
+                            logger.debug("發布更新用戶資產事件");
+                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         } else {
-                            userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().subtract(transaction.formatQuantityAsBigDecimal()));
-
-                            if (transaction.getDescription() == null) {
-                                logger.debug("沒有備註，使用預設值");
-                                userSymbolProperty.setDescription("");
-                            } else {
-                                logger.debug("備註為{}",transaction.getDescription());
-                                userSymbolProperty.setDescription(transaction.getDescription());
-                            }
-                            propertyRepository.save(userSymbolProperty);
-                            propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                            logger.debug("等待事件監聽器回傳，存入事件緩存");
+                            eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
                             logger.debug("發布更新用戶資產事件");
                             eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         }
                     }
-
-                    logger.debug("儲存 {} 資產變更", symbol);
-                    break;
-
-                case DEPOSIT:
-                    logger.debug("存款{}", symbol);
-
-                    if (userSymbolProperty != null) {
-                        logger.debug("用戶已有資產");
-                        logger.debug("增加 {} 資產數量", symbol);
-                        userSymbolProperty.setQuantity(userSymbolProperty.getQuantity().add(transaction.formatQuantityAsBigDecimal()));
-                    } else {
-                        logger.debug("建立 {} 資產", symbol);
-                        userSymbolProperty = new Property();
-                        logger.debug("設定用戶{}", user);
-                        userSymbolProperty.setUser(user);
-                        logger.debug("設定存款對象{}", asset);
-                        userSymbolProperty.setAsset(asset);
-                        logger.debug("設定交易數量{}", transaction.formatQuantityAsBigDecimal());
-                        userSymbolProperty.setQuantity(transaction.formatQuantityAsBigDecimal());
-
-                        if (asset instanceof StockTw) {
-                            logger.debug("交易對象是台股");
-                            logger.debug("設定存款對象名稱{}",(symbol + "-" + ((StockTw) asset).getStockName()));
-                            userSymbolProperty.setAssetName(symbol + "-" + ((StockTw) asset).getStockName());
+                    case CryptoTradingPair cryptoTradingPair -> {
+                        if (cryptoTradingPair.isHasAnySubscribed()) {
+                            logger.debug("寫入 InfluxDB");
+                            propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), cryptoTradingPair);
+                            logger.debug("發布更新用戶資產事件");
+                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         } else {
-                            logger.debug("設定存款對象名稱{}",symbol);
-                            userSymbolProperty.setAssetName(symbol);
+                            logger.debug("等待事件監聽器回傳，存入事件緩存");
+                            eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
+                            logger.debug("發布更新用戶資產事件");
+                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         }
                     }
-                    if (transaction.getDescription() == null) {
-                        logger.debug("沒有備註，使用預設值");
-                        userSymbolProperty.setDescription("");
-                    } else {
-                        logger.debug("備註為{}",transaction.getDescription());
-                        userSymbolProperty.setDescription(transaction.getDescription());
+                    case Currency currency -> {
+                        propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), currency);
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                     }
-
-                    propertyRepository.save(userSymbolProperty);
-                    subscribeMethod.subscribeProperty(userSymbolProperty, user);
-                    logger.debug("儲存 {} 資產變更", symbol);
-
-                    switch (asset) {
-                        case StockTw stockTw -> {
-                            if (stockTw.isHasAnySubscribed()) {
-                                logger.debug("寫入 InfluxDB");
-                                propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), stockTw);
-                                logger.debug("發布更新用戶資產事件");
-                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                            } else {
-                                logger.debug("等待事件監聽器回傳，存入事件緩存");
-                                eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
-                                logger.debug("發布更新用戶資產事件");
-                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                            }
-                        }
-                        case CryptoTradingPair cryptoTradingPair -> {
-                            if (cryptoTradingPair.isHasAnySubscribed()) {
-                                logger.debug("寫入 InfluxDB");
-                                propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), cryptoTradingPair);
-                                logger.debug("發布更新用戶資產事件");
-                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                            } else {
-                                logger.debug("等待事件監聽器回傳，存入事件緩存");
-                                eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
-                                logger.debug("發布更新用戶資產事件");
-                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                            }
-                        }
-                        case Currency currency -> {
-                                propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), currency);
-                                logger.debug("發布更新用戶資產事件");
-                                eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
-                        }
-                        default -> {}
+                    default -> {
                     }
-                    break;
+                }
+                break;
 
-                case OTHER:
-                    logger.debug("錯誤，其他交易類型不支持");
-                    throw new IllegalStateException("錯誤，其他交易類型不支持");
-            }
+            case OTHER:
+                logger.debug("錯誤，其他交易類型不支持");
+                throw new IllegalStateException("錯誤，其他交易類型不支持");
+        }
         logger.debug("儲存交易");
         Transaction recordTransaction = new Transaction();
-        logger.debug("設定交易紀錄用戶 {}",user);
+        logger.debug("設定交易紀錄用戶 {}", user);
         recordTransaction.setUser(user);
-        logger.debug("設定交易紀錄類型 {}",transaction.formatOperationTypeEnum());
+        logger.debug("設定交易紀錄類型 {}", transaction.formatOperationTypeEnum());
         recordTransaction.setType(transaction.formatOperationTypeEnum());
-        logger.debug("設定交易紀錄資產 {}",asset);
+        logger.debug("設定交易紀錄資產 {}", asset);
         recordTransaction.setAsset(asset);
-        logger.debug("設定交易紀錄資產名稱 {}",symbol);
+        logger.debug("設定交易紀錄資產名稱 {}", symbol);
         recordTransaction.setAssetName(symbol);
-        logger.debug("設定交易金額數量 {}",transaction.formatAmountAsBigDecimal());
+        logger.debug("設定交易金額數量 {}", transaction.formatAmountAsBigDecimal());
         recordTransaction.setAmount(transaction.formatAmountAsBigDecimal());
-        logger.debug("設定交易數量 {}",transaction.formatQuantityAsBigDecimal());
+        logger.debug("設定交易數量 {}", transaction.formatQuantityAsBigDecimal());
         recordTransaction.setQuantity(transaction.formatQuantityAsBigDecimal());
 
         if (unitAsset instanceof Currency) {
-            logger.debug("設定交易幣別 {}",unitAsset);
+            logger.debug("設定交易幣別 {}", unitAsset);
             recordTransaction.setUnitCurrency(unitAsset);
-            logger.debug("設定交易幣別名稱 {}",unit);
+            logger.debug("設定交易幣別名稱 {}", unit);
             recordTransaction.setUnitCurrencyName(unit);
         } else {
             logger.debug("設定交易幣別為用戶預設 {}", user.getPreferredCurrency().getCurrency());
@@ -349,7 +352,6 @@ public class TransactionService {
         }
 
 
-
         logger.debug("設定交易日期 {}", transaction.formatTransactionDate());
         recordTransaction.setTransactionDate(transaction.formatTransactionDate());
 
@@ -357,7 +359,7 @@ public class TransactionService {
             logger.debug("沒有備註，使用預設值");
             recordTransaction.setDescription("");
         } else {
-            logger.debug("備註為{}",transaction.getDescription());
+            logger.debug("備註為{}", transaction.getDescription());
             recordTransaction.setDescription(transaction.getDescription());
         }
 
@@ -412,7 +414,7 @@ public class TransactionService {
 
 
             DateTimeFormatter outputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            String formattedDate  = transaction.getTransactionDate().format(outputFormat);
+            String formattedDate = transaction.getTransactionDate().format(outputFormat);
             transactionDto.setDate(formattedDate);
             logger.debug("交易日期: {}", formattedDate);
             transactionDto.setType(String.valueOf(transaction.getType()));
@@ -425,7 +427,6 @@ public class TransactionService {
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.writeValueAsString(transactions);
     }
-
 
 
 }

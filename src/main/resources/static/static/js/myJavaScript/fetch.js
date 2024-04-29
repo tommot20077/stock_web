@@ -13,7 +13,7 @@ function getUserDetails() {
         email = data.email;
         userId = data.id;
         role = data.role;
-        gender =data.gender;
+        gender = data.gender;
         timeZone = data.timeZone;
         userPreferredCurrency = data.preferredCurrency;
         if (document.querySelector('.welcome-text > span')) {
@@ -21,6 +21,19 @@ function getUserDetails() {
         }
         if (document.querySelector('.welcome-text > a')) {
             document.querySelector('.welcome-text > a').textContent = " (" + getRole(role) + ")";
+        }
+        if (document.getElementById("UserDropdown")) {
+            document.getElementById("tabName").textContent = firstName + " " + lastName;
+            document.getElementById("tabEmail").textContent = email;
+
+        }
+        if (role === "ADMIN") {
+            let ac = document.getElementById("adminConfig");
+            let at = document.getElementById("adminTab");
+            if (ac && at) {
+                ac.style.display = "block";
+                at.style.display = "block";
+            }
         }
         if (document.getElementById("userProfileForm")) {
             fetchPropertyName("preferred_currency", "CURRENCY")
@@ -49,11 +62,6 @@ function logout(isRedirectImmediately, timeSet) {
     })
 
 }
-
-
-
-
-
 
 
 function getTimeZoneList() {
@@ -143,7 +151,7 @@ function updateUserProfile() {
                         hideById('UpdateProfileFail');
                         showFlexById('confirmCard');
                         showFlexById("UpdateProfileSuccess");
-                        logout(false,3000);
+                        logout(false, 3000);
                     } else {
                         return response.text().then(data => {
                             throw new Error(data);
@@ -201,7 +209,7 @@ function sendVerificationEmail() {
 async function fetchUserAllProperties() {
     loadingInColumn("propertyTableBody", 9);
     try {
-        let response = await fetch("/api/user/property/getUserAllProperty",{
+        let response = await fetch("/api/user/property/getUserAllProperty", {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -210,17 +218,21 @@ async function fetchUserAllProperties() {
 
         if (response.ok) {
             return await response.json();
-        } else {
-            new Error('錯誤的請求: ' + response.status +'' + response.statusText);
+        } else if (response.status === 445) {
+            return []
+        }
+        else {
+            new Error('錯誤的請求: ' + response.status + '' + response.statusText);
         }
     } catch (error) {
         console.error('請求錯誤: ', error);
     }
 }
+
 async function getUserAllSubscribes() {
     loadingInColumn("subscribeTableBody", 5);
     try {
-        let response = await fetch("/api/user/common/getUserSubscriptionsList",{
+        let response = await fetch("/api/user/common/getUserSubscriptionsList", {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -229,7 +241,7 @@ async function getUserAllSubscribes() {
         if (response.ok) {
             return await response.json();
         } else {
-            new Error('錯誤的請求: ' + response.status +'' + response.statusText);
+            new Error('錯誤的請求: ' + response.status + '' + response.statusText);
         }
     } catch (error) {
         console.error('請求錯誤: ', error);
@@ -237,8 +249,7 @@ async function getUserAllSubscribes() {
 }
 
 
-
-function getPropertyType(type_id){
+function getPropertyType(type_id) {
     if (document.getElementById(type_id)) {
         fetch('/api/user/property/getPropertyType')
             .then(response => response.json())
@@ -265,19 +276,19 @@ function detectionPropertyTypeChange(name_id, type_id) {
     if (document.getElementById(name_id)) {
         document.getElementById(type_id).addEventListener('change', (event) => {
             let selectType = event.target.value;
-            fetchPropertyName(name_id,selectType);
+            fetchPropertyName(name_id, selectType);
         })
     }
 }
 
-function fetchPropertyName (name_id, type){
+function fetchPropertyName(name_id, type) {
     let cacheKey = '/api/user/property/getAllNameByPropertyType?type=' + type;
     caches.match(cacheKey).then(result => {
         if (result) {
             return result.json()
         } else {
             return fetch(cacheKey)
-                .then(response =>{
+                .then(response => {
                     let cloneResponse = response.clone();
                     let jsonResponse = response.json();
                     caches.open("select-list-cache").then(cache => {
@@ -312,10 +323,6 @@ function fetchPropertyName (name_id, type){
         }
     })
 }
-
-
-
-
 
 
 function addOrUpdatePropertyForm(event) {
@@ -406,9 +413,9 @@ function addOrUpdatePropertyForm(event) {
             }).catch(error => {
                 hideSpinner();
                 if (submitType === 'ADD') {
-                    displayError(error,'fail_add_message');
+                    displayError(error, 'fail_add_message');
                 } else {
-                    displayError(error,'fail_edit_message');
+                    displayError(error, 'fail_edit_message');
                 }
             });
         }
@@ -423,11 +430,11 @@ function deleteProperty(event, elementId) {
     let csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
     let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
 
-    document.getElementById('cancelDeleteProperty').addEventListener("click", ()=> {
+    document.getElementById('cancelDeleteProperty').addEventListener("click", () => {
         this.disabled = true;
         hideSpinner();
     });
-    document.getElementById('confirmDeleteProperty').addEventListener("click", ()=> {
+    document.getElementById('confirmDeleteProperty').addEventListener("click", () => {
         this.disabled = true;
         hideById('deletePropertySuccess');
         hideById('deletePropertyFail');
@@ -483,7 +490,7 @@ async function getUserAllTransactions() {
     tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
 
     try {
-        let response = await fetch("/api/user/transaction/getUserAllTransaction",{
+        let response = await fetch("/api/user/transaction/getUserAllTransaction", {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -493,7 +500,7 @@ async function getUserAllTransactions() {
         if (response.ok) {
             return await response.json();
         } else {
-            new Error('錯誤的請求: ' + response.status +'' + response.statusText);
+            new Error('錯誤的請求: ' + response.status + '' + response.statusText);
         }
     } catch (error) {
         console.error('請求錯誤: ', error);
@@ -550,7 +557,7 @@ function addTransaction(event) {
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
-                    });
+                });
             } else {
                 return response.text().then(data => {
                     throw new Error(data);
@@ -598,7 +605,7 @@ function addSubscription(event) {
         } else if (type === "CRYPTO") {
             fetchUrl = '/api/user/crypto/subscribe';
             subscriptionDto = {
-                tradingPair: name+channel
+                tradingPair: name + channel
             }
         } else if (type === "STOCK_TW") {
             fetchUrl = '/api/user/stock/tw/subscribe';
@@ -654,11 +661,11 @@ function deleteSubscription(event, elementId) {
     let fetchUrl = '';
     let subscriptionDto = {};
 
-    document.getElementById('cancel_delete_subscribe').addEventListener("click", ()=> {
+    document.getElementById('cancel_delete_subscribe').addEventListener("click", () => {
         this.disabled = true;
         hideSpinner();
     });
-    document.getElementById('confirm_delete_subscribe').addEventListener("click", ()=> {
+    document.getElementById('confirm_delete_subscribe').addEventListener("click", () => {
         hideById("confirmCard");
         showSpinner(true);
 
@@ -689,7 +696,7 @@ function deleteSubscription(event, elementId) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(subscriptionDtoList)
-        }).then(response =>{
+        }).then(response => {
             if (response.ok) {
                 return response.text().then(data => {
                     showSpinner(false);
@@ -715,9 +722,9 @@ function deleteSubscription(event, elementId) {
 }
 
 
-
 INDEX_NAMESPACE.fetchUserPropertySummary = function () {
     let summaryData = null;
+
     function fetchUserPropertySummary() {
         const cachedData = localStorage.getItem('userPropertySummary');
         if (cachedData) {
@@ -750,17 +757,18 @@ INDEX_NAMESPACE.fetchUserPropertySummary = function () {
                     timestamp: Date.now()
                 }));
                 return data;
-            }).catch(error =>{
+            }).catch(error => {
                 summaryData = null;
                 throw error;
             });
         }
         return summaryData;
     }
+
     return fetchUserPropertySummary();
 }
 
-async function fetchStatisticsOverview () {
+async function fetchStatisticsOverview() {
     let statisticsOverviewData;
     const cachedData = localStorage.getItem('userStatisticsOverview');
     if (cachedData) {
@@ -773,7 +781,7 @@ async function fetchStatisticsOverview () {
         }
     }
     try {
-        const response = await fetch("/api/user/property/getPropertyOverview",  {
+        const response = await fetch("/api/user/property/getPropertyOverview", {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -820,10 +828,13 @@ async function fetchIndexNewsData(pageNumber, category, asset) {
 }
 
 async function fetchKlineInfoData(assetId, type, method) {
+    let m;
     if (method === 'handle') {
         method = 'handleKlineInfo'
+        m = 'POST'
     } else if (method === 'get') {
         method = 'getKlineInfo'
+        m = 'GET'
     } else {
         throw new Error('不支援的操作方法：' + method);
     }
@@ -832,7 +843,7 @@ async function fetchKlineInfoData(assetId, type, method) {
         type: type,
     });
     let response = await fetch(`/api/user/asset/${method}/${assetId}?${queryParams}`, {
-        method: 'GET',
+        method: m,
         headers: {
             'Content-Type': 'application/json'
         }
@@ -884,10 +895,6 @@ async function fetchAssetListData(pageNumber, category) {
     }
 
 }
-
-
-
-
 
 
 function hideById(id) {
@@ -1004,5 +1011,5 @@ function loadingInColumn(TableBody, column) {
             </div>
         </td>`;
     tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
-    }
+}
 

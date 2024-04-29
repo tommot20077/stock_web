@@ -13,20 +13,22 @@ import xyz.dowob.stockweb.Model.Common.EventCache;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
-import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Common.EventCacheRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import static xyz.dowob.stockweb.Enum.AssetType.*;
-
+/**
+ * @author yuan
+ */
 @Service
 public class EventCacheMethod {
     private final EventCacheRepository eventCacheRepository;
     private final ApplicationEventPublisher eventPublisher;
+
     @Autowired
-    public EventCacheMethod(EventCacheRepository eventCacheRepository, ApplicationEventPublisher applicationEventPublisher) {this.eventCacheRepository = eventCacheRepository;
+    public EventCacheMethod(EventCacheRepository eventCacheRepository, ApplicationEventPublisher applicationEventPublisher) {
+        this.eventCacheRepository = eventCacheRepository;
         this.eventPublisher = applicationEventPublisher;
     }
 
@@ -47,11 +49,10 @@ public class EventCacheMethod {
                 } else {
                     isAddMessage = eventCache.getQuantity().compareTo(BigDecimal.ZERO) >= 0;
                     if (eventCache.getProperty().getAsset() instanceof CryptoTradingPair cryptoTradingPair) {
+                        logger.debug("重新發布事件: {}", cryptoTradingPair);
                         if (isAddMessage) {
-                            logger.debug("重新發布事件: {}", cryptoTradingPair);
-                            eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair ,"add"));
+                            eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair, "add"));
                         } else {
-                            logger.debug("重新發布事件: {}", cryptoTradingPair);
                             eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair, "remove"));
                         }
                     } else if (eventCache.getProperty().getAsset() instanceof StockTw stockTw) {
@@ -69,7 +70,6 @@ public class EventCacheMethod {
         }
         logger.info("檢查事件緩存完成");
     }
-
 
 
     public List<EventCache> getEventCacheWithAsset(Asset asset) {

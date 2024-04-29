@@ -17,23 +17,31 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
+/**
+ * @author yuan
+ */
 @RestController
 @RequestMapping("/api/user/asset")
 public class ApiAssetController {
     private final AssetService assetService;
     private final RedisService redisService;
     private final UserService userService;
+
     @Autowired
-    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService) {this.assetService = assetService;
+    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService) {
+        this.assetService = assetService;
         this.redisService = redisService;
         this.userService = userService;
     }
 
 
-    @GetMapping("/handleKlineInfo/{assetId}")
-    public ResponseEntity<?> handleAssetInfo(@PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
+    @PostMapping("/handleKlineInfo/{assetId}")
+    public ResponseEntity<?> handleAssetInfo(
+            @PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
         type = type.toLowerCase();
         if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
             return ResponseEntity.badRequest().body("錯誤的查詢類型");
@@ -57,7 +65,8 @@ public class ApiAssetController {
                 String lastTimestamp = redisService.getHashValueFromKey("kline", hashInnerKey + "last_timestamp");
                 Instant lastInstant = Instant.parse(lastTimestamp);
                 Instant offsetInstant = lastInstant.plus(Duration.ofMillis(1));
-                String offsetTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(offsetInstant.atZone(ZoneOffset.UTC));
+                String offsetTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                                                          .format(offsetInstant.atZone(ZoneOffset.UTC));
                 assetService.getAssetHistoryInfo(asset, type, offsetTimestamp);
             } else {
                 assetService.getAssetHistoryInfo(asset, type, null);
@@ -69,7 +78,8 @@ public class ApiAssetController {
     }
 
     @GetMapping("/getKlineInfo/{assetId}")
-    public ResponseEntity<?> getAssetInfo(@PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
+    public ResponseEntity<?> getAssetInfo(
+            @PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
         type = type.toLowerCase();
         if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
             return ResponseEntity.badRequest().body("錯誤的查詢類型");
@@ -78,7 +88,7 @@ public class ApiAssetController {
         String listKey = String.format("kline_%s", hashInnerKey);
 
         try {
-            String status = redisService.getHashValueFromKey("kline", hashInnerKey+ "status");
+            String status = redisService.getHashValueFromKey("kline", hashInnerKey + "status");
 
             if ("processing".equals(status)) {
                 return ResponseEntity.badRequest().body("資產資料已經在處理中");
@@ -93,12 +103,13 @@ public class ApiAssetController {
             String json = assetService.formatRedisAssetKlineCacheToJson(type, listKey, hashInnerKey);
             return ResponseEntity.ok().body(json);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("錯誤: "+ e.getMessage());
+            return ResponseEntity.badRequest().body("錯誤: " + e.getMessage());
         }
     }
 
     @GetMapping("/getAssetInfo")
-    public ResponseEntity<?> getAssetInfo(@RequestParam(name = "id") Long assetId, HttpSession session) {
+    public ResponseEntity<?> getAssetInfo(
+            @RequestParam(name = "id") Long assetId, HttpSession session) {
         try {
             String assetKey = String.format("asset_%s:", assetId);
             User user = userService.getUserFromJwtTokenOrSession(session);
@@ -109,23 +120,22 @@ public class ApiAssetController {
             }
             return ResponseEntity.ok().body(assetService.formatRedisAssetInfoCacheToJson(cachedAssetJson, asset, user));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 
     @GetMapping("/getAssetList/{category}")
-    public ResponseEntity<?> getAssetList(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
-                                          @RequestParam(name = "isCache", required = false, defaultValue = "true") boolean isCache,
-                                          @RequestParam(name = "isFrontEnd", required = false, defaultValue = "false") boolean isFrontEnd,
-                                          @PathVariable(name = "category") String category
-    ) {
+    public ResponseEntity<?> getAssetList(
+            @RequestParam(name = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(name = "isCache", required = false, defaultValue = "true") boolean isCache,
+            @RequestParam(name = "isFrontEnd", required = false, defaultValue = "false") boolean isFrontEnd,
+            @PathVariable(name = "category") String category) {
         try {
             if (category == null || category.isEmpty()) {
                 return ResponseEntity.badRequest().body("沒有任何查詢參數可以使用");
             }
             String formatCategory = category.toLowerCase();
             String innerKey = formatCategory + "_page_" + page;
-           ;
             String cacheAssetJson;
             if (isFrontEnd) {
                 cacheAssetJson = redisService.getHashValueFromKey("frontendAssetList", innerKey);
@@ -142,14 +152,14 @@ public class ApiAssetController {
                 }
             } else {
                 if (isFrontEnd) {
-                    List<Map<String, Object>>assetsStringList = assetService.formatJsonToAssetList(cacheAssetJson);
+                    List<Map<String, Object>> assetsStringList = assetService.formatJsonToAssetList(cacheAssetJson);
                     return ResponseEntity.ok().body(assetService.formatStringAssetListToFrontendType(assetsStringList, innerKey));
                 } else {
                     return ResponseEntity.ok().body(cacheAssetJson);
                 }
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 }
