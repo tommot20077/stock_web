@@ -143,6 +143,9 @@ public class SubscribeMethod {
                         removeSubscriberFromStockTw(stockTw, user.getId());
                     }
                 }
+                case Currency ignored -> {
+                    logger.debug("貨幣不做額外處理");
+                }
                 case null, default -> throw new IllegalArgumentException("錯誤的資產類型");
             }
             logger.debug("資產訂閱數量減 1");

@@ -400,12 +400,12 @@ function addOrUpdatePropertyForm(event) {
                 if (submitType === 'ADD') {
                     showFlexById('success_add_message');
                     localStorage.removeItem('userPropertySummary');
+                    localStorage.removeItem('userStatisticsOverview');
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
                 } else {
                     showFlexById('success_edit_message');
-                    localStorage.removeItem('userPropertySummary');
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -553,7 +553,6 @@ function addTransaction(event) {
                 return response.text().then(data => {
                     hideSpinner();
                     showFlexById("success_message");
-                    localStorage.removeItem('userPropertySummary');
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -721,65 +720,35 @@ function deleteSubscription(event, elementId) {
     })
 }
 
-
-INDEX_NAMESPACE.fetchUserPropertySummary = function () {
-    let summaryData = null;
-
-    function fetchUserPropertySummary() {
-        const cachedData = localStorage.getItem('userPropertySummary');
-        if (cachedData) {
-            const parsedData = JSON.parse(cachedData);
-            const {data, timestamp} = parsedData;
-
-            const isExpired = Date.now() - timestamp > 60 * 60 * 1000;
-            if (!isExpired && data) {
-                return data;
-            }
+async function fetchUserPropertySummary() {
+    return fetch("/api/user/property/getPropertySummary/history", {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
         }
-
-        if (!summaryData) {
-            summaryData = fetch("/api/user/property/getPropertySummary/history", {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            }).then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.text().then(data => {
-                        throw new Error("無法獲取歷史資產變化資料" + data);
-                    })
-                }
-            }).then(data => {
-                localStorage.setItem('userPropertySummary', JSON.stringify({
-                    data: data,
-                    timestamp: Date.now()
-                }));
-                return data;
-            }).catch(error => {
-                summaryData = null;
-                throw error;
-            });
+    }).then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            return response.text().then(data => {
+                throw new Error("無法獲取歷史資產變化資料" + data);
+            })
         }
-        return summaryData;
-    }
-
-    return fetchUserPropertySummary();
+    }).then(data => {
+        localStorage.setItem('userPropertySummary', JSON.stringify({
+            data: data,
+            timestamp: Date.now()
+        }));
+        return data;
+    }).catch(error => {
+        throw error;
+    });
 }
 
-async function fetchStatisticsOverview() {
-    let statisticsOverviewData;
-    const cachedData = localStorage.getItem('userStatisticsOverview');
-    if (cachedData) {
-        const parsedData = JSON.parse(cachedData);
-        const {data, timestamp} = parsedData;
 
-        const isExpired = Date.now() - timestamp > 60 * 60 * 1000;
-        if (!isExpired && data) {
-            return data;
-        }
-    }
+
+
+async function fetchStatisticsOverview() {
     try {
         const response = await fetch("/api/user/property/getPropertyOverview", {
             method: "GET",
@@ -791,13 +760,7 @@ async function fetchStatisticsOverview() {
             const errorText = await response.text();
             throw new Error("無法獲取資產統計資訊：" + errorText);
         }
-
-        statisticsOverviewData = await response.json();
-        localStorage.setItem('userStatisticsOverview', JSON.stringify({
-            data: statisticsOverviewData,
-            timestamp: Date.now()
-        }));
-        return await statisticsOverviewData;
+        return await response.json();
     } catch (error) {
         console.error(error);
     }

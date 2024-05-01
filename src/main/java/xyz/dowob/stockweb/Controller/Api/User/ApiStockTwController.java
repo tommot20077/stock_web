@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Dto.Subscription.SubscriptionStockDto;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -26,12 +27,14 @@ import java.util.Map;
 public class ApiStockTwController {
     private final StockTwService stockTwService;
     private final UserService userService;
+    private final CrontabMethod crontabMethod;
 
 
     @Autowired
-    public ApiStockTwController(StockTwService stockTwService, UserService userService) {
+    public ApiStockTwController(StockTwService stockTwService, UserService userService, CrontabMethod crontabMethod) {
         this.stockTwService = stockTwService;
         this.userService = userService;
+        this.crontabMethod = crontabMethod;
     }
 
     @PostMapping("/subscribe")
@@ -98,5 +101,12 @@ public class ApiStockTwController {
         }
     }
 
-
+    @GetMapping("/getTrackImmediateStatus")
+    public ResponseEntity<?> getTrackImmediateStatus() {
+        try {
+            return ResponseEntity.ok().body(crontabMethod.isStockTwAutoStart());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
+        }
+    }
 }

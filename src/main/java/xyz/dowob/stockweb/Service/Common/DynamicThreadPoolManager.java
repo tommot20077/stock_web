@@ -67,6 +67,7 @@ public class DynamicThreadPoolManager {
     }
 
     public void shutdown(long timeout, TimeUnit unit) {
+
         executorService.shutdown();
         try {
             if (!executorService.awaitTermination(timeout, unit)) {

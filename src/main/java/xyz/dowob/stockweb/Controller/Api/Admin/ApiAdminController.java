@@ -210,6 +210,26 @@ public class ApiAdminController {
         }
     }
 
+    @PostMapping("/stock/tw/trackImmediatePrice")
+    public ResponseEntity<?> trackImmediatePrice() {
+        try {
+            crontabMethod.operateStockTwTrack(true);
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/stock/tw/unTrackImmediatePrice")
+    public ResponseEntity<?> unTrackImmediatePrice() {
+        try {
+            crontabMethod.operateStockTwTrack(false);
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
     /**
      * 管理員-貨幣類
      */

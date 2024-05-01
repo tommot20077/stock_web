@@ -29,7 +29,7 @@ public class StockTwSubscriberChangeListener implements ApplicationListener<Stoc
         logger.info("收到股票訂閱變更");
         try {
             crontabMethod.checkSubscriptions();
-            crontabMethod.trackPricesPeriodically();
+            crontabMethod.trackStockTwPricesPeriodically();
         } catch (JsonProcessingException e) {
             logger.error("Json轉換錯誤", e);
             throw new RuntimeException(e);

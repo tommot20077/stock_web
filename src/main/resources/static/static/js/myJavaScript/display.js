@@ -119,8 +119,9 @@ async function displayTransactionTable() {
 async function displayStatisticsOverview() {
     let tableBody = document.getElementById('statistics_overview');
     try {
-        const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
+        const summaryData = await fetchUserPropertySummary();
         const propertyOverviewData = await fetchStatisticsOverview();
+        console.log("summaryData: "+summaryData.latest);
         const latestTotalSum = summaryData.latest.filter(dataPoint => dataPoint.field === "total_sum")[0].value;
         const latestTotalSumFloat = parseFloat(latestTotalSum).toFixed(2);
         tableBody.innerHTML =

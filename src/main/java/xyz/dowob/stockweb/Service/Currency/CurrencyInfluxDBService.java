@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.ZonedDateTime;
 
 /**
@@ -32,10 +33,10 @@ public class CurrencyInfluxDBService {
     public void writeToInflux(String currency, BigDecimal rate, ZonedDateTime zonedDateTime) {
         logger.debug("讀取匯率數據");
         long epochMilli = zonedDateTime.toInstant().toEpochMilli();
-
+        BigDecimal formattedRate = BigDecimal.ONE.divide(rate, 6, RoundingMode.HALF_UP);
         Point point = Point.measurement("exchange_rate")
                            .addTag("Currency", currency)
-                           .addField("rate", rate.doubleValue())
+                           .addField("rate", formattedRate.doubleValue())
                            .time(epochMilli, WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
         assetInfluxMethod.writeToInflux(currencyDBClient, point);

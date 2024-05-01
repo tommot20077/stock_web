@@ -58,9 +58,6 @@ public class InfluxInitial {
                                     url,
                                     token);
 
-
-
-
         for (String key : keys) {
             if (key == null || key.isEmpty()) {
                 logger.info("請先配置設定" + key);

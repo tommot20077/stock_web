@@ -57,7 +57,7 @@ function fillData(datasets, labels, summaryData, numPerDay) {
 
 async function userPropertySummaryLineChart() {
     try {
-        const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
+        const summaryData = await fetchUserPropertySummary();
         const datasets = [
             {
                 label: '總資產',
@@ -161,7 +161,7 @@ async function userPropertySummaryLineChart() {
 
 async function userPropertySummaryPieChart() {
     try {
-        const summaryData = await INDEX_NAMESPACE.fetchUserPropertySummary();
+        const summaryData = await fetchUserPropertySummary();
         const latestData = summaryData.latest.filter(dataPoint => dataPoint.field !== "total_sum");
         const labels = latestData.map(dataPoint => getPropertySummaryName(dataPoint.field));
         const data = latestData.map(dataPoint => dataPoint.value);

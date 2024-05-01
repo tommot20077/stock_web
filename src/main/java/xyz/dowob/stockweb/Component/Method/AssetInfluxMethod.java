@@ -163,7 +163,7 @@ public class AssetInfluxMethod {
                 logger.debug("可能貨幣資料對更新時間太久，改以從MySQL取得: " + asset);
                 Currency currency = (Currency) asset;
                 if (currency.getExchangeRate() != null) {
-                    return currency.getExchangeRate();
+                    return BigDecimal.ONE.divide(currency.getExchangeRate(), 3, RoundingMode.HALF_UP);
                 }
             } else {
                 logger.debug("取得最新價格失敗 + " + asset);
