@@ -49,7 +49,7 @@ public class StockTwService {
     private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
     RateLimiter rateLimiter = RateLimiter.create(0.5);
 
-    @Value(value = "${stock.tw.finmind.token}")
+    @Value(value = "${stock_tw.finmind.token}")
     private String finMindToken;
 
     @Value(value = "${db.influxdb.bucket.stock_tw_history.dateline}")
@@ -211,7 +211,10 @@ public class StockTwService {
 
     @Async
     public void trackStockTwHistoryPrices(StockTw stockTw) {
+        boolean rollbackChance = true;
         boolean hasData = true;
+        boolean neverHasData = true;
+
         LocalDate endDate = LocalDate.parse(stockTwHistoryDateline, DateTimeFormatter.BASIC_ISO_DATE);
         LocalDate date = LocalDate.now(ZoneId.of("Asia/Taipei"));
         Task task = new Task(UUID.randomUUID().toString(), "獲取" + stockTw.getStockCode() + "歷史資料", 1);
@@ -234,9 +237,17 @@ public class StockTwService {
                     ArrayNode dataArray = (ArrayNode) rootNode.path("data");
                     stockTwInfluxDBService.writeStockTwHistoryToInflux(dataArray, stockTw.getStockCode());
                     date = date.minusMonths(1);
+                    neverHasData = false;
                 } else {
                     logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") + " 沒有資料");
-                    hasData = false;
+                    if (neverHasData && !rollbackChance) {
+                        throw new Exception("股票:" + stockTw.getStockCode() + " 沒有資料");
+                    } else if (rollbackChance) {
+                        rollbackChance = false;
+                        date = date.minusMonths(1);
+                    } else {
+                        hasData = false;
+                    }
                 }
             }
             logger.debug("完成獲取歷史股價: " + stockTw.getStockCode());

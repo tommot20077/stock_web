@@ -13,7 +13,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
+import xyz.dowob.stockweb.Model.Currency.Currency;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
@@ -26,6 +30,7 @@ public class StockTwInfluxDBService {
     private final InfluxDBClient StockTwInfluxDBClient;
     private final InfluxDBClient StockTwHistoryInfluxDBClient;
     private final AssetInfluxMethod assetInfluxMethod;
+    private final CurrencyRepository currencyRepository;
     private final RetryTemplate retryTemplate;
     Logger logger = LoggerFactory.getLogger(StockTwInfluxDBService.class);
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
@@ -34,24 +39,24 @@ public class StockTwInfluxDBService {
     @Autowired
     public StockTwInfluxDBService(
             @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
-            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
+        this.currencyRepository = currencyRepository;
         this.retryTemplate = retryTemplate;
     }
 
-    @Value("${db.influxdb.org}")
-    private String org;
+    @Value("${db.influxdb.org}") private String org;
 
-    @Value("${db.influxdb.bucket.stock_tw}")
-    private String stockBucket;
+    @Value("${db.influxdb.bucket.stock_tw}") private String stockBucket;
 
-    @Value("${db.influxdb.bucket.stock_tw_history}")
-    private String stockHistoryBucket;
+    @Value("${db.influxdb.bucket.stock_tw_history}") private String stockHistoryBucket;
 
     public void writeStockTwToInflux(JsonNode msgArray) {
         logger.debug("讀取即時股價數據");
+        Currency usdCurrency = currencyRepository.findByCurrency("USD").orElseThrow(() -> new RuntimeException("找不到USD幣別"));
+        BigDecimal twdToUsd = usdCurrency.getExchangeRate();
         for (JsonNode msgNode : msgArray) {
             logger.debug(msgNode.toString());
             if (Objects.equals(msgNode.path("z").asText(), "-")) {
@@ -63,21 +68,35 @@ public class StockTwInfluxDBService {
                                                                              .asText()) + ", h = " + Double.parseDouble(msgNode.path("h")
                                                                                                                                .asText()) + ", l = " + Double.parseDouble(
                     msgNode.path("l").asText()) + ", v = " + Double.parseDouble(msgNode.path("v").asText()));
-            Double price = Double.parseDouble(msgNode.path("z").asText());
-            Double high = Double.parseDouble(msgNode.path("h").asText());
-            Double open = Double.parseDouble(msgNode.path("o").asText());
-            Double low = Double.parseDouble(msgNode.path("l").asText());
-            Double volume = Double.parseDouble(msgNode.path("v").asText());
+
+            BigDecimal priceFormat = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal highFormat = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal openFormat = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal lowFormat = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+
+
+            Double priceDouble = priceFormat.doubleValue();
+            Double highDouble = highFormat.doubleValue();
+            Double openDouble = openFormat.doubleValue();
+            Double lowDouble = lowFormat.doubleValue();
+            Double volumeDouble = Double.parseDouble(msgNode.path("v").asText());
             String time = msgNode.path("tlong").asText();
             String stockId = msgNode.path("c").asText();
 
+
+            if (Objects.equals(msgNode.path("z").asText(), "--") || Objects.equals(msgNode.path("h").asText(), "--") || Objects.equals(
+                    msgNode.path("o").asText(),
+                    "--") || Objects.equals(msgNode.path("l").asText(), "--")) {
+                continue;
+            }
+
             Point point = Point.measurement("kline_data")
                                .addTag("stock_tw", stockId)
-                               .addField("close", price)
-                               .addField("high", high)
-                               .addField("low", low)
-                               .addField("open", open)
-                               .addField("volume", volume)
+                               .addField("close", priceDouble)
+                               .addField("high", highDouble)
+                               .addField("low", lowDouble)
+                               .addField("open", openDouble)
+                               .addField("volume", volumeDouble)
                                .time(Long.parseLong(time), WritePrecision.MS);
             logger.debug("建立InfluxDB Point");
             assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, point);
@@ -97,8 +116,14 @@ public class StockTwInfluxDBService {
             String lowestPrice = dataEntry.get(5).asText();
             String closingPrice = dataEntry.get(6).asText();
 
-            logger.debug("日期: " + dateStr + ", 成交股數: " + numberOfStocksVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
+            logger.debug("(轉換前)日期: " + dateStr + ", 成交股數: " + numberOfStocksVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
 
+            if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice,
+                                                                                                           "--") || Objects.equals(
+                    closingPrice,
+                    "--")) {
+                continue;
+            }
             writeKlineDataPoint(tLong, stockCode, numberOfStocksVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
         }
     }
@@ -112,7 +137,7 @@ public class StockTwInfluxDBService {
         String lowestPrice = node.path("LowestPrice").asText();
         String closingPrice = node.path("ClosingPrice").asText();
 
-        logger.debug("日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
+        logger.debug("(轉換前)日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
 
         writeKlineDataPoint(todayTlong, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
     }
@@ -155,15 +180,26 @@ public class StockTwInfluxDBService {
 
 
     private void writeKlineDataPoint(Long todayTlong, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) {
+        Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
+        BigDecimal twdToUsd = twdCurrency.getExchangeRate();
+
+        Double formatOpeningPrice = (new BigDecimal(openingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
+        Double formatHighestPrice = (new BigDecimal(highestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
+        Double formatLowestPrice = (new BigDecimal(lowestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
+        Double formatClosingPrice = (new BigDecimal(closingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
+
+
         Point point = Point.measurement("kline_data")
                            .addTag("stock_tw", stockCode)
-                           .addField("high", Double.parseDouble(highestPrice))
-                           .addField("low", Double.parseDouble(lowestPrice))
-                           .addField("open", Double.parseDouble(openingPrice))
-                           .addField("close", Double.parseDouble(closingPrice))
+                           .addField("high", formatHighestPrice)
+                           .addField("low", formatLowestPrice)
+                           .addField("open", formatOpeningPrice)
+                           .addField("close", formatClosingPrice)
                            .addField("volume", Double.parseDouble(tradeVolume))
                            .time(todayTlong, WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
+        logger.debug("(轉換後)日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + formatOpeningPrice + ", 最高價: " + formatHighestPrice + ", 最低價: " + formatLowestPrice + ", 收盤價: " + formatClosingPrice);
+
         assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
     }
 }

@@ -2,6 +2,7 @@ package xyz.dowob.stockweb.Component.Method;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,22 +70,28 @@ public class CrontabMethod {
     }
 
     private List<String> trackableStocks = new ArrayList<>();
+    private boolean immediatelyUpdateStockTw = false;
     Logger logger = LoggerFactory.getLogger(CrontabMethod.class);
 
-    @Value("${news.remain.days}")
-    private int newsRemainDays;
+    @Value("${news.remain.days}") private int newsRemainDays;
 
-    @Value("${news.autoupdate.currency}")
-    private boolean newsAutoupdateCurrency;
+    @Value("${news.autoupdate.currency}") private boolean newsAutoupdateCurrency;
 
-    @Value("${news.autoupdate.crypto}")
-    private boolean newsAutoupdateCrypto;
+    @Value("${news.autoupdate.crypto}") private boolean newsAutoupdateCrypto;
 
-    @Value("${news.autoupdate.stock_tw}")
-    private boolean newsAutoupdateStockTw;
+    @Value("${news.autoupdate.stock_tw}") private boolean newsAutoupdateStockTw;
 
-    @Value("${common.global_size}")
-    private int pageSize;
+    @Value("${common.global_size}") private int pageSize;
+
+    @Value("${stock_tw.enable_auto_start}") private boolean isStockTwAutoStart;
+
+    @PostConstruct
+    public void init() {
+        if (isStockTwAutoStart) {
+            logger.info("已開啟股票台灣自動更新");
+            immediatelyUpdateStockTw = true;
+        }
+    }
 
 
     @Scheduled(cron = "0 0 1 * * ?")
@@ -124,20 +131,27 @@ public class CrontabMethod {
     }
 
     @Scheduled(cron = "*/5 * 9-13 * * MON-FRI ", zone = "Asia/Taipei")
-    public void trackPricesPeriodically() throws JsonProcessingException {
-        if (!trackableStocks.isEmpty()) {
-            logger.debug("已經獲取列表");
+    public void trackStockTwPricesPeriodically() {
+        if (immediatelyUpdateStockTw) {
             LocalTime now = LocalTime.now(ZoneId.of("Asia/Taipei"));
-            if (now.isAfter(LocalTime.of(13, 30)) && now.getMinute() % 10 == 0) {
-                logger.debug("收盤時間:更新速度為10分鐘");
-                stockTwService.trackStockNowPrices(trackableStocks);
+            if (!trackableStocks.isEmpty()) {
+                logger.debug("已經獲取列表");
+
+                if (now.isAfter(LocalTime.of(13, 30)) && now.getMinute() % 10 == 0) {
+                    logger.debug("收盤時間:更新速度為10分鐘");
+                    stockTwService.trackStockNowPrices(trackableStocks);
+                } else {
+                    logger.debug("開盤時間:更新速度為5秒");
+                    stockTwService.trackStockNowPrices(trackableStocks);
+                }
             } else {
-                logger.debug("開盤時間:更新速度為5秒");
-                stockTwService.trackStockNowPrices(trackableStocks);
+                logger.debug("列表為空，嘗試獲取訂閱列表");
+                try {
+                    checkSubscriptions();
+                } catch (JsonProcessingException e) {
+                    logger.error("無法獲取列表: " + e.getMessage());
+                }
             }
-        } else {
-            logger.warn("列表為空，嘗試獲取訂閱列表");
-            checkSubscriptions();
         }
     }
 
@@ -169,7 +183,10 @@ public class CrontabMethod {
                 logger.debug("正在記錄使用者 " + user.getUsername() + " 的資產總價");
                 List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(user, false);
                 if (getAllPropertiesDtoList == null) {
-                    logger.debug("用戶:" + user.getUsername() + "沒有資產可以記錄，跳過");
+                    logger.debug("用戶:" + user.getUsername() + "沒有資產可以記錄");
+                    logger.info("重製用戶 " + user.getUsername() + " 的influx資產資料庫");
+                    propertyService.resetUserPropertySummary(user);
+                    logger.info("重製用戶資料完成");
                     continue;
                 }
                 List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(
@@ -261,6 +278,14 @@ public class CrontabMethod {
             logger.error("更新資產列表緩存失敗", e);
             throw new RuntimeException("更新資產列表緩存失敗", e);
         }
+    }
+
+    public void operateStockTwTrack(boolean isOpen) {
+        immediatelyUpdateStockTw = isOpen;
+        logger.info("已獲取股票台灣自動更新狀態 " + isOpen);
+    }
+    public boolean isStockTwAutoStart() {
+        return immediatelyUpdateStockTw;
     }
 }
 

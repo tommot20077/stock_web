@@ -38,15 +38,15 @@ function generateAssetListTable(asset) {
     let type = asset.type;
     let isSubscribed = asset.isSubscribed;
     let row = document.createElement("tr");
-    let href;
+    let assetHref;
     if (isSubscribed === true) {
-        href = "/asset_info/" + assetId;
+        assetHref = "/asset_info/" + assetId;
     } else {
-        href = "#";
+        assetHref = "#";
     }
     row.innerHTML =
         `   
-            <td><a href="${href}">${assetId}</a></td}">
+            <td><a href=${assetHref}>${assetId}</a></td>
             <td>${assetName}</td>
             <td>${getAssetType(type)}</td>
             <td>${isSubscribed === true ? "已有用戶訂閱" : "未有用戶訂閱"}</td>

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.RateLimiter;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +64,13 @@ public class CryptoService {
 
     @Value("${db.influxdb.bucket.crypto_history.detail}")
     private String frequency;
+
     @Value("${db.influxdb.bucket.crypto_history.dateline}")
     private String dateline;
+
+    @Value("${crypto.enable_auto_start}")
+    private boolean enableAutoStart;
+
     private final String dataUrl = "https://data.binance.vision/data/spot/";
     RateLimiter rateLimiter = RateLimiter.create(1.0);
 
@@ -87,6 +93,13 @@ public class CryptoService {
     @EventListener
     public void handleWebSocketConnectionStatusEvent(WebSocketConnectionStatusEvent event) {
         isRunning = event.isConnected();
+    }
+
+    @PostConstruct
+    public void init() {
+        if (enableAutoStart) {
+            openConnection();
+        }
     }
 
     public boolean isConnectionOpen() {
@@ -339,10 +352,12 @@ public class CryptoService {
                 taskRepository.save(task);
                 progressTracker.deleteProgress(taskId);
                 logger.debug("任務用時: " + task.getTaskUsageTime());
-
+/*
                 if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
                     dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
                 }
+
+ */
                 applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, true, cryptoTradingPair));
             });
             return CompletableFuture.completedFuture(taskId);
@@ -351,9 +366,12 @@ public class CryptoService {
             task.completeTask(TaskStatusType.FAILED, "歷史價格資料抓取失敗: " + e.getMessage());
             taskRepository.save(task);
             progressTracker.deleteProgress(taskId);
+            /*
             if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
                 dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
             }
+
+             */
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, cryptoTradingPair));
             return CompletableFuture.completedFuture(taskId);
         }
@@ -491,9 +509,12 @@ public class CryptoService {
             progressTracker.deleteProgress(taskId);
             logger.debug("任務用時: " + task.getTaskUsageTime());
         } finally {
+            /*
             if (dynamicThreadPoolManager.getActiveTasks().get() <= 0) {
                 dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
             }
+
+             */
         }
     }
 

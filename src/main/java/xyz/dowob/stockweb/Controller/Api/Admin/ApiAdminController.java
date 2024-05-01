@@ -190,7 +190,7 @@ public class ApiAdminController {
         }
     }
 
-    @PostMapping("/stock/tw/getStockDailyData")
+    @PostMapping("/stock/tw/trackStockDailyData")
     public ResponseEntity<?> getSpecificStocksDailyPriceByStockCode() {
         try {
             stockTwService.trackStockHistoryPricesWithUpdateDaily();
@@ -204,6 +204,26 @@ public class ApiAdminController {
     public ResponseEntity<?> checkSubscriptions() {
         try {
             crontabMethod.checkSubscriptions();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/stock/tw/trackImmediatePrice")
+    public ResponseEntity<?> trackImmediatePrice() {
+        try {
+            crontabMethod.operateStockTwTrack(true);
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/stock/tw/unTrackImmediatePrice")
+    public ResponseEntity<?> unTrackImmediatePrice() {
+        try {
+            crontabMethod.operateStockTwTrack(false);
             return ResponseEntity.ok().body("操作成功");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());

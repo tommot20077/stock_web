@@ -43,6 +43,9 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
                                                                                                                              false);
                     if (getAllPropertiesDtoList == null || getAllPropertiesDtoList.isEmpty()) {
                         logger.debug("沒有用戶資產，停止紀錄用戶:" + event.getUser().getUsername());
+                        logger.info("重製用戶 " + event.getUser().getUsername() + " 的influx資產資料庫");
+                        propertyService.resetUserPropertySummary(event.getUser());
+                        logger.debug("重製用戶資料完成");
                         return;
                     }
                     List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(

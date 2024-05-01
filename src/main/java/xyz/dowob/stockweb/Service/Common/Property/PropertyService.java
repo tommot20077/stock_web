@@ -26,6 +26,7 @@ import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Dto.Property.RoiDataDto;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
+import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.EventCache;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -85,8 +86,7 @@ public class PropertyService {
         this.eventPublisher = eventPublisher;
     }
 
-    @Value("${db.influxdb.bucket.property_summary}")
-    private String propertySummaryBucket;
+    @Value("${db.influxdb.bucket.property_summary}") private String propertySummaryBucket;
 
 
     @Transactional(rollbackOn = Exception.class)
@@ -260,13 +260,21 @@ public class PropertyService {
         logger.debug("數量: " + quantity);
 
         Currency currency = null;
+        Property property = null;
+        BigDecimal netFlow;
         if (request.formatOperationTypeEnum() == OperationType.ADD) {
-            logger.debug("新增或更新操作");
+            logger.debug("新增操作");
             currency = currencyRepository.findByCurrency(request.getSymbol().toUpperCase())
                                          .orElseThrow(() -> new RuntimeException("找不到指定的貨幣代碼"));
             logger.debug("貨幣: " + currency);
+        } else if (id != null) {
+            logger.debug("更新、移除操作");
+            property = propertyRepository.findById(id).orElseThrow(() -> new RuntimeException("找不到指定的持有貨幣"));
+            logger.debug("持有貨幣: " + property.getAsset());
+            currency = (Currency) property.getAsset();
         }
-        BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity, currency);
+
+
 
         switch (request.formatOperationTypeEnum()) {
             case ADD:
@@ -302,7 +310,7 @@ public class PropertyService {
                 propertyRepository.save(propertyToAdd);
                 subscribeMethod.subscribeProperty(propertyToAdd, user);
                 recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
-
+                netFlow  = propertyInfluxService.calculateNetFlow(quantity, currency);
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 logger.debug("新增成功");
 
@@ -317,18 +325,22 @@ public class PropertyService {
                     logger.debug("刪除時必須有 id");
                     throw new RuntimeException("刪除時必須有 id");
                 }
+                if (property == null) {
+                    logger.debug("找不到指定的持有貨幣");
+                    throw new RuntimeException("找不到指定的持有貨幣");
+                }
 
-                Property propertyToRemove = propertyRepository.findById(id).orElseThrow(() -> new RuntimeException("找不到指定的持有貨幣"));
-
-                if (!propertyToRemove.getUser().equals(user)) {
+                if (!property.getUser().equals(user)) {
                     logger.debug("無法刪除其他人的持有貨幣");
                     throw new RuntimeException("無法刪除其他人的持有貨幣");
                 }
+
+                netFlow  = propertyInfluxService.calculateNetFlow(property.getQuantity(), currency);
                 propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
 
-                recordTransaction(user, propertyToRemove, request.formatOperationTypeEnum());
-                subscribeMethod.unsubscribeProperty(propertyToRemove, user);
-                propertyRepository.delete(propertyToRemove);
+                recordTransaction(user, property, request.formatOperationTypeEnum());
+                subscribeMethod.unsubscribeProperty(property, user);
+                propertyRepository.delete(property);
                 logger.debug("刪除成功");
 
                 logger.debug("發布更新用戶資產事件");
@@ -340,10 +352,12 @@ public class PropertyService {
                     logger.debug("更新時必須有 id");
                     throw new RuntimeException("更新時必須有 id");
                 }
+                if (property == null) {
+                    logger.debug("找不到指定的持有貨幣");
+                    throw new RuntimeException("找不到指定的持有貨幣");
+                }
 
-                Property propertyToUpdate = propertyRepository.findById(id).orElseThrow(() -> new RuntimeException("找不到指定的持有貨幣"));
-
-                if (!propertyToUpdate.getUser().equals(user)) {
+                if (!property.getUser().equals(user)) {
                     logger.debug("無法更新其他人的持有貨幣");
                     throw new RuntimeException("無法更新其他人的持有貨幣");
                 }
@@ -354,24 +368,28 @@ public class PropertyService {
                     logger.debug("數量必須大於 0");
                     throw new RuntimeException("數量必須大於 0");
                 } else {
-                    propertyToUpdate.setQuantity(quantity);
+                    property.setQuantity(quantity);
                 }
 
                 if (description != null) {
-                    propertyToUpdate.setDescription(description);
+                    property.setDescription(description);
                 } else {
                     logger.debug("沒有備註，使用預設值");
-                    propertyToUpdate.setDescription("");
+                    property.setDescription("");
                 }
 
-                if (quantity.subtract(propertyToUpdate.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
+
+                netFlow  = propertyInfluxService.calculateNetFlow(quantity, currency);
+                if (quantity.subtract(property.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                    logger.debug("netFlow: " + netFlow);
                 } else {
                     propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
+                    logger.debug("netFlow: " + netFlow.negate());
                 }
 
-                propertyRepository.save(propertyToUpdate);
-                recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());
+                propertyRepository.save(property);
+                recordTransaction(user, property, request.formatOperationTypeEnum());
                 logger.debug("更新成功");
 
                 logger.debug("發布更新用戶資產事件");
@@ -605,6 +623,9 @@ public class PropertyService {
             BigDecimal exchangeRate;
             if (isFormattedToPreferredCurrency) {
                 exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, user.getPreferredCurrency());
+                if (property.getAsset().getId().equals(user.getPreferredCurrency().getId())) {
+                    exchangeRate = BigDecimal.valueOf(1);
+                }
             } else {
                 exchangeRate = assetHandler.exrateToPreferredCurrency(property.getAsset(), currentPrice, usd);
             }
@@ -888,8 +909,9 @@ public class PropertyService {
             FluxRecord record = cashFlowDataTable.get("net_cash_flow").getFirst().getRecords().getFirst();
             logger.debug("取得淨流量資料: " + record.getValueByKey("_value"));
             String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(value -> {
-                DecimalFormat df = new DecimalFormat("#.###");
-                return df.format(Double.parseDouble(value.toString()));
+                BigDecimal bigDecimalValue = new BigDecimal(value.toString());
+                BigDecimal formatValue = bigDecimalValue.multiply(user.getPreferredCurrency().getExchangeRate());
+                return formatValue.setScale(3, RoundingMode.HALF_UP).toString();
             }).orElse("數據不足");
             propertyOverviewResult.put("cash_flow", dayNetCashFlow);
         }
@@ -930,6 +952,11 @@ public class PropertyService {
             }
         }
         return closestTime;
+    }
+
+    public void resetUserPropertySummary(User user) {
+        propertyInfluxService.deleteSpecificPropertyDataByUserAndAsset(user);
+        propertyInfluxService.setZeroSummaryByUser(user);
     }
 
 }

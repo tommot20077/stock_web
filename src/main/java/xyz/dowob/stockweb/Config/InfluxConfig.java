@@ -2,6 +2,8 @@ package xyz.dowob.stockweb.Config;
 
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.InfluxDBClientOptions;
+import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,6 +40,12 @@ public class InfluxConfig {
     @Value("${db.influxdb.bucket.property_summary}")
     private String propertySummaryBucket;
 
+    @Value("${db.influxdb.connect_timeout}")
+    private int influxConnectTimeout;
+
+    @Value("${db.influxdb.read_write_timeout}")
+    private int influxReadTimeout;
+
 
     @Bean(name = "CryptoInfluxClient")
     public InfluxDBClient cryptoInfluxClient() {
@@ -51,12 +59,12 @@ public class InfluxConfig {
 
     @Bean(name = "StockTwInfluxClient")
     public InfluxDBClient stockTwInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockTwBucket);
+        return createClient(stockTwBucket);
     }
 
     @Bean(name = "StockTwHistoryInfluxClient")
     public InfluxDBClient stockTwHistoryInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, stockTwHistoryBucket);
+        return createClient(stockTwHistoryBucket);
     }
 
     @Bean(name = "CurrencyInfluxClient")
@@ -72,5 +80,24 @@ public class InfluxConfig {
     @Bean(name = "influxClient")
     public InfluxDBClient influxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org);
+    }
+
+
+    private InfluxDBClient createClient(String bucketName) {
+        OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                .connectTimeout(influxConnectTimeout, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS);
+
+
+        InfluxDBClientOptions options = InfluxDBClientOptions.builder()
+                .url(url)
+                .authenticateToken(token.toCharArray())
+                .org(org)
+                .bucket(bucketName)
+                .okHttpClient(builder)
+                .build();
+
+        return InfluxDBClientFactory.create(options);
     }
 }

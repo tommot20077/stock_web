@@ -21,6 +21,8 @@ import xyz.dowob.stockweb.Model.User.User;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,24 +35,23 @@ public class PropertyInfluxService {
     private final InfluxDBClient propertySummaryInfluxClient;
     private final AssetInfluxMethod assetInfluxMethod;
     private final RetryTemplate retryTemplate;
+    private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
+    private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
 
     Logger logger = LoggerFactory.getLogger(PropertyInfluxService.class);
 
     @Autowired
     public PropertyInfluxService(
-            @Qualifier("propertySummaryInfluxClient")
-            InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
         this.retryTemplate = retryTemplate;
     }
 
-    @Value("${db.influxdb.bucket.property_summary}")
-    private String propertySummaryBucket;
+    @Value("${db.influxdb.bucket.property_summary}") private String propertySummaryBucket;
 
-    @Value("${db.influxdb.org}")
-    private String org;
+    @Value("${db.influxdb.org}") private String org;
 
     public void writePropertyDataToInflux(List<PropertyListDto.writeToInfluxPropertyDto> userPropertiesDtoList, User user) {
         logger.debug("讀取資產數據: " + userPropertiesDtoList.toString());
@@ -101,7 +102,8 @@ public class PropertyInfluxService {
                             break;
                     }
                 }
-                Point summaryPoint = Point.measurement("summary_property").addTag("user_id", user.getId().toString())
+                Point summaryPoint = Point.measurement("summary_property")
+                                          .addTag("user_id", user.getId().toString())
                                           .addField("currency_sum", ref.currencyTypeSum)
                                           .addField("crypto_sum", ref.cryptoTypeSum)
                                           .addField("stock_tw_sum", ref.stockTwTypeSum)
@@ -129,14 +131,14 @@ public class PropertyInfluxService {
     public void writeNetFlowToInflux(BigDecimal newNetFlow, User user) {
 
         Map<String, List<FluxTable>> netCashFlowTablesMap = queryByUser(propertySummaryBucket, "net_cash_flow", user, "3d", true);
-        BigDecimal originNetCashFlow = BigDecimal.valueOf(0);
+        BigDecimal originNetCashFlow;
         if (!netCashFlowTablesMap.containsKey("net_cash_flow") || netCashFlowTablesMap.get("net_cash_flow")
                                                                                       .isEmpty() || netCashFlowTablesMap.get("net_cash_flow")
                                                                                                                         .getFirst()
                                                                                                                         .getRecords()
                                                                                                                         .isEmpty()) {
             logger.debug("沒有該用戶的資料，設定初始值0");
-            newNetFlow = BigDecimal.valueOf(0);
+            originNetCashFlow = BigDecimal.valueOf(0);
         } else {
             Object value = netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().getFirst().getValueByKey("_value");
             logger.debug("取得該用戶的資料: " + value);
@@ -148,11 +150,12 @@ public class PropertyInfluxService {
             }
         }
         BigDecimal newNetCashFlow = originNetCashFlow.add(newNetFlow);
+        logger.debug("更新後的現金流量: " + newNetCashFlow);
         try {
             retryTemplate.doWithRetry(() -> {
                 Point netCashFlowPoint = Point.measurement("net_cash_flow")
                                               .addTag("user_id", user.getId().toString())
-                                              .addField("net_flow", newNetCashFlow)
+                                              .addField("net_cash_flow", newNetCashFlow)
                                               .time(Instant.now().toEpochMilli(), WritePrecision.MS);
 
                 logger.debug("建立InfluxDB netCashFlowPoint");
@@ -212,5 +215,43 @@ public class PropertyInfluxService {
 
     }
 
+    public void deleteSpecificPropertyDataByUserAndAsset(User user) {
+        String predicate = String.format("_measurement=\"specific_property\" AND user_id=\"%s\"", user.getId());
+        logger.warn("刪除" + user.getId() + "的特定資產歷史資料");
+        try {
+            retryTemplate.doWithRetry(() -> {
+                try {
+                    logger.warn("連接InfluxDB成功");
+                    propertySummaryInfluxClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, propertySummaryBucket, org);
+                    logger.info("刪除資料成功");
+                } catch (Exception e) {
+                    logger.error("刪除資料時發生錯誤: " + e.getMessage());
+                    throw new RuntimeException("刪除資料時發生錯誤: " + e.getMessage());
+                }
+            });
+        } catch (RetryException e) {
+            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+        }
+    }
 
+    public void setZeroSummaryByUser(User user) {
+        Long time = Instant.now().toEpochMilli();
+        Point summaryPoint = Point.measurement("summary_property")
+                                  .addTag("user_id", user.getId().toString())
+                                  .addField("currency_sum", 0.0)
+                                  .addField("crypto_sum", 0.0)
+                                  .addField("stock_tw_sum", 0.0)
+                                  .addField("total_sum", 0.0)
+                                  .time(time, WritePrecision.MS);
+        logger.debug("建立InfluxDB specificPoint");
+        assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, summaryPoint);
+
+        Point netFlowPoint = Point.measurement("net_cash_flow")
+                                  .addTag("user_id", user.getId().toString())
+                                  .addField("net_cash_flow", 0.0)
+                                  .time(time, WritePrecision.MS);
+        logger.debug("建立InfluxDB netFlowPoint");
+        assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, netFlowPoint);
+    }
 }
