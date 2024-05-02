@@ -25,10 +25,7 @@ import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -285,7 +282,14 @@ public class CrontabMethod {
         logger.info("已獲取股票台灣自動更新狀態 " + isOpen);
     }
     public boolean isStockTwAutoStart() {
-        return immediatelyUpdateStockTw;
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Taipei"));
+        DayOfWeek dayOfWeek = now.getDayOfWeek();
+        if (dayOfWeek.getValue() >= DayOfWeek.MONDAY.getValue() && dayOfWeek.getValue() <= DayOfWeek.FRIDAY.getValue()) {
+            if (now.getHour() >= 9 && now.getHour() <= 14) {
+                return immediatelyUpdateStockTw;
+            }
+        }
+        return false;
     }
 }
 

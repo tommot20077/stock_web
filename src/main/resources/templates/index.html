@@ -313,20 +313,11 @@
 										<div class="col-lg-4 d-flex flex-column">
 											<div class="row flex-grow">
 												<div class="col-md-6 col-lg-12 grid-margin stretch-card">
-													<div class="card bg-primary card-rounded">
+													<div class="card bg-dark card-rounded">
 														<div class="card-body pb-0">
-															<h4 class="card-title card-title-dash text-white mb-4">Status Summary</h4>
-															<div class="row">
-																<div class="col-sm-4">
-																	<p class="status-summary-ight-white mb-1">Closed Value</p>
-																	<h2 class="text-info">357</h2>
-																</div>
-																<div class="col-sm-8">
-																	<div class="status-summary-chart-wrapper pb-4">
-																		<canvas id="status-summary"></canvas>
-																	</div>
-																</div>
-															</div>
+															<h4 class="card-title card-title-dash text-white mb-4">伺服器狀態</h4>
+															<div class="text-white d-flex justify-content-between">即時虛擬貨幣更新<div id="isCryptoOpen"></div></div>
+															<div class="text-white d-flex justify-content-between">即時台灣股票更新<div id="isStockTwOpen"></div></div>
 														</div>
 													</div>
 												</div>
@@ -407,6 +398,8 @@
 																		<div class="add-items d-flex mb-0">
 																			<button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p">
 																				<i class="mdi mdi-plus"></i></button>
+																			<button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p">
+																				<i class="mdi mdi-minus"></i></button>
 																		</div>
 																	</div>
 																	<div class="list-wrapper">
@@ -497,6 +490,12 @@
 	userPropertySummaryLineChart();
 	userPropertySummaryPieChart()
 	displayStatisticsOverview();
+	displayServerStatus();
+
+	setInterval(() => {
+		displayServerStatus();
+	}, 60000);
+
 
 	document.addEventListener("DOMContentLoaded", () => {
 		const prevPageButton = document.getElementById('previousPage');

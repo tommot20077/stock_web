@@ -859,6 +859,21 @@ async function fetchAssetListData(pageNumber, category) {
 
 }
 
+async function fetchServerStatus() {
+    let response = await fetch('/api/user/common/getServerStatus', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    if (response.ok) {
+        return await response.json();
+    } else {
+        let errorText = await response.text();
+        throw new Error(errorText);
+    }
+}
+
 
 function hideById(id) {
     if (document.getElementById(id)) {

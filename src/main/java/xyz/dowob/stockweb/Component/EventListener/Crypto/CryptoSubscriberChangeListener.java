@@ -22,6 +22,15 @@ public class CryptoSubscriberChangeListener implements ApplicationListener<Crypt
         this.cryptoService = cryptoService;
     }
 
+    /**
+     * 當CryptoSubscriberChangeEvent事件發生時，此方法將被調用。
+     * 如果虛擬貨幣服務的連線是開啟的，則進行以下操作：
+     * 關閉現有的連線。
+     * 開啟新的連線。
+     * 如果虛擬貨幣服務的連線是關閉的，則不進行任何操作。
+     *
+     * @param event CryptoSubscriberChangeEvent事件對象
+     */
     @Override
     public void onApplicationEvent(
             @NotNull CryptoSubscriberChangeEvent event) {

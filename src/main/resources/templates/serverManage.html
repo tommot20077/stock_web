@@ -374,10 +374,11 @@
 
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票清單", "無", "/api/admin/stock/tw/updateStockList", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "取得台灣股票列表", "無", "/api/admin/stock/tw/getStockList", "GET", csrfToken);
-	generateAdminCommandTable("commandListTableBody", "更新台灣股票即時價格資料", "無", "/api/admin/stock/tw/ws/updateStockDetail", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "更新台灣股票訂閱清單", "無", "/api/admin/stock/tw/ws/updateStockDetail", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票歷史價格資料", "無", "/api/admin/stock/tw/trackStockHistoryData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票每日歷史價格資料", "無", "/api/admin/stock/tw/trackStockDailyData", "POST", csrfToken);
-	generateAdminCommandTable("commandListTableBody", "確認股票即時訂閱清單", "無", "/api/admin/stock/tw/checkSubscriptions", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "開啟台灣股票即時價格功能", "無", "/api/admin/stock/tw/trackImmediatePrice", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "關閉台灣股票即時價格功能", "無", "/api/admin/stock/tw/unTrackImmediatePrice", "POST", csrfToken);
 
 	generateAdminCommandTable("commandListTableBody", "更新貨幣清單", "無", "/api/admin/currency/updateCurrencyData", "POST", csrfToken);
 

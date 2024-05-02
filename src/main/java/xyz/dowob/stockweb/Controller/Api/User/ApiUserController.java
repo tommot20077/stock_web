@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -13,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
+import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Model.Common.Asset;
@@ -21,6 +23,7 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
+import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
@@ -41,14 +44,19 @@ public class ApiUserController {
     private final NewsService newsService;
     private final RedisService redisService;
     private final AssetService assetService;
+    private final CryptoService cryptoService;
+    private final CrontabMethod crontabMethod;
+
 
     @Autowired
-    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService) {
+    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoService cryptoService, CrontabMethod crontabMethod) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.newsService = newsService;
         this.redisService = redisService;
         this.assetService = assetService;
+        this.cryptoService = cryptoService;
+        this.crontabMethod = crontabMethod;
     }
 
 
@@ -250,5 +258,19 @@ public class ApiUserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/getServerStatus")
+    public ResponseEntity<?> getServerStatus() {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, Boolean> status = new HashMap<>();
+            status.put("isCryptoOpen", cryptoService.isConnectionOpen());
+            status.put("isStockTwOpen", crontabMethod.isStockTwAutoStart());
+            return ResponseEntity.ok().body(objectMapper.writeValueAsString(status));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
+
     }
 }

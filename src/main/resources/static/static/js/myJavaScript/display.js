@@ -303,3 +303,21 @@ function createAssetListHandleNext(newPage, prevPageButton, nextPageButton, curr
         scrollToElement('newsTableBody');
     };
 }
+
+async function displayServerStatus() {
+    let serverStatus = await fetchServerStatus();
+    let isCryptoOpen = document.getElementById("isCryptoOpen");
+    let isStockTwOpen = document.getElementById("isStockTwOpen");
+    if (serverStatus.isCryptoOpen) {
+        isCryptoOpen.innerHTML = `<label class="badge badge-success text-white" style="background-color: #4DA761">開啟</label>`;
+    } else {
+        isCryptoOpen.innerHTML = `<label class="badge badge-danger text-white" style="background-color: #F95F53">關閉</label>`;
+    }
+
+    if (serverStatus.isStockTwOpen) {
+        isStockTwOpen.innerHTML = `<label class="badge badge-success text-white" style="background-color: #4DA761">開啟</label>`;
+    } else {
+        isStockTwOpen.innerHTML = `<label class="badge badge-danger text-white" style="background-color: #F95F53">關閉</label>`;
+    }
+
+}

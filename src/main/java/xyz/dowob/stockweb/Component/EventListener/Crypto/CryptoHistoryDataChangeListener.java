@@ -33,6 +33,22 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
         this.eventPublisher = eventPublisher;
     }
 
+
+    /**
+     * 當CryptoHistoryDataChangeEvent事件發生時，此方法將被調用。
+     * 如果事件的addOrRemove屬性為"add"，則進行以下操作：
+     * 檢查該虛擬貨幣是否已在進行中，如果是，則不處理。
+     * 追蹤該虛擬貨幣的歷史價格。
+     * 發布PropertyUpdateEvent事件。
+     * 如果事件的addOrRemove屬性為"remove"，則進行以下操作：
+     * 移除該虛擬貨幣的歷史資料。
+     * 發布PropertyUpdateEvent事件。
+     * 如果事件的addOrRemove屬性既不是"add"也不是"remove"，則不處理。
+     *
+     * @param event CryptoHistoryDataChangeEvent事件對象
+     *
+     * @throws RuntimeException 如果追蹤歷史資料失敗或操作失敗，則拋出異常
+     */
     @Override
     public void onApplicationEvent(
             @NotNull CryptoHistoryDataChangeEvent event) {

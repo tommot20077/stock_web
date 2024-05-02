@@ -74,6 +74,9 @@ public class StockTwInfluxDBService {
             BigDecimal openFormat = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
             BigDecimal lowFormat = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
 
+            logger.debug("(轉換後) z = " + priceFormat + ", c = " + msgNode.path("c").asText() + ", tlong = " + msgNode.path("tlong")
+                                                                                                                       .asText() + ", o = " + openFormat + ", h = " + highFormat + ", l = " + lowFormat + ", v = " + msgNode.path(
+                    "v").asText());
 
             Double priceDouble = priceFormat.doubleValue();
             Double highDouble = highFormat.doubleValue();

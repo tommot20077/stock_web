@@ -32,6 +32,20 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
         this.crontabMethod = crontabMethod;
     }
 
+
+    /**
+     * 當PropertyUpdateEvent事件發生時，此方法將被調用。
+     * 如果事件中的用戶不為null，則進行以下操作：
+     * 獲取該用戶的所有資產。
+     * 如果該用戶沒有資產，則停止記錄該用戶，並重置該用戶的資產資料庫。
+     * 如果該用戶有資產，則將所有資產寫入Influx。
+     * 如果事件中的用戶為null，則更新所有用戶的資產。
+     * 如果重試失敗，則拋出異常。
+     *
+     * @param event PropertyUpdateEvent事件對象
+     *
+     * @throws RuntimeException 如果重試失敗，則拋出異常
+     */
     @Override
     public void onApplicationEvent(
             @NotNull PropertyUpdateEvent event) {

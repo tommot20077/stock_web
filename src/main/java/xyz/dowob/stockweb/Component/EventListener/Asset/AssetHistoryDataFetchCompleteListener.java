@@ -38,6 +38,19 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
         this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * 當AssetHistoryDataFetchCompleteEvent事件發生時，此方法將被調用。
+     * 如果事件成功，則進行以下操作：
+     * 1. 從事件中獲取資產並獲取相關的事件緩存。
+     * 2. 如果事件緩存不為空，則遍歷事件緩存，計算淨流量並寫入Influx，然後刪除事件緩存。
+     * 3. 發布PropertyUpdateEvent事件。
+     * 如果事件失敗，則拋出異常。
+     * 如果重試失敗，則拋出異常。
+     *
+     * @param event AssetHistoryDataFetchCompleteEvent事件對象
+     *
+     * @throws RuntimeException 如果重試失敗，則拋出異常
+     */
     @Override
     public void onApplicationEvent(
             @NotNull AssetHistoryDataFetchCompleteEvent event) {

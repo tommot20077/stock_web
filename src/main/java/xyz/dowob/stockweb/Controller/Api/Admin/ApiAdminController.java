@@ -200,16 +200,6 @@ public class ApiAdminController {
         }
     }
 
-    @PostMapping("/stock/tw/checkSubscriptions")
-    public ResponseEntity<?> checkSubscriptions() {
-        try {
-            crontabMethod.checkSubscriptions();
-            return ResponseEntity.ok().body("操作成功");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
-        }
-    }
-
     @PostMapping("/stock/tw/trackImmediatePrice")
     public ResponseEntity<?> trackImmediatePrice() {
         try {
