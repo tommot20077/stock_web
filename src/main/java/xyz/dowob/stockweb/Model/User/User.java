@@ -28,7 +28,6 @@ public class User implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column
     private String username;
 
     @Column(nullable = false)
@@ -40,20 +39,25 @@ public class User implements Serializable {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false,
+            unique = true)
     private String email;
 
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false,
+            updatable = false)
     private OffsetDateTime created;
 
     @Column(nullable = false)
     private OffsetDateTime updated;
 
-    @Column(nullable = false, columnDefinition = "varchar(100) default 'Etc/UTC'")
+    @Column(nullable = false,
+            columnDefinition = "varchar(100) default 'Etc/UTC'")
     private String timezone = "Etc/UTC";
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "currency_id") @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @JoinColumn(name = "currency_id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private Currency preferredCurrency;
 
     @Column(nullable = false)
@@ -64,22 +68,40 @@ public class User implements Serializable {
     @Enumerated(EnumType.STRING)
     private Gender gender = Gender.OTHER;
 
-    @OneToOne(cascade = CascadeType.ALL, mappedBy = "user")
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @OneToOne(cascade = CascadeType.ALL,
+              mappedBy = "user")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private Token token;
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @OneToMany(cascade = CascadeType.ALL,
+               mappedBy = "user",
+               orphanRemoval = true)
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private List<Subscribe> subscriptions = new ArrayList<>();
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @OneToMany(cascade = CascadeType.ALL,
+               mappedBy = "user",
+               orphanRemoval = true)
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private List<Property> property = new ArrayList<>();
 
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @OneToMany(cascade = CascadeType.ALL,
+               mappedBy = "user",
+               orphanRemoval = true)
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private List<PropertySummary> propertySummary = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL,
+               mappedBy = "user",
+               orphanRemoval = true)
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
+    private List<Todo> todoLists = new ArrayList<>();
 
 
     @PreUpdate
@@ -113,7 +135,7 @@ public class User implements Serializable {
             @Override
             protected boolean accept(Field f) {
                 return super.accept(f) && !"token".equals(f.getName()) && !"subscriptions".equals(f.getName()) && !"property".equals(f.getName()) && !"propertySummary".equals(
-                        f.getName());
+                        f.getName()) && !"todoLists".equals(f.getName());
             }
         }).toString();
     }

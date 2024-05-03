@@ -121,7 +121,6 @@ async function displayStatisticsOverview() {
     try {
         const summaryData = await fetchUserPropertySummary();
         const propertyOverviewData = await fetchStatisticsOverview();
-        console.log("summaryData: "+summaryData.latest);
         const latestTotalSum = summaryData.latest.filter(dataPoint => dataPoint.field === "total_sum")[0].value;
         const latestTotalSumFloat = parseFloat(latestTotalSum).toFixed(2);
         tableBody.innerHTML =
@@ -319,5 +318,39 @@ async function displayServerStatus() {
     } else {
         isStockTwOpen.innerHTML = `<label class="badge badge-danger text-white" style="background-color: #F95F53">關閉</label>`;
     }
+}
+
+async function displayTodoList() {
+    let todoList = document.getElementById('todoList');
+    let todoListData = await fetchTodoList();
+
+    todoListData.forEach(todo => {
+        let priorityBadge;
+        if (todo.priority === "HIGH") {
+            priorityBadge = `<div class="badge badge-opacity-danger me-3" style="background-color: #ffbfb1">${getPriority(todo.priority)}</div>`;
+        } else if (todo.priority === "MEDIUM") {
+            priorityBadge = `<div class="badge badge-opacity-warning me-3">${getPriority(todo.priority)}</div>`;
+        } else {
+            priorityBadge = `<div class="badge badge-opacity-success me-3">${getPriority(todo.priority)}</div>`;
+        }
+
+
+        let todoItem = `
+            <li class="d-block">
+                <div class="form-check w-100">
+                    <label class="form-check-label" style="white-space: normal; overflow-wrap: break-word; word-wrap: break-word">
+                        <input class="checkbox" type="checkbox" data-todo-id="${todo.id}"> ${todo.content}
+                        <i class="input-helper rounded"></i>
+                    </label>
+                    <div class="d-flex mt-2">
+                        <div class="ps-4 text-small me-3">${todo.dueDate}</div>
+                        ${priorityBadge}
+                    </div>
+                </div>
+            </li>
+        `;
+        todoList.innerHTML += todoItem;
+    });
 
 }
+

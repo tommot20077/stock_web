@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author tommo
+ * @author yuan
  */
 @Component
 public class CrontabMethod {
@@ -285,7 +285,7 @@ public class CrontabMethod {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Taipei"));
         DayOfWeek dayOfWeek = now.getDayOfWeek();
         if (dayOfWeek.getValue() >= DayOfWeek.MONDAY.getValue() && dayOfWeek.getValue() <= DayOfWeek.FRIDAY.getValue()) {
-            if (now.getHour() >= 9 && now.getHour() <= 14) {
+            if (now.getHour() >= 9 && now.getHour() < 14) {
                 return immediatelyUpdateStockTw;
             }
         }

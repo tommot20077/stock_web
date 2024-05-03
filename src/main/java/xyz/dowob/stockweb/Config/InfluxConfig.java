@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * @author tommo
+ * @author yuan
  */
 @Configuration
 public class InfluxConfig {

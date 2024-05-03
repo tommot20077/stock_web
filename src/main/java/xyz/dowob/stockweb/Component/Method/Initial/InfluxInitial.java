@@ -17,47 +17,55 @@ import java.util.List;
  */
 @Component
 public class InfluxInitial {
-    @Value("${db.influxdb.url}") private String url;
+    @Value("${db.influxdb.url}")
+    private String url;
 
-    @Value("${db.influxdb.token}") private String token;
+    @Value("${db.influxdb.token}")
+    private String token;
 
-    @Value("${db.influxdb.org}") private String org;
+    @Value("${db.influxdb.org}")
+    private String org;
 
-    @Value("${db.influxdb.bucket.crypto}") private String cryptoBucket;
+    @Value("${db.influxdb.bucket.crypto}")
+    private String cryptoBucket;
 
-    @Value("${db.influxdb.bucket.crypto_history}") private String cryptoHistoryBucket;
+    @Value("${db.influxdb.bucket.crypto_history}")
+    private String cryptoHistoryBucket;
 
-    @Value("${db.influxdb.bucket.stock_tw}") private String stockTwBucket;
+    @Value("${db.influxdb.bucket.stock_tw}")
+    private String stockTwBucket;
 
-    @Value("${db.influxdb.bucket.stock_tw_history}") private String stockTwHistoryBucket;
+    @Value("${db.influxdb.bucket.stock_tw_history}")
+    private String stockTwHistoryBucket;
 
-    @Value("${db.influxdb.bucket.currency}") private String currencyBucket;
+    @Value("${db.influxdb.bucket.currency}")
+    private String currencyBucket;
 
-    @Value("${db.influxdb.bucket.property_summary}") private String propertySummaryBucket;
-
-    @Value("${db.influxdb.org_id}") private String orgId;
-
+    @Value("${db.influxdb.bucket.property_summary}")
+    private String propertySummaryBucket;
     private final InfluxDBClient influxClient;
+
     Logger logger = LoggerFactory.getLogger(InfluxInitial.class);
 
 
-    public InfluxInitial(@Qualifier("influxClient") InfluxDBClient influxClient) {
+    public InfluxInitial(
+            @Qualifier("influxClient")
+            InfluxDBClient influxClient) {
         this.influxClient = influxClient;
     }
 
     @PostConstruct
     public void init() {
         List<String> buckets = List.of(cryptoBucket,
-                                    cryptoHistoryBucket,
-                                    stockTwBucket,
-                                    stockTwHistoryBucket,
-                                    currencyBucket,
-                                    propertySummaryBucket);
+                                       cryptoHistoryBucket,
+                                       stockTwBucket,
+                                       stockTwHistoryBucket,
+                                       currencyBucket,
+                                       propertySummaryBucket);
 
-        List<String> keys = List.of(org,
-                                    url,
-                                    token);
+        List<String> keys = List.of(org, url, token);
 
+        String orgId = getOrganization().getId();
         for (String key : keys) {
             if (key == null || key.isEmpty()) {
                 logger.info("請先配置設定" + key);
@@ -74,7 +82,7 @@ public class InfluxInitial {
             try {
                 if (!checkBucketExists(bucket)) {
                     logger.info("influx沒有指定的bucket，建立bucket: " + bucket);
-                    createBucket(bucket);
+                    createBucket(bucket, orgId);
                 }
             } catch (Exception e) {
                 logger.error("influx建立bucket失敗: " + bucket, e);
@@ -87,7 +95,17 @@ public class InfluxInitial {
         return bucket != null;
     }
 
-    private void createBucket(String bucketName) {
+    private Organization getOrganization() {
+        return influxClient.getOrganizationsApi()
+                           .findOrganizations()
+                           .stream()
+                           .filter(orgTemp -> orgTemp.getName().equals(org))
+                           .findFirst()
+                           .orElse(null);
+    }
+
+
+    private void createBucket(String bucketName, String orgId) {
         influxClient.getBucketsApi().createBucket(bucketName, orgId);
     }
 }

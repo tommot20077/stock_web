@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
+import xyz.dowob.stockweb.Dto.User.TodoDto;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.News;
 import xyz.dowob.stockweb.Model.User.User;
@@ -24,6 +25,7 @@ import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
+import xyz.dowob.stockweb.Service.User.TodoService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
@@ -45,17 +47,19 @@ public class ApiUserController {
     private final RedisService redisService;
     private final AssetService assetService;
     private final CryptoService cryptoService;
+    private final TodoService todoService;
     private final CrontabMethod crontabMethod;
 
 
     @Autowired
-    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoService cryptoService, CrontabMethod crontabMethod) {
+    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoService cryptoService, TodoService todoService, CrontabMethod crontabMethod) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.newsService = newsService;
         this.redisService = redisService;
         this.assetService = assetService;
         this.cryptoService = cryptoService;
+        this.todoService = todoService;
         this.crontabMethod = crontabMethod;
     }
 
@@ -271,6 +275,48 @@ public class ApiUserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
+    }
 
+    @GetMapping("/getTodoList")
+    public ResponseEntity<?> getTodoList(HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user != null) {
+                List<TodoDto> todoListDto = todoService.findAllByUser(user);
+                return ResponseEntity.ok().body(todoService.formatToJson(todoListDto));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/addTodoList")
+    public ResponseEntity<?> addTodoList(@RequestBody
+                                         TodoDto todoDto, HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user != null) {
+                todoService.addTodo(todoDto, user);
+                return ResponseEntity.ok().body("新增成功");
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/deleteTodoList")
+    public ResponseEntity<?> deleteTodoList(@RequestBody List<Long> todoListId) {
+        try {
+            for (Long id : todoListId) {
+                todoService.delete(id);
+            }
+            return ResponseEntity.ok().body("刪除成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
     }
 }

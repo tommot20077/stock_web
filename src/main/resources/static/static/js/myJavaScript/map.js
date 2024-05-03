@@ -53,3 +53,12 @@ function getPropertySummaryName(summaryName) {
     }
     return map[summaryName] || summaryName;
 }
+
+function getPriority(priority) {
+    const map = {
+        "HIGH": "優先",
+        "MEDIUM": "一般",
+        "LOW": "低"
+    }
+    return map[priority] || priority;
+}

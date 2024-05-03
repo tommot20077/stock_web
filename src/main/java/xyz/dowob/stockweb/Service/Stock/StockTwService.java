@@ -34,7 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * @author tommo
+ * @author yuan
  */
 @Service
 public class StockTwService {

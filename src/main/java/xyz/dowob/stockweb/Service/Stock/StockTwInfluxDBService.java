@@ -28,18 +28,27 @@ import java.util.Objects;
 @Service
 public class StockTwInfluxDBService {
     private final InfluxDBClient StockTwInfluxDBClient;
+
     private final InfluxDBClient StockTwHistoryInfluxDBClient;
+
     private final AssetInfluxMethod assetInfluxMethod;
+
     private final CurrencyRepository currencyRepository;
+
     private final RetryTemplate retryTemplate;
+
     Logger logger = LoggerFactory.getLogger(StockTwInfluxDBService.class);
+
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
+
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
     public StockTwInfluxDBService(
-            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
-            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwInfluxClient")
+            InfluxDBClient stockTwInfluxClient,
+            @Qualifier("StockTwHistoryInfluxClient")
+            InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -47,16 +56,19 @@ public class StockTwInfluxDBService {
         this.retryTemplate = retryTemplate;
     }
 
-    @Value("${db.influxdb.org}") private String org;
+    @Value("${db.influxdb.org}")
+    private String org;
 
-    @Value("${db.influxdb.bucket.stock_tw}") private String stockBucket;
+    @Value("${db.influxdb.bucket.stock_tw}")
+    private String stockBucket;
 
-    @Value("${db.influxdb.bucket.stock_tw_history}") private String stockHistoryBucket;
+    @Value("${db.influxdb.bucket.stock_tw_history}")
+    private String stockHistoryBucket;
 
     public void writeStockTwToInflux(JsonNode msgArray) {
         logger.debug("讀取即時股價數據");
-        Currency usdCurrency = currencyRepository.findByCurrency("USD").orElseThrow(() -> new RuntimeException("找不到USD幣別"));
-        BigDecimal twdToUsd = usdCurrency.getExchangeRate();
+        Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
+        BigDecimal twdToUsd = twdCurrency.getExchangeRate();
         for (JsonNode msgNode : msgArray) {
             logger.debug(msgNode.toString());
             if (Objects.equals(msgNode.path("z").asText(), "-")) {
@@ -69,19 +81,19 @@ public class StockTwInfluxDBService {
                                                                                                                                .asText()) + ", l = " + Double.parseDouble(
                     msgNode.path("l").asText()) + ", v = " + Double.parseDouble(msgNode.path("v").asText()));
 
-            BigDecimal priceFormat = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal highFormat = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal openFormat = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal lowFormat = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal priceUsd = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal highUsd = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal openUsd = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal lowUsd = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
 
-            logger.debug("(轉換後) z = " + priceFormat + ", c = " + msgNode.path("c").asText() + ", tlong = " + msgNode.path("tlong")
-                                                                                                                       .asText() + ", o = " + openFormat + ", h = " + highFormat + ", l = " + lowFormat + ", v = " + msgNode.path(
+            logger.debug("(轉換後) z = " + priceUsd + ", c = " + msgNode.path("c").asText() + ", tlong = " + msgNode.path("tlong")
+                                                                                                                       .asText() + ", o = " + openUsd + ", h = " + highUsd + ", l = " + lowUsd + ", v = " + msgNode.path(
                     "v").asText());
 
-            Double priceDouble = priceFormat.doubleValue();
-            Double highDouble = highFormat.doubleValue();
-            Double openDouble = openFormat.doubleValue();
-            Double lowDouble = lowFormat.doubleValue();
+            Double priceDouble = priceUsd.doubleValue();
+            Double highDouble = highUsd.doubleValue();
+            Double openDouble = openUsd.doubleValue();
+            Double lowDouble = lowUsd.doubleValue();
             Double volumeDouble = Double.parseDouble(msgNode.path("v").asText());
             String time = msgNode.path("tlong").asText();
             String stockId = msgNode.path("c").asText();
@@ -141,6 +153,12 @@ public class StockTwInfluxDBService {
         String closingPrice = node.path("ClosingPrice").asText();
 
         logger.debug("(轉換前)日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
+
+        if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice, "--") || Objects.equals(
+                closingPrice,
+                "--")) {
+            return;
+        }
 
         writeKlineDataPoint(todayTlong, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
     }

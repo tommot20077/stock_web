@@ -875,6 +875,35 @@ async function fetchServerStatus() {
 }
 
 
+async function fetchTodoList() {
+    let response = await fetch("/api/user/common/getTodoList")
+    if (response.ok) {
+        return await response.json();
+    } else {
+        let errorText = await response.text();
+        throw new Error(errorText);
+    }
+}
+
+async function deleteTodo(body) {
+    let response = await fetch('/api/user/common/deleteTodoList', {
+        headers: {
+            'Content-Type': 'application/json',
+
+        },
+        method: 'POST',
+        body: JSON.stringify(body)
+    });
+    if (response.ok) {
+        window.location.reload();
+    } else {
+        let errorText = await response.text();
+        console.error(errorText);
+    }
+}
+
+
+
 function hideById(id) {
     if (document.getElementById(id)) {
         document.getElementById(id).style.display = 'none';
@@ -901,10 +930,7 @@ function hideSpinner() {
 }
 
 function displayError(error, elementId) {
-    // Get the element by id
     let element = document.getElementById(elementId);
-
-    // Set the error message and color
     element.innerText = error;
     element.style.color = 'red';
     element.style.display = "block"

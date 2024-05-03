@@ -19,7 +19,7 @@ import java.util.Base64;
 import java.util.UUID;
 
 @Component
-public class MailTokenProvider {
+public class MailTokenProvider{
     private final TokenRepository tokenRepository;
     private final JavaMailSender javaMailSender;
 
@@ -114,5 +114,4 @@ public class MailTokenProvider {
             throw new RuntimeException("無效的密鑰");
         }
     }
-
 }

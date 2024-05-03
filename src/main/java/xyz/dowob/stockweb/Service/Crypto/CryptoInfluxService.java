@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author tommo
+ * @author yuan
  */
 @Service
 public class CryptoInfluxService {

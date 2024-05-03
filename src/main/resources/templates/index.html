@@ -13,6 +13,7 @@
 	<link rel="stylesheet" href=/static/vendors/typicons/typicons.css>
 	<link rel="stylesheet" href=/static/vendors/simple-line-icons/css/simple-line-icons.css>
 	<link rel="stylesheet" href=/static/vendors/css/vendor.bundle.base.css>
+	<link rel="stylesheet" href=/static/common.css>
 	<!-- endinject -->
 	<!-- Plugin css for this page -->
 	<link rel="stylesheet" href=/static/js/select.dataTables.min.css>
@@ -21,7 +22,6 @@
 	<link rel="stylesheet" href=/static/css/vertical-layout-light/style.css>
 	<!-- endinject -->
 	<link rel="shortcut icon" href=/static/favicon.ico/>
-
 </head>
 <body>
 <div class="container-scroller">
@@ -316,8 +316,12 @@
 													<div class="card bg-dark card-rounded">
 														<div class="card-body pb-0">
 															<h4 class="card-title card-title-dash text-white mb-4">伺服器狀態</h4>
-															<div class="text-white d-flex justify-content-between">即時虛擬貨幣更新<div id="isCryptoOpen"></div></div>
-															<div class="text-white d-flex justify-content-between">即時台灣股票更新<div id="isStockTwOpen"></div></div>
+															<div class="text-white d-flex justify-content-between">即時虛擬貨幣更新
+																<div id="isCryptoOpen"></div>
+															</div>
+															<div class="text-white d-flex justify-content-between">即時台灣股票更新
+																<div id="isStockTwOpen"></div>
+															</div>
 														</div>
 													</div>
 												</div>
@@ -394,30 +398,19 @@
 															<div class="row">
 																<div class="col-lg-12">
 																	<div class="d-flex justify-content-between align-items-center">
-																		<h4 class="card-title card-title-dash">Todo list</h4>
+																		<h4 class="card-title card-title-dash">待辦事項</h4>
 																		<div class="add-items d-flex mb-0">
-																			<button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p">
+																			<button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p"
+																					id="addTodo">
 																				<i class="mdi mdi-plus"></i></button>
-																			<button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p">
+																			<button class="add btn btn-icons btn-rounded btn-primary todo-list-add-btn text-white me-0 pl-12p"
+																					id="removeTodo">
 																				<i class="mdi mdi-minus"></i></button>
 																		</div>
 																	</div>
 																	<div class="list-wrapper">
-																		<ul class="todo-list todo-list-rounded">
-																			<li class="d-block">
-																				<div class="form-check w-100">
-																					<label class="form-check-label">
-																						<input class="checkbox"
-																								type="checkbox"> Lorem Ipsum is simply dummy text of the printing
-																						<i class="input-helper rounded"></i>
-																					</label>
-																					<div class="d-flex mt-2">
-																						<div class="ps-4 text-small me-3">24 June 2020</div>
-																						<div class="badge badge-opacity-warning me-3">Due tomorrow</div>
-																						<i class="mdi mdi-flag ms-2 flag-color"></i>
-																					</div>
-																				</div>
-																			</li>
+																		<ul class="todo-list todo-list-rounded"
+																				id="todoList">
 																		</ul>
 																	</div>
 																</div>
@@ -452,6 +445,70 @@
 	<!-- page-body-wrapper ends -->
 </div>
 <!-- container-scroller -->
+<div id="loading-spinner" class="loading-spinner-container">
+	<div id="lds-ring" class="lds-ring">
+		<div></div>
+		<div></div>
+		<div></div>
+		<div></div>
+	</div>
+
+	<div class="col-md-6 grid-margin stretch-card" id="addTodoCard">
+		<div class="card">
+			<div class="card-body">
+				<h4 class="card-title">新增待辦事項</h4>
+				<form class="forms-sample" id="addTodoForm">
+					<div class="form-group row">
+						<label for="priority" class="col-sm-3 col-form-label">優先度</label>
+						<div class="col-sm-9">
+							<select type="text" class="form-control" id="priority"
+									placeholder="優先度" name="priorityType">
+								<option value="HIGH">高</option>
+								<option selected value="MEDIUM">一般</option>
+								<option value="LOW">低</option>
+							</select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="content"
+								class="col-sm-3 col-form-label">待辦內容</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="content"
+									placeholder="待辦內容" name="todoContent" required>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="dueTime"
+								class="col-sm-3 col-form-label">截止時間</label>
+						<div class="col-sm-9">
+							<input type="datetime-local" class="form-control" id="dueTime"
+									placeholder="截止時間" name="todoDueTime" required>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label class="col-sm-3 form-check-label">開啟提醒</label>
+						<div class="col-sm-9">
+							<label for="isRemind"></label><input type="checkbox" class="form-check-input" id="isRemind">
+						</div>
+
+					</div>
+					<div class="form-group row">
+						<label for="remindTime"
+								class="col-sm-3 col-form-label">提醒時間</label>
+						<div class="col-sm-9">
+							<input type="datetime-local" class="form-control" id="remindTime"
+									placeholder="提醒時間" name="todoRemindTime" required>
+						</div>
+					</div>
+					<div id="success_message" style="display: none; color: green">新增成功</div>
+					<div id="fail_message" style="display: none ; color: red"></div>
+					<button type="submit" class="btn btn-primary me-2" id="addButton">新增</button>
+					<a href="/index" class="btn btn-light">取消</a>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
 
 
 <!-- plugins:js -->
@@ -491,6 +548,7 @@
 	userPropertySummaryPieChart()
 	displayStatisticsOverview();
 	displayServerStatus();
+	displayTodoList();
 
 	setInterval(() => {
 		displayServerStatus();
@@ -502,6 +560,14 @@
 		const nextPageButton = document.getElementById('nextPage');
 		const currentPageElement = document.getElementById('currentPage');
 		updateNewsTable(prevPageButton, nextPageButton, currentPageElement, 1, "headline", "");
+	})
+
+	document.getElementById('addTodo').addEventListener('click', () => {
+		showSpinner(false);
+		addTodo();
+	})
+	document.getElementById('removeTodo').addEventListener('click', () => {
+		removeTodo();
 	})
 
 </script>
