@@ -79,6 +79,7 @@ public class AssetService {
 
     @Async
     public void getAssetHistoryInfo(Asset asset, String type, String timestamp) {
+        logger.info("開始處理資產type: " + type + " timestamp: " + timestamp);
         Map<String, List<FluxTable>> tableMap;
         String hashInnerKey = String.format("%s_%s:", type, asset.getId());
         String listKey = String.format("kline_%s", hashInnerKey);
