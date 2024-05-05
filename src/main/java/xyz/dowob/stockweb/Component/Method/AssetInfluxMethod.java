@@ -38,12 +38,19 @@ import java.util.Map;
 @Component
 public class AssetInfluxMethod {
     private final InfluxDBClient stockTwInfluxClient;
+
     private final InfluxDBClient cryptoInfluxClient;
+
     private final InfluxDBClient currencyInfluxClient;
+
     private final InfluxDBClient stockTwHistoryInfluxClient;
+
     private final InfluxDBClient cryptoHistoryInfluxClient;
+
     private final InfluxDBClient propertySummaryInfluxClient;
+
     private final CurrencyRepository currencyRepository;
+
     private final RetryTemplate retryTemplate;
 
 
@@ -75,12 +82,7 @@ public class AssetInfluxMethod {
 
     @Autowired
     public AssetInfluxMethod(
-            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
-            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient,
-            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
-            @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient,
-            @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient,
-            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
@@ -91,6 +93,16 @@ public class AssetInfluxMethod {
         this.retryTemplate = retryTemplate;
     }
 
+    /**
+     * 取得資料庫和客戶端，以及查詢條件
+     *
+     * @param asset          資產
+     * @param useHistoryData 是否使用歷史資料
+     *
+     * @return Object[] {bucket, client, measurement, field, assetType, symbol}
+     *
+     * @throws RuntimeException 重試失敗時的最後一次錯誤
+     */
 
     private Object[] getBucketAndClient(Asset asset, boolean useHistoryData) {
         Object bucket, client;
@@ -120,6 +132,16 @@ public class AssetInfluxMethod {
         };
     }
 
+    /**
+     * 查詢最新價格
+     *
+     * @param asset          資產
+     * @param useHistoryData 是否使用歷史資料
+     *
+     * @return FluxTable
+     *
+     * @throws RuntimeException 重試失敗時的最後一次錯誤
+     */
     private List<FluxTable> queryLatestPrice(Asset asset, boolean useHistoryData) throws RuntimeException {
         try {
             var ref = new Object() {
@@ -148,9 +170,15 @@ public class AssetInfluxMethod {
             logger.error("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
         }
-
     }
 
+    /**
+     * 取得最新價格
+     *
+     * @param asset 資產
+     *
+     * @return 最新價格
+     */
     public BigDecimal getLatestPrice(Asset asset) {
         logger.debug("取得最新價格" + asset);
         List<FluxTable> tables = queryLatestPrice(asset, false);
@@ -179,7 +207,8 @@ public class AssetInfluxMethod {
                 Object historyValue = historyRecord.getValueByKey("_value");
                 if (historyValue instanceof Number) {
                     if (asset instanceof StockTw) {
-                        return BigDecimal.valueOf(((Number) historyValue).doubleValue()).divide(twd.getExchangeRate(), 3, RoundingMode.HALF_UP);
+                        return BigDecimal.valueOf(((Number) historyValue).doubleValue())
+                                         .divide(twd.getExchangeRate(), 3, RoundingMode.HALF_UP);
                     } else {
                         return BigDecimal.valueOf(((Number) historyValue).doubleValue());
                     }
@@ -204,6 +233,12 @@ public class AssetInfluxMethod {
     }
 
 
+    /**
+     * 寫入InfluxDB
+     *
+     * @param influxClient InfluxDB客戶端
+     * @param point        資料點
+     */
     public void writeToInflux(InfluxDBClient influxClient, Point point) {
         try {
             retryTemplate.doWithRetry(() -> {
@@ -224,6 +259,15 @@ public class AssetInfluxMethod {
         }
     }
 
+    /**
+     * 查詢資產價格
+     *
+     * @param asset     資產
+     * @param isHistory 是否查詢歷史資料
+     * @param timeStamp 時間戳
+     *
+     * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     */
     public Map<String, List<FluxTable>> queryByAsset(Asset asset, Boolean isHistory, String timeStamp) {
         var ref = new Object() {
             List<FluxTable> tables;
@@ -275,6 +319,24 @@ public class AssetInfluxMethod {
         }
     }
 
+    /**
+     * 查詢資產價格
+     *
+     * @param propertySummaryBucket 用戶總資產資料庫
+     * @param measurement           資料表
+     * @param filters               過濾條件, key: 欄位名, value: 欄位值
+     *                              例如: { "user_id": "1" }
+     *                              會被轉換成 |> filter(fn: (r) => r["user_id"] == "1")
+     * @param user                  用戶
+     *                              如果為null則不過濾用戶
+     * @param specificTimes         指定時間
+     * @param allowRangeOfHour      允許的時間誤差範圍
+     * @param isLast                是否只只要最新的資料點
+     * @param needToFillData        是否需要自動填充資料
+     *
+     * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     * @throws RuntimeException 重試失敗時的最後一次錯誤
+     */
     public Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
             String propertySummaryBucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
 
@@ -320,6 +382,18 @@ public class AssetInfluxMethod {
         return queries;
     }
 
+    /**
+     * 查詢資產價格根據時間跟用戶
+     * @param bucket 使用的資料庫
+     * @param measurement 資料表
+     * @param filters 過濾條件, key: 欄位名, value: 欄位值
+     * @param user 用戶
+     * @param specificTimes 指定時間
+     * @param allowRangeOfHour 允許的時間誤差範圍
+     * @param isLast 是否只只要最新的資料點
+     * @param needToFillData 是否需要自動填充資料
+     * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     */
 
     public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
         Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
@@ -352,6 +426,10 @@ public class AssetInfluxMethod {
         return userTablesMap;
     }
 
+    /**
+     * 取得ROI統計日期
+     * @return List<LocalDateTime>
+     */
     public List<LocalDateTime> getStatisticDate() {
         LocalDateTime today = LocalDateTime.now();
         List<LocalDateTime> localDateTime = new ArrayList<>();

@@ -217,9 +217,9 @@ public class ApiUserController {
         }
     }
 
-    @GetMapping("/getNews/{category}")
+    @GetMapping("/getNews")
     public ResponseEntity<?> getNews(
-            @PathVariable(name = "category", required = false) String category,
+            @RequestParam(name = "category", required = false) String category,
             @RequestParam(name = "asset", required = false) Long assetId,
             @RequestParam(name = "page", required = false, defaultValue = "1") int page) {
         String key = "news";

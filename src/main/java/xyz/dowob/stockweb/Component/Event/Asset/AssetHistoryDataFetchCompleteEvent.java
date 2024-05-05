@@ -13,6 +13,7 @@ import xyz.dowob.stockweb.Model.Common.Asset;
 @Getter
 public class AssetHistoryDataFetchCompleteEvent extends ApplicationEvent {
     private final Boolean success;
+
     private final Asset asset;
 
     /**

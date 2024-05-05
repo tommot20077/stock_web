@@ -17,6 +17,18 @@ import xyz.dowob.stockweb.Service.User.TokenService;
 
 /**
  * @author yuan
+ * Security設定
+ * 1. 設定csrf
+ * 2. 設定session
+ * 3. 設定filter
+ * 4. 設定formLogin
+ * 5. 設定exceptionHandling
+ * 6. 設定authorizeHttpRequests
+ * 7. 設定logout
+ * 8. 設定filterChain
+ * 9. 設定rememberMeAuthenticationFilter
+ * 10. 設定jwtAuthenticationFilter
+ * 11. 設定filterChain
  */
 @Configuration
 @EnableWebSecurity
@@ -26,11 +38,15 @@ public class SecurityConfig {
 
     @Autowired
     public SecurityConfig(TokenService tokenService) {
-
-
         this.tokenService = tokenService;
     }
 
+    /**
+     * 設定filterChain, 設定csrf, session, filter, formLogin, exceptionHandling, authorizeHttpRequests, logout
+     * @param http HttpSecurity
+     * @return SecurityFilterChain
+     * @throws Exception Exception
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
@@ -76,11 +92,19 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * 設定rememberMeAuthenticationFilter
+     * @return RememberMeAuthenticationFilter
+     */
     @Bean
     public RememberMeAuthenticationFilter rememberMeAuthenticationFilter() {
         return new RememberMeAuthenticationFilter();
     }
 
+    /**
+     * 設定jwtAuthenticationFilter
+     * @return JwtAuthenticationFilter
+     */
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter();

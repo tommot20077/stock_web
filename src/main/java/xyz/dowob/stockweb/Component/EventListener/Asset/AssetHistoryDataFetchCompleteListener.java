@@ -25,9 +25,13 @@ import java.util.List;
 @Component
 public class AssetHistoryDataFetchCompleteListener implements ApplicationListener<AssetHistoryDataFetchCompleteEvent> {
     private final PropertyInfluxService propertyInfluxService;
+
     private final EventCacheMethod eventCacheMethod;
+
     private final RetryTemplate retryTemplate;
+
     private final ApplicationEventPublisher eventPublisher;
+
     Logger logger = LoggerFactory.getLogger(AssetHistoryDataFetchCompleteListener.class);
 
     @Autowired
@@ -53,7 +57,8 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
      */
     @Override
     public void onApplicationEvent(
-            @NotNull AssetHistoryDataFetchCompleteEvent event) {
+            @NotNull
+            AssetHistoryDataFetchCompleteEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getSuccess()) {

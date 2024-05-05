@@ -21,6 +21,11 @@ public class EmailReminderTask implements Runnable {
         this.emailSender = emailSender;
     }
 
+    /**
+     * 發送待辦事項提醒郵件, 並記錄日誌
+     * 如果發生錯誤，記錄錯誤日誌
+     */
+
     @Override
     public void run() {
         logger.info("發布待辦事項提醒任務: " + todo.getId());
@@ -28,7 +33,7 @@ public class EmailReminderTask implements Runnable {
         message.setFrom(emailSender);
         message.setTo(todo.getUser().getEmail());
         message.setSubject("待辦事項提醒");
-        message.setText("您的待辦事項：" + todo.getContent() + " 已經到期，請盡快處理。");
+        message.setText("您的待辦事項：" + todo.getContent() + "\n已經到期，請盡快處理。");
         try {
             javaMailSender.send(message);
             logger.info("提醒郵件: {} 已發送", todo.getId());

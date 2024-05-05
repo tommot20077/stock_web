@@ -20,11 +20,17 @@ import xyz.dowob.stockweb.Service.Stock.StockTwService;
 @Component
 public class AssetDataInitial {
     Logger logger = LoggerFactory.getLogger(AssetDataInitial.class);
+
     private final CurrencyService currencyService;
+
     private final CurrencyRepository currencyRepository;
+
     private final StockTwService stockTwService;
+
     private final StockTwRepository stockTwRepository;
+
     private final CryptoService cryptoService;
+
     private final CryptoRepository cryptoRepository;
 
     public AssetDataInitial(CurrencyService currencyService, CurrencyRepository currencyRepository, StockTwService stockTwService, StockTwRepository stockTwRepository, CryptoService cryptoService, CryptoRepository cryptoRepository) {
@@ -36,6 +42,11 @@ public class AssetDataInitial {
         this.cryptoRepository = cryptoRepository;
     }
 
+    /**
+     * init：這是一個初始化方法，會在類別實例化後自動執行。
+     * 首先，它會創建一個分頁請求，用於從各個資源庫中獲取資料。它會檢查吃產資料是否存在。
+     * 如果不存在，則會調用服務來更新這些資料
+     */
     @PostConstruct
     public void init() {
         try {

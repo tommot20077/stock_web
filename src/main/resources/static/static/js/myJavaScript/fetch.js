@@ -769,18 +769,18 @@ async function fetchStatisticsOverview() {
 async function fetchIndexNewsData(pageNumber, category, asset) {
     let queryParams = new URLSearchParams({
         asset: asset,
-        page: pageNumber
+        page: pageNumber,
+        category: category
     });
     try {
-        let response = await fetch(`/api/user/common/getNews/${category}?${queryParams}`, {
+        let response = await fetch(`/api/user/common/getNews?${queryParams}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             }
         });
         if (response.ok) {
-            let data = await response.json();
-            return data;
+            return await response.json();
         } else {
             let errorText = await response.text();
             throw new Error(errorText);

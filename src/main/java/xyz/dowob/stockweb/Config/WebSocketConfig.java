@@ -20,12 +20,21 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 public class WebSocketConfig {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
+    /**
+     * 初始化WebSocketConfig
+     * 創建ThreadPoolTaskScheduler
+     */
     public WebSocketConfig() {
         ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
         taskScheduler.initialize();
     }
 
 
+    /**
+     * 創建WebSocketConnectionManager
+     * @param cryptoWebSocketHandler CryptoWebSocketHandler
+     * @return WebSocketConnectionManager
+     */
     @Bean
     public WebSocketConnectionManager wsConnectionManager(CryptoWebSocketHandler cryptoWebSocketHandler) {
         logger.info("WebSocket連線中");
@@ -38,6 +47,10 @@ public class WebSocketConfig {
         return connectionManager;
     }
 
+    /**
+     * 創建ThreadPoolTaskScheduler
+     * @return ThreadPoolTaskScheduler
+     */
     @Bean
     public ThreadPoolTaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
@@ -45,6 +58,14 @@ public class WebSocketConfig {
         return scheduler;
     }
 
+    /**
+     * 創建CryptoWebSocketHandler
+     * @param cryptoInfluxService CryptoInfluxService
+     * @param cryptoRepository CryptoRepository
+     * @param eventPublisher ApplicationEventPublisher
+     * @param subscribeRepository SubscribeRepository
+     * @return CryptoWebSocketHandler
+     */
     @Bean
     public CryptoWebSocketHandler cryptoWebSocketHandler(
             CryptoInfluxService cryptoInfluxService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {

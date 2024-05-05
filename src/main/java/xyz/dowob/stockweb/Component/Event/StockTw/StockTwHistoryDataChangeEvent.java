@@ -13,6 +13,7 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 @Getter
 public class StockTwHistoryDataChangeEvent extends ApplicationEvent {
     private final String addOrRemove;
+
     private final StockTw stockTw;
 
     /**

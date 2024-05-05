@@ -34,6 +34,13 @@ public class EventCacheMethod {
 
     Logger logger = LoggerFactory.getLogger(EventCacheMethod.class);
 
+    /**
+     * 初始化事件緩存, 檢查是否有未完成事件
+     * 1. 如果有未完成事件，重新發布事件
+     * 2. 如果事件已完成，刪除事件
+     * 3. 如果事件資產類型錯誤，刪除事件
+     */
+
     @PostConstruct
     public void init() {
         logger.info("檢查事件緩存");

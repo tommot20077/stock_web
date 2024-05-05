@@ -16,10 +16,27 @@ import java.util.*;
  */
 @Component
 public class ChartMethod {
+
+    /**
+     * 格式化時間
+     *
+     * @param instant 時間
+     *
+     * @return 格式化後的時間
+     */
     private String formatDate(Instant instant) {
         return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC).format(instant);
     }
 
+    /**
+     * 格式化資料為圖表資料
+     *
+     * @param userSummary    使用者資料
+     * @param preferCurrency 使用者偏好幣別
+     *
+     * @return 圖表資料 Map<String, List<Map<String, Object>>>
+     * key: 圖表類型, value: 圖表資料 List<Map<String, Object>> (field, date_instant, date_Format, value)
+     */
     public Map<String, List<Map<String, Object>>> formatToChartData(Map<String, List<FluxTable>> userSummary, Currency preferCurrency) {
         Map<String, List<Map<String, Object>>> chartData = new HashMap<>();
         Map<String, Map<String, Object>> latestRecord = new HashMap<>();

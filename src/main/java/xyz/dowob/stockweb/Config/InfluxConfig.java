@@ -10,6 +10,13 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * @author yuan
+ * InfluxDB設定
+ * 1. 連線資訊
+ * 2. Token
+ * 3. 組織
+ * 4. Bucket
+ * 5. 連線逾時
+ * 6. 讀寫逾時
  */
 @Configuration
 public class InfluxConfig {
@@ -47,42 +54,75 @@ public class InfluxConfig {
     private int influxReadTimeout;
 
 
+    /**
+     * 創建InfluxDBClient, 連線至cryptoBucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "CryptoInfluxClient")
     public InfluxDBClient cryptoInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
     }
 
+    /**
+     * 創建InfluxDBClient, 連線至cryptoHistoryBucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "CryptoHistoryInfluxClient")
     public InfluxDBClient cryptoHistoryBucket() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoHistoryBucket);
     }
 
+    /**
+     * 創建InfluxDBClient, 連線至stockTwBucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "StockTwInfluxClient")
     public InfluxDBClient stockTwInfluxClient() {
         return createClient(stockTwBucket);
     }
 
+    /**
+     * 創建InfluxDBClient, 連線至stockTwHistoryBucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "StockTwHistoryInfluxClient")
     public InfluxDBClient stockTwHistoryInfluxClient() {
         return createClient(stockTwHistoryBucket);
     }
 
+    /**
+     * 創建InfluxDBClient, 連線至currencyBucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "CurrencyInfluxClient")
     public InfluxDBClient currencyInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, currencyBucket);
     }
 
+    /**
+     * 創建InfluxDBClient, 連線至propertySummaryBucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "propertySummaryInfluxClient")
     public InfluxDBClient propertySummaryInfluxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, propertySummaryBucket);
     }
 
+    /**
+     * 創建InfluxDBClient, 連線至預設bucket
+     * @return InfluxDBClient
+     */
     @Bean(name = "influxClient")
     public InfluxDBClient influxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org);
     }
 
 
+    /**
+     * 創建InfluxDBClient
+     * @param bucketName bucket名稱
+     * @return InfluxDBClient
+     */
     private InfluxDBClient createClient(String bucketName) {
         OkHttpClient.Builder builder = new OkHttpClient.Builder()
                 .connectTimeout(influxConnectTimeout, java.util.concurrent.TimeUnit.SECONDS)

@@ -24,9 +24,10 @@ import java.util.Objects;
 
 /**
  * @author yuan
+ * 台灣股票有關於Influx服務
  */
 @Service
-public class StockTwInfluxDBService {
+public class StockTwInfluxService {
     private final InfluxDBClient StockTwInfluxDBClient;
 
     private final InfluxDBClient StockTwHistoryInfluxDBClient;
@@ -37,14 +38,14 @@ public class StockTwInfluxDBService {
 
     private final RetryTemplate retryTemplate;
 
-    Logger logger = LoggerFactory.getLogger(StockTwInfluxDBService.class);
+    Logger logger = LoggerFactory.getLogger(StockTwInfluxService.class);
 
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
 
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
     @Autowired
-    public StockTwInfluxDBService(
+    public StockTwInfluxService(
             @Qualifier("StockTwInfluxClient")
             InfluxDBClient stockTwInfluxClient,
             @Qualifier("StockTwHistoryInfluxClient")

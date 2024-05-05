@@ -20,9 +20,13 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 @Component
 public class CryptoHistoryDataChangeListener implements ApplicationListener<CryptoHistoryDataChangeEvent> {
     private final Logger logger = LoggerFactory.getLogger(CryptoHistoryDataChangeListener.class);
+
     private final CryptoService cryptoService;
+
     private final ProgressTracker progressTracker;
+
     private final RetryTemplate retryTemplate;
+
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
@@ -51,7 +55,8 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
      */
     @Override
     public void onApplicationEvent(
-            @NotNull CryptoHistoryDataChangeEvent event) {
+            @NotNull
+            CryptoHistoryDataChangeEvent event) {
         logger.info("收到虛擬貨幣資料變更通知");
         if ("add".equals(event.getAddOrRemove())) {
             if (progressTracker.getAllProgressInfo()

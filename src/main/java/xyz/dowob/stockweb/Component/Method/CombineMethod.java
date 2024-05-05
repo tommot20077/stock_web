@@ -21,6 +21,11 @@ public class CombineMethod {
         this.propertyRepository = propertyRepository;
     }
 
+    /**
+     * 合併用戶持有資產
+     * @param properties 持有資產
+     * @return 合併後的持有資產
+     */
     @Transactional
     public Property combinePropertyValues(List<Property> properties) {
         logger.debug("合併持有資產");

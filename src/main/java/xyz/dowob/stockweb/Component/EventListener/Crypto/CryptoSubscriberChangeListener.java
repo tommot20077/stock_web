@@ -15,6 +15,7 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 @Component
 public class CryptoSubscriberChangeListener implements ApplicationListener<CryptoSubscriberChangeEvent> {
     Logger logger = LoggerFactory.getLogger(CryptoSubscriberChangeListener.class);
+
     private final CryptoService cryptoService;
 
     @Autowired
@@ -33,7 +34,8 @@ public class CryptoSubscriberChangeListener implements ApplicationListener<Crypt
      */
     @Override
     public void onApplicationEvent(
-            @NotNull CryptoSubscriberChangeEvent event) {
+            @NotNull
+            CryptoSubscriberChangeEvent event) {
         logger.info("收到虛擬貨幣訂閱變更");
         if (cryptoService.isConnectionOpen()) {
             logger.info("重新訂閱虛擬貨幣，關閉現有連線");

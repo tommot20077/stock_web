@@ -10,6 +10,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class CustomArgon2PasswordEncoderMethod implements PasswordEncoder {
     private final Argon2 argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id);
 
+    /**
+     * 加密操作
+     * @param rawPassword 原始密碼
+     * @return 加密後的密碼
+     */
     @Override
     public String encode(CharSequence rawPassword) {
         char[] originalChars = rawPassword.toString().toCharArray();
@@ -20,6 +25,12 @@ public class CustomArgon2PasswordEncoderMethod implements PasswordEncoder {
         }
     }
 
+    /**
+     * 比對密碼
+     * @param rawPassword 原始密碼
+     * @param encodedPassword 加密後的密碼
+     * @return 是否相符
+     */
     @Override
     public boolean matches(CharSequence rawPassword, String encodedPassword) {
         char[] originalChars = rawPassword.toString().toCharArray();

@@ -49,7 +49,6 @@
 					<h1 class="welcome-text">歡迎回來， <span class="text-black fw-bold">用戶</span><a
 							class="welcome-text"
 							href=/profile></a></h1>
-					<h3 class="welcome-sub-text">這是目前這周的收益 </h3>
 				</li>
 			</ul>
 			<ul class="navbar-nav ms-auto">
@@ -240,15 +239,6 @@
 												aria-selected="true">總覽</a>
 									</li>
 								</ul>
-								<div>
-									<div class="btn-wrapper">
-										<a href=/# class="btn btn-otline-dark align-items-center"><i
-												class="icon-share"></i> Share</a>
-										<a href=/# class="btn btn-otline-dark"><i class="icon-printer"></i> Print</a>
-										<a href=/# class="btn btn-primary text-white me-0"><i
-												class="icon-download"></i> Export</a>
-									</div>
-								</div>
 							</div>
 							<div class="tab-content tab-content-basic">
 								<div class="tab-pane fade show active" id="overview" role="tabpanel"
@@ -459,22 +449,42 @@
 		const currentPageElement = document.getElementById('currentPage');
 		updateNewsTable(prevPageButton, nextPageButton, currentPageElement, 1, "", assetId);
 	})
-
+	getAssetKlineChart(assetId, "history", "get");
+	getAssetKlineChart(assetId, "current", "get");
+	let historyCount = 0;
+	let currentCount = 0;
 
 	let historyInterval = setInterval(async function () {
-		let result = await getAssetKlineChart(assetId, "history", "get");
-		if (result) {
+		historyCount++;
+		if (historyCount > 5) {
 			clearInterval(historyInterval);
+			return;
 		}
-	}, 3000);
 
+		await getAssetKlineChart(assetId, "history", "handle");
+		let updated = await getAssetKlineChart(assetId, "history", "get");
+		if (updated) {
+			clearInterval(historyInterval);
+		} else {
+			showFlexById('history-loader');
+		}
+	}, 5000);
+
+	// 當前數據更新的定時器
 	let currentInterval = setInterval(async function () {
-		let result = await getAssetKlineChart(assetId, "current", "get");
-		if (result) {
+		currentCount++;
+		if (currentCount > 5) {
 			clearInterval(currentInterval);
+			return;
 		}
-	}, 3000);
-
+		await getAssetKlineChart(assetId, "current", "handle");
+		let updated = await getAssetKlineChart(assetId, "current", "get");
+		if (updated) {
+			clearInterval(currentInterval);
+		} else {
+			showFlexById('current-loader');
+		}
+	}, 5000);
 
 </script>
 

@@ -18,6 +18,9 @@ import java.time.ZoneId;
 import java.util.Base64;
 import java.util.UUID;
 
+/**
+ * @author yuan
+ */
 @Component
 public class MailTokenProvider{
     private final TokenRepository tokenRepository;
@@ -39,6 +42,11 @@ public class MailTokenProvider{
 
     @Value(value = "${common.send_mail_times:3}") private int sendMailTimes;
 
+    /**
+     * 發送驗證電子郵件，並將token存入數據庫
+     * @param user 用戶
+     * @throws RuntimeException 發送郵件失敗
+     */
     public void sendVerificationEmail(User user) throws RuntimeException {
         if (canSendEmail(user)) {
             String token = UUID.randomUUID().toString();
@@ -62,6 +70,11 @@ public class MailTokenProvider{
         }
     }
 
+    /**
+     * 發送重設密碼電子郵件，並將token存入數據庫
+     * @param user 用戶
+     * @throws RuntimeException 發送郵件失敗
+     */
     public void sendResetPasswordEmail(User user) throws RuntimeException {
         if (canSendEmail(user)) {
             String verificationCode = RandomStringUtils.randomNumeric(6);
@@ -83,6 +96,11 @@ public class MailTokenProvider{
         }
     }
 
+    /**
+     * 檢查用戶是否可以發送電子郵件
+     * @param user 用戶
+     * @return 是否可以發送電子郵件
+     */
     private synchronized boolean canSendEmail(User user) {
         OffsetDateTime now = OffsetDateTime.now();
         Token usertoken = user.getToken();
@@ -99,6 +117,11 @@ public class MailTokenProvider{
     }
 
 
+    /**
+     * 驗證token並返回用戶，如果token無效，將拋出異常
+     * @param base128Token token
+     * @return 用戶
+     */
     public User validateTokenAndReturnUser(String base128Token) {
         byte[] decodedBytes = Base64.getDecoder().decode(base128Token);
         String base64Token = new String(decodedBytes);

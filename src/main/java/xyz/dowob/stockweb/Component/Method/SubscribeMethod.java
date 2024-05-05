@@ -41,6 +41,13 @@ public class SubscribeMethod {
         this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * 訂閱資產，分成貨幣匯率和其他匯率
+     * 如果是貨幣匯率，不須處理訂閱數量
+     * 如果是其他匯率，訂閱數量加 1
+     * @param property 資產
+     * @param user 用戶
+     */
     @Transactional(rollbackFor = Exception.class)
     public void subscribeProperty(Property property, User user) {
         logger.debug("訂閱資產ID: " + property.getId());
@@ -109,6 +116,14 @@ public class SubscribeMethod {
         }
     }
 
+    /**
+     * 取消訂閱資產, 分成貨幣匯率和其他匯率
+     * 如果是貨幣匯率，不須處理訂閱數量
+     * 如果是其他匯率，訂閱數量減 1
+     * @param property 資產
+     * @param user 用戶
+     */
+
     @Transactional(rollbackFor = Exception.class)
     public void unsubscribeProperty(Property property, User user) {
         logger.debug("取消訂閱資產ID: " + property.getId());
@@ -154,24 +169,53 @@ public class SubscribeMethod {
         }
     }
 
+    /**
+     * 將用戶訂閱加入股票訂閱表，並檢查是否有訂閱
+     * @param stockTw 股票
+     * @param userId 用戶ID
+     */
 
     private void addSubscriberToStockTw(StockTw stockTw, Long userId) {
         stockTwRepository.addAndCheckSubscriber(stockTw, userId, eventPublisher);
     }
 
+    /**
+     * 將用戶訂閱從股票訂閱表移除，並檢查是否有訂閱
+     * @param stockTw 股票
+     * @param userId 用戶ID
+     */
     private void removeSubscriberFromStockTw(StockTw stockTw, Long userId) {
         stockTwRepository.removeAndCheckSubscriber(stockTw, userId, eventPublisher);
     }
 
+    /**
+     * 將用戶訂閱加入加密貨幣訂閱表，並檢查是否有訂閱
+     * @param cryptoTradingPair 加密貨幣
+     * @param userId 用戶ID
+     */
     private void addSubscriberToCryptoTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.addAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
     }
 
+    /**
+     * 將用戶訂閱從加密貨幣訂閱表移除，並檢查是否有訂閱
+     * @param cryptoTradingPair 加密貨幣
+     * @param userId 用戶ID
+     */
     private void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.removeAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
     }
 
 
+    /**
+     * 檢查用戶訂閱的資產是否有歷史資料, 如果沒有則重新抓取資料
+     * 1. 取得用戶訂閱的資產
+     * 2. 檢查資產是否有歷史資料
+     * 3. 如果沒有歷史資料，重新抓取資料
+     * 4. 如果有歷史資料，不須重新抓取資料
+     * 5. 如果資產類型錯誤，不須重新抓取資料
+     * 6. 如果資產有訂閱但無歷史資料，重新抓取資料
+     */
     public void CheckSubscribedAssets() {
         Set<Asset> userSubscribed = subscribeRepository.findAllAsset();
         for (Asset asset : userSubscribed) {

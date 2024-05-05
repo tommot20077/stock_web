@@ -37,16 +37,27 @@ import java.util.Map;
 @Component
 public class CrontabMethod {
     private final TokenService tokenService;
+
     private final CurrencyService currencyService;
+
     private final StockTwService stockTwService;
+
     private final CryptoService cryptoService;
+
     private final UserService userService;
+
     private final PropertyService propertyService;
+
     private final NewsService newsService;
+
     private final RedisService redisService;
+
     private final AssetService assetService;
+
     private final CryptoWebSocketHandler cryptoWebSocketHandler;
+
     private final SubscribeMethod subscribeMethod;
+
     private final PropertyInfluxService propertyInfluxService;
 
 
@@ -67,21 +78,32 @@ public class CrontabMethod {
     }
 
     private List<String> trackableStocks = new ArrayList<>();
+
     private boolean immediatelyUpdateStockTw = false;
+
     Logger logger = LoggerFactory.getLogger(CrontabMethod.class);
 
-    @Value("${news.remain.days}") private int newsRemainDays;
+    @Value("${news.remain.days}")
+    private int newsRemainDays;
 
-    @Value("${news.autoupdate.currency}") private boolean newsAutoupdateCurrency;
+    @Value("${news.autoupdate.currency}")
+    private boolean newsAutoupdateCurrency;
 
-    @Value("${news.autoupdate.crypto}") private boolean newsAutoupdateCrypto;
+    @Value("${news.autoupdate.crypto}")
+    private boolean newsAutoupdateCrypto;
 
-    @Value("${news.autoupdate.stock_tw}") private boolean newsAutoupdateStockTw;
+    @Value("${news.autoupdate.stock_tw}")
+    private boolean newsAutoupdateStockTw;
 
-    @Value("${common.global_size}") private int pageSize;
+    @Value("${common.global_size}")
+    private int pageSize;
 
-    @Value("${stock_tw.enable_auto_start}") private boolean isStockTwAutoStart;
+    @Value("${stock_tw.enable_auto_start}")
+    private boolean isStockTwAutoStart;
 
+    /**
+     * 初始化台股即時更新
+     */
     @PostConstruct
     public void init() {
         if (isStockTwAutoStart) {
@@ -90,23 +112,42 @@ public class CrontabMethod {
         }
     }
 
-
+    /**
+     * 清除過期的token
+     * 每天凌晨1點
+     */
     @Scheduled(cron = "0 0 1 * * ?")
     public void cleanExpiredTokens() {
         tokenService.removeExpiredTokens();
     }
 
+    /**
+     * 更新匯率資料
+     * 每2小時
+     */
     @Scheduled(cron = "0 30 */2 * * ?")
     public void updateCurrencyData() {
         currencyService.updateCurrencyData();
     }
 
-    @Scheduled(cron = "0 0 3 * * ?", zone = "Asia/Taipei")
+    /**
+     * 更新台股股票列表
+     * 每天凌晨3點
+     */
+    @Scheduled(cron = "0 0 3 * * ?",
+               zone = "Asia/Taipei")
     public void updateStockList() {
         stockTwService.updateStockList();
     }
 
-    @Scheduled(cron = "0 30 8 * * ? ", zone = "Asia/Taipei")
+    /**
+     * 檢查訂閱狀況
+     * 每天早上8:30
+     *
+     * @throws JsonProcessingException 無法獲取列表
+     */
+    @Scheduled(cron = "0 30 8 * * ? ",
+               zone = "Asia/Taipei")
     public void checkSubscriptions() throws JsonProcessingException {
 
         logger.info("正在檢查訂閱狀況");
@@ -127,7 +168,12 @@ public class CrontabMethod {
         }
     }
 
-    @Scheduled(cron = "*/5 * 9-13 * * MON-FRI ", zone = "Asia/Taipei")
+    /**
+     * 追蹤台股股票5秒搓合交易價格
+     * 週一至週五上午9點至下午1點
+     */
+    @Scheduled(cron = "*/5 * 9-13 * * MON-FRI ",
+               zone = "Asia/Taipei")
     public void trackStockTwPricesPeriodically() {
         if (immediatelyUpdateStockTw) {
             LocalTime now = LocalTime.now(ZoneId.of("Asia/Taipei"));
@@ -152,25 +198,45 @@ public class CrontabMethod {
         }
     }
 
-    @Scheduled(cron = "0 30 16 * * MON-FRI ", zone = "Asia/Taipei")
+    /**
+     * 更新台股股票的每日歷史價格
+     * 週一至週五下午4點30分
+     */
+    @Scheduled(cron = "0 30 16 * * MON-FRI ",
+               zone = "Asia/Taipei")
     public void updateStockHistoryPrices() {
         logger.info("開始更新股票的每日最新價格");
         stockTwService.trackStockHistoryPricesWithUpdateDaily();
     }
 
-    @Scheduled(cron = "0 30 2 * * ? ", zone = "UTC")
+    /**
+     * 更新加密貨幣的每日歷史價格
+     * 每天凌晨2點30分
+     */
+    @Scheduled(cron = "0 30 2 * * ? ",
+               zone = "UTC")
     public void updateCryptoHistoryPrices() {
         logger.info("開始更新加密貨幣的每日最新價格");
         cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
     }
 
-    @Scheduled(cron = "0 30 */4 * * ? ", zone = "UTC")
+    /**
+     * 檢查資產的歷史數據完整性
+     * 每4小時
+     */
+    @Scheduled(cron = "0 30 */4 * * ? ",
+               zone = "UTC")
     public void checkHistoryData() {
         logger.info("開始檢查資產的歷史數據");
         subscribeMethod.CheckSubscribedAssets();
     }
 
-    @Scheduled(cron = "0 0 */1 * * ? ", zone = "UTC")
+    /**
+     * 記錄使用者的資產總價, 並寫入Influx
+     * 每小時
+     */
+    @Scheduled(cron = "0 0 */1 * * ? ",
+               zone = "UTC")
     public void recordUserPropertySummary() {
         logger.info("開始記錄使用者的資產總價");
         List<User> users = userService.getAllUsers();
@@ -196,7 +262,13 @@ public class CrontabMethod {
         }
     }
 
-    @Scheduled(cron = "0 10 */4 * * ? ", zone = "UTC")
+    /**
+     * 更新使用者的現金流
+     * 每4小時
+     */
+
+    @Scheduled(cron = "0 10 */4 * * ? ",
+               zone = "UTC")
     public void updateUserCashFlow() {
         logger.info("開始更新使用者的現金流");
         List<User> users = userService.getAllUsers();
@@ -210,7 +282,12 @@ public class CrontabMethod {
         }
     }
 
-    @Scheduled(cron = "0 40 */4 * * ? ", zone = "UTC")
+    /**
+     * 更新使用者的 ROI
+     * 每4小時
+     */
+    @Scheduled(cron = "0 40 */4 * * ? ",
+               zone = "UTC")
     public void updateUserRoiData() {
         logger.info("開始更新使用者的 ROI");
         Long time = Instant.now().toEpochMilli();
@@ -223,6 +300,10 @@ public class CrontabMethod {
         logger.debug("更新完成");
     }
 
+    /**
+     * 檢查並重新連接WebSocket
+     * 每分鐘
+     */
     @Scheduled(fixedRate = 60000)
     public void checkAndReconnectWebSocket() {
         if (cryptoService.isNeedToCheckConnection() && !cryptoWebSocketHandler.isRunning()) {
@@ -230,7 +311,12 @@ public class CrontabMethod {
         }
     }
 
-    @Scheduled(cron = "0 0 1 * * ? ", zone = "UTC")
+    /**
+     * 刪除過期的新聞, 保留最近幾天的新聞
+     * 每天凌晨1點
+     */
+    @Scheduled(cron = "0 0 1 * * ? ",
+               zone = "UTC")
     public void removeExpiredNews() {
         logger.info("開始刪除過期的新聞");
         LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
@@ -238,7 +324,12 @@ public class CrontabMethod {
         logger.debug("刪除完成");
     }
 
-    @Scheduled(cron = "0 30 */8 * * ? ", zone = "UTC")
+    /**
+     * 更新新聞資料
+     * 每8小時
+     */
+    @Scheduled(cron = "0 30 */8 * * ? ",
+               zone = "UTC")
     public void updateNewsData() {
         logger.info("開始更新頭條新聞");
         redisService.deleteByPattern("news_headline_page_*");
@@ -255,7 +346,12 @@ public class CrontabMethod {
         logger.info("新聞更新完成");
     }
 
-    @Scheduled(cron = "0 10 */4 * * ? ", zone = "UTC")
+    /**
+     * 更新資產列表緩存
+     * 每4小時
+     */
+    @Scheduled(cron = "0 10 */4 * * ? ",
+               zone = "UTC")
     public void updateAssetListCache() {
         try {
             List<String> keys = new ArrayList<>(Arrays.asList("crypto", "stock_tw", "currency"));
@@ -277,10 +373,19 @@ public class CrontabMethod {
         }
     }
 
+    /**
+     * 變更股票台灣自動更新狀態
+     * @param isOpen 是否開啟
+     */
     public void operateStockTwTrack(boolean isOpen) {
         immediatelyUpdateStockTw = isOpen;
         logger.info("已獲取股票台灣自動更新狀態 " + isOpen);
     }
+
+    /**
+     * 獲取股票台灣自動更新狀態
+     * @return 是否開啟
+     */
     public boolean isStockTwAutoStart() {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Taipei"));
         DayOfWeek dayOfWeek = now.getDayOfWeek();

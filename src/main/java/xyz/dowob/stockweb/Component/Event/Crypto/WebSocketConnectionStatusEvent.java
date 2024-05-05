@@ -13,6 +13,7 @@ import org.springframework.web.socket.WebSocketSession;
 @Getter
 public class WebSocketConnectionStatusEvent extends ApplicationEvent {
     private final boolean connected;
+
     private final WebSocketSession session;
 
     /**

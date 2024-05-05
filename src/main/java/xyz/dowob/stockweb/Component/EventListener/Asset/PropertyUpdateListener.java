@@ -21,8 +21,11 @@ import java.util.List;
 @Component
 public class PropertyUpdateListener implements ApplicationListener<PropertyUpdateEvent> {
     private final RetryTemplate retryTemplate;
+
     private final PropertyService propertyService;
+
     private final CrontabMethod crontabMethod;
+
     Logger logger = LoggerFactory.getLogger(PropertyUpdateListener.class);
 
     @Autowired
@@ -48,7 +51,8 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
      */
     @Override
     public void onApplicationEvent(
-            @NotNull PropertyUpdateEvent event) {
+            @NotNull
+            PropertyUpdateEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getUser() != null) {

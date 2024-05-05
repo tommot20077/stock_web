@@ -24,17 +24,24 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * @author yuan
+ * 管理員操作API
  */
 @Controller
 @RequestMapping("/api/admin")
 public class ApiAdminController {
 
     private final CurrencyService currencyService;
+
     private final CryptoService cryptoService;
+
     private final StockTwService stockTwService;
+
     private final NewsService newsService;
+
     private final ProgressTracker progressTracker;
+
     private final CrontabMethod crontabMethod;
+
     private final AssetService assetService;
 
     @Autowired
@@ -48,11 +55,24 @@ public class ApiAdminController {
         this.assetService = assetService;
     }
 
-
     /**
      * 管理員-加密貨幣類
-     */
+     * 1. 更新加密貨幣清單
+     * 2. 取得伺服器加密貨幣清單
+     * 3. 開啟WebSocket
+     * 4. 關閉WebSocket
+     * 5. 重啟WebSocket
+     * 6. 追蹤加密貨幣歷史價格
+     * 7. 追蹤加密貨幣每日價格
+     * 8. 取得所有任務進度
+     * 9. 檢查並重新連接WebSocket
 
+     * 更新加密貨幣清單
+     *
+     * @param response HttpServletResponse
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/crypto/updateCryptoList")
     public ResponseEntity<?> updateCryptoList(HttpServletResponse response) {
         try {
@@ -64,6 +84,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 取得伺服器加密貨幣清單
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/crypto/getTradingPairsDetail")
     public ResponseEntity<?> getServerTradingPairs() {
         try {
@@ -74,6 +99,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 開啟WebSocket, 並訂閱加密貨幣
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/crypto/ws/start")
     public ResponseEntity<?> startWebSocket() {
         try {
@@ -84,7 +114,11 @@ public class ApiAdminController {
         }
     }
 
-
+    /**
+     * 關閉WebSocket, 並清空訂閱
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/crypto/ws/stop")
     public ResponseEntity<?> stopWebSocket() {
         try {
@@ -95,6 +129,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 重啟WebSocket
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/crypto/ws/restart")
     public ResponseEntity<?> restartWebSocket() {
         try {
@@ -106,6 +145,13 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 追蹤加密貨幣歷史價格, 並回傳任務id
+     *
+     * @param tradingPair String 交易對
+     *
+     * @return CompletableFuture 任務id
+     */
     @PostMapping("/crypto/trackCryptoHistoryData")
     public CompletableFuture<?> trackCryptoHistoryData(
             @RequestParam String tradingPair) {
@@ -114,6 +160,11 @@ public class ApiAdminController {
                             .thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
     }
 
+    /**
+     * 追蹤加密貨幣每日價格
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/crypto/trackCryptoDailyData")
     public ResponseEntity<?> trackCryptoDailyData() {
         try {
@@ -125,6 +176,11 @@ public class ApiAdminController {
     }
 
 
+    /**
+     * 取得所有任務進度, 並回傳任務進度列表
+     *
+     * @return List<Progress.ProgressDto> 任務進度列表 (任務名稱, 進度, 總任務數, 進度百分比)
+     */
     @GetMapping("/crypto/getAllTaskProgress")
     @ResponseBody
     public List<Progress.ProgressDto> getAllTaskProgress() {
@@ -139,6 +195,12 @@ public class ApiAdminController {
         return progressList;
     }
 
+
+    /**
+     * 檢查並重新連接WebSocket
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/crypto/checkAndReconnectWebSocket")
     public ResponseEntity<?> checkAndReconnectWebSocket() {
         try {
@@ -149,11 +211,19 @@ public class ApiAdminController {
         }
     }
 
-
     /**
-     * 管理員-台灣股票類
-     */
+     * 管理員-股票類
+     * 1. 更新股票清單
+     * 2. 更新股票詳細資料
+     * 3. 追蹤股票歷史價格
+     * 4. 追蹤股票每日價格
+     * 5. 開啟即時股價追蹤
+     * 6. 關閉即時股價追蹤
 
+     * 更新股票清單
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/stock/tw/updateStockList")
     public ResponseEntity<?> updateStockList() {
         try {
@@ -165,6 +235,11 @@ public class ApiAdminController {
 
     }
 
+    /**
+     * 更新股票詳細資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/stock/tw/updateStockDetail")
     public ResponseEntity<?> getSubscriptionStocksCurrentPrice() {
         try {
@@ -178,6 +253,13 @@ public class ApiAdminController {
 
     }
 
+    /**
+     * 追蹤股票歷史價格
+     *
+     * @param stockCode String 股票代碼
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/stock/tw/trackStockHistoryData")
     public ResponseEntity<?> getSpecificStocksHistoryPriceByStockCode(
             @RequestParam String stockCode) {
@@ -190,6 +272,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 追蹤股票每日價格
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/stock/tw/trackStockDailyData")
     public ResponseEntity<?> getSpecificStocksDailyPriceByStockCode() {
         try {
@@ -200,6 +287,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 開啟即時股價追蹤
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/stock/tw/trackImmediatePrice")
     public ResponseEntity<?> trackImmediatePrice() {
         try {
@@ -210,6 +302,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 關閉即時股價追蹤
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/stock/tw/unTrackImmediatePrice")
     public ResponseEntity<?> unTrackImmediatePrice() {
         try {
@@ -222,8 +319,12 @@ public class ApiAdminController {
 
     /**
      * 管理員-貨幣類
-     */
+     * 1. 更新貨幣清單
 
+     * 更新貨幣清單
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/currency/updateCurrencyData")
     public ResponseEntity<?> updateCurrencyData() {
         try {
@@ -236,6 +337,21 @@ public class ApiAdminController {
 
     /**
      * 管理員-一般類
+     * 1. 更新ROI資料
+     * 2. 更新資產總覽資料
+     * 3. 更新現金流資料
+     * 4. 更新頭條新聞資料
+     * 5. 更新資產新聞資料
+     * 6. 更新新聞資料
+     * 7. 清除過期Token
+     * 8. 檢查歷史資料
+     * 9. 移除過期新聞
+     * 10. 更新資產列表快取
+     * 11. 更新所有資產列表快取
+
+     * 更新ROI資料
+     *
+     * @return ResponseEntity
      */
     @PostMapping("/common/updateRoiData")
     public ResponseEntity<?> updateRoiData() {
@@ -247,6 +363,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 更新資產總覽資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/updatePropertySummaryData")
     public ResponseEntity<?> updatePropertySummaryData() {
         try {
@@ -257,6 +378,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 更新現金流資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/updateCashFlowData")
     public ResponseEntity<?> updateCashFlowData() {
         try {
@@ -267,6 +393,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 更新頭條新聞資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/updateHeadlineNewsData")
     public ResponseEntity<?> updateHeadlineNewsData() {
         try {
@@ -277,10 +408,19 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 更新資產新聞資料
+     *
+     * @param assetId Long 資產ID
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/updateAssetNewsData")
     public ResponseEntity<?> updateNewsData(
-            @RequestParam(value = "keyword", required = false, defaultValue = "") String keyword,
-            @RequestParam(value = "asset", required = false) Long assetId) {
+            @RequestParam(value = "keyword",
+                          required = false,
+                          defaultValue = "") String keyword, @RequestParam(value = "asset",
+                                                                           required = false) Long assetId) {
         try {
             Asset asset = null;
             if (assetId != null) {
@@ -293,6 +433,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 更新新聞資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/updateNewsData")
     public ResponseEntity<?> updateNewsData() {
         try {
@@ -303,6 +448,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 清除過期Token
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/cleanExpiredTokens")
     public ResponseEntity<?> cleanExpiredTokens() {
         try {
@@ -313,7 +463,11 @@ public class ApiAdminController {
         }
     }
 
-
+    /**
+     * 檢查歷史資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/checkHistoryData")
     public ResponseEntity<?> checkHistoryData() {
         try {
@@ -324,7 +478,11 @@ public class ApiAdminController {
         }
     }
 
-
+    /**
+     * 移除過期新聞
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/removeExpiredNews")
     public ResponseEntity<?> removeExpiredNews() {
         try {
@@ -335,6 +493,11 @@ public class ApiAdminController {
         }
     }
 
+    /**
+     * 更新資產列表快取
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/common/updateAssetListCache")
     public ResponseEntity<?> updateAssetListCache() {
         try {
@@ -344,6 +507,5 @@ public class ApiAdminController {
             return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
         }
     }
-
 }
 

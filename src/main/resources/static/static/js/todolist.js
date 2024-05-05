@@ -65,7 +65,6 @@ function addTodo() {
         if (isRemind) {
             formData.reminderTime = reminderTime;
         }
-        console.log(JSON.stringify(formData))
 
         fetch('/api/user/common/addTodoList', {
             method: 'POST',

@@ -33,9 +33,13 @@ import java.util.Map;
 @Service
 public class PropertyInfluxService {
     private final InfluxDBClient propertySummaryInfluxClient;
+
     private final AssetInfluxMethod assetInfluxMethod;
+
     private final RetryTemplate retryTemplate;
+
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
+
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
 
@@ -49,12 +53,13 @@ public class PropertyInfluxService {
         this.retryTemplate = retryTemplate;
     }
 
-    @Value("${db.influxdb.bucket.property_summary}") private String propertySummaryBucket;
+    @Value("${db.influxdb.bucket.property_summary}")
+    private String propertySummaryBucket;
 
-    @Value("${db.influxdb.org}") private String org;
+    @Value("${db.influxdb.org}")
+    private String org;
 
     public void writePropertyDataToInflux(List<PropertyListDto.writeToInfluxPropertyDto> userPropertiesDtoList, User user) {
-        logger.debug("讀取資產數據: " + userPropertiesDtoList.toString());
         Long time;
         if (userPropertiesDtoList.getFirst().getTimeMillis() == 0L) {
             time = Instant.now().toEpochMilli();
@@ -64,7 +69,9 @@ public class PropertyInfluxService {
 
         var ref = new Object() {
             BigDecimal currencyTypeSum = new BigDecimal(0);
+
             BigDecimal cryptoTypeSum = new BigDecimal(0);
+
             BigDecimal stockTwTypeSum = new BigDecimal(0);
         };
         try {
@@ -78,13 +85,10 @@ public class PropertyInfluxService {
                                                .addField("current_total_price", userPropertiesDto.getCurrentTotalPrice())
                                                .addField("quantity", userPropertiesDto.getQuantity())
                                                .time(time, WritePrecision.MS);
-                    logger.debug("建立InfluxDB specificPoint");
-
                     try {
-                        logger.debug("連接InfluxDB成功");
                         try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
                             writeApi.writePoint(specificPoint);
-                            logger.debug("寫入InfluxDB成功");
+                            logger.debug("寫入資料{}成功", specificPoint);
                         }
                     } catch (Exception e) {
                         logger.error("寫入InfluxDB時發生錯誤", e);
