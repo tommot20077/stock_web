@@ -13,6 +13,7 @@ import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 @Getter
 public class CryptoHistoryDataChangeEvent extends ApplicationEvent {
     private final CryptoTradingPair cryptoTradingPair;
+
     private final String addOrRemove;
 
     /**

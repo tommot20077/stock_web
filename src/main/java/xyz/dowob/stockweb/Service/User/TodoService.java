@@ -24,6 +24,12 @@ import java.util.stream.Collectors;
 
 /**
  * @author yuan
+ * 待辦事項相關服務
+ * 1. 新增待辦事項
+ * 2. 取得使用者所有待辦事項
+ * 3. 刪除待辦事項
+ * 4. 轉換待辦事項Dto為Json
+ * 5. 初始化待辦事項提醒任務
  */
 @Service
 public class TodoService {
@@ -42,6 +48,12 @@ public class TodoService {
         this.taskScheduler = taskScheduler;
     }
 
+    /**
+     * 初始化待辦事項提醒任務
+     * 1. 取得所有設定提醒的待辦事項
+     * 2. 檢查是否過期
+     * 3. 設定提醒任務
+     */
     @PostConstruct
     public void init() {
         logger.info("開始為設定提醒的待辦事項設定提醒任務");
@@ -58,7 +70,11 @@ public class TodoService {
 
     }
 
-
+    /**
+     * 新增待辦事項
+     * @param todoDto 待辦事項資料
+     * @param user 使用者
+     */
     public void addTodo(TodoDto todoDto, User user) {
         logger.info("addTodo: " + todoDto.toString());
         Todo todo = todoDto.toEntity(todoDto, user);
@@ -68,6 +84,11 @@ public class TodoService {
         }
     }
 
+    /**
+     * 取得使用者所有待辦事項, 並轉換成Dto
+     * @param user 使用者
+     * @return List<TodoDto>
+     */
     public List<TodoDto> findAllByUser(User user) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         String timeZone = user.getTimezone();
@@ -85,11 +106,19 @@ public class TodoService {
                                  .collect(Collectors.toList());
     }
 
+    /**
+     * 刪除待辦事項
+     * @param id 待辦事項ID
+     */
     public void delete(Long id) {
         todoListRepository.deleteById(id);
     }
 
-
+    /**
+     * 轉換待辦事項Dto為Json
+     * @param todoListDto 待辦事項Dto
+     * @return String
+     */
     public String formatToJson(List<TodoDto> todoListDto) {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
@@ -100,6 +129,10 @@ public class TodoService {
         }
     }
 
+    /**
+     * 設定提醒任務, 並發送Email
+     * @param todo 待辦事項
+     */
     private void scheduleEmailReminderTask(Todo todo) {
         logger.debug("設定提醒任務: " + todo.getId());
         EmailReminderTask emailReminderTask = new EmailReminderTask(todo, javaMailSender, emailSender);

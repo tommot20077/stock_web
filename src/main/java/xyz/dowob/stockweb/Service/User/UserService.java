@@ -44,11 +44,17 @@ import java.util.TimeZone;
 @Service
 public class UserService {
     private final UserRepository userRepository;
+
     private final TokenRepository tokenRepository;
+
     private final TokenService tokenService;
+
     private final CurrencyRepository currencyRepository;
+
     private final SubscribeRepository subscribeRepository;
+
     private final PasswordEncoder passwordEncoder;
+
     private final MailTokenProvider mailTokenProvider;
 
 
@@ -56,8 +62,7 @@ public class UserService {
 
     @Autowired
     public UserService(
-            UserRepository userRepository, TokenRepository tokenRepository,
-            @Lazy TokenService tokenService, CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
+            UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.tokenService = tokenService;
@@ -68,6 +73,15 @@ public class UserService {
 
     }
 
+    /**
+     * 註冊用戶
+     *
+     * @param userDto 用戶資料 Dto物件 {@link RegisterUserDto}
+     *
+     * @throws RuntimeException 當信箱已經被註冊時拋出
+     *                          當密碼不符合規定時拋出
+     *                          當貨幣資料庫更新中時拋出
+     */
 
     @Transactional(rollbackFor = {Exception.class})
     public void registerUser(RegisterUserDto userDto) throws RuntimeException {
@@ -97,6 +111,17 @@ public class UserService {
         logger.info("用戶憑證資料庫建立成功");
     }
 
+    /**
+     * 登入用戶
+     *
+     * @param userDto 用戶資料 Dto物件 {@link LoginUserDto}
+     * @param re      HttpServletResponse
+     *
+     * @return User
+     *
+     * @throws RuntimeException 當用戶資料格式錯誤時拋出
+     *                          當用戶帳號或密碼錯誤時拋出
+     */
     public User loginUser(LoginUserDto userDto, HttpServletResponse re) {
         if (userDto == null) {
             throw new RuntimeException("資料格式錯誤");
@@ -113,6 +138,25 @@ public class UserService {
             return user;
         }
     }
+
+    /**
+     * 更新用戶資料
+     *
+     * @param user     用戶
+     * @param userInfo 用戶資料 Map 物件
+     *                 originalPassword: 原密碼
+     *                 newPassword: 新密碼
+     *                 email: 信箱
+     *                 firstName: 名
+     *                 lastName: 姓
+     *                 timeZone: 時區
+     *
+     * @throws RuntimeException 當密碼錯誤時拋出
+     *                          當信箱已經被註冊時拋出
+     *                          當密碼不符合規定時拋出
+     *                          當貨幣資料庫更新中時拋出
+     *                          當預設幣別更改失敗時拋出
+     */
 
     public void updateUserDetail(User user, Map<String, String> userInfo) {
 
@@ -176,15 +220,33 @@ public class UserService {
     }
 
 
+    /**
+     * 根據userId尋找用戶
+     * @param id 用戶ID
+     * @return User
+     */
     public User getUserById(Long id) {
         return userRepository.findById(id).orElse(null);
     }
 
+    /**
+     * 獲取所有用戶
+     * @return List<User>
+     */
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
 
+    /**
+     * 驗證密碼
+     * @param userPassword 用戶密碼
+     * @throws RuntimeException 當密碼不符合規定時拋出
+     *                         當密碼不包含英文字母時拋出
+     *                         當密碼不包含數字時拋出
+     *                         當密碼長度不足時拋出
+     *                         當密碼長度過長時拋出
+     */
     public void validatePassword(String userPassword) {
         if (userPassword.length() < 8) {
             throw new RuntimeException("密碼最少需要8個字元");
@@ -200,6 +262,11 @@ public class UserService {
         }
     }
 
+    /**
+     * 根據JWT Token或Session獲取用戶
+     * @param session HttpSession
+     * @return User
+     */
 
     public User getUserFromJwtTokenOrSession(HttpSession session) {
         Long userId = (Long) session.getAttribute("currentUserId");
@@ -212,6 +279,11 @@ public class UserService {
         return getUserById(userId);
     }
 
+    /**
+     * 獲取用戶訂閱資料
+     * @param user 用戶
+     * @return String
+     */
     public String getChannelAndAssetAndRemoveAbleByUserId(User user) {
         List<UserSubscriptionDto> subscriptionDtoList = new ArrayList<>();
         subscribeRepository.getChannelAndAssetAndRemoveAbleByUserId(user).forEach(objects -> {

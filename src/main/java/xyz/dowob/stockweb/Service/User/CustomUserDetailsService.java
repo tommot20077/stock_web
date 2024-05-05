@@ -13,10 +13,12 @@ import xyz.dowob.stockweb.Repository.User.UserRepository;
 
 /**
  * @author yuan
+ * 自定義UserDetailsService
  */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
     Logger logger = LoggerFactory.getLogger(CustomUserDetailsService.class);
+
     private final UserRepository userRepository;
 
     @Autowired
@@ -24,6 +26,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * 透過ID取得用戶
+     *
+     * @param userId 用戶ID
+     *
+     * @return UserDetails
+     *
+     * @throws UsernameNotFoundException 找不到用戶
+     */
     public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
         User user = userRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("找不到用戶為ID : " + userId));
 
@@ -36,6 +47,15 @@ public class CustomUserDetailsService implements UserDetailsService {
                                                                       user.getAuthorities());
     }
 
+    /**
+     * 透過郵件地址取得用戶
+     *
+     * @param mail 郵件地址
+     *
+     * @return UserDetails
+     *
+     * @throws UsernameNotFoundException 找不到用戶
+     */
     @Override
     public UserDetails loadUserByUsername(String mail) throws UsernameNotFoundException {
         if (!StringUtils.hasText(mail)) {

@@ -64,6 +64,16 @@ public class TransactionService {
         this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * 交易操作處理，包含買入、賣出、提款、存款
+     * 買入: 扣除支付資產數量，增加交易資產數量
+     * 賣出: 扣除交易資產數量，增加支付資產數量
+     * 提款: 扣除交易資產數量，並計算淨流量寫入 InfluxDB
+     * 存款: 增加交易資產數量，並計算淨流量寫入 InfluxDB
+     *
+     * @param user 用戶
+     * @param transaction 交易
+     */
     @Transactional(rollbackFor = Exception.class)
     public void operation(User user, TransactionListDto.TransactionDto transaction) {
         logger.debug("User: " + user);
@@ -368,6 +378,12 @@ public class TransactionService {
 
     }
 
+    /**
+     * 取得資料庫中資產
+     * @param symbol 資產名稱
+     * @return 資產
+     */
+
     private Asset getAsset(String symbol) {
         String key = symbol.toUpperCase();
         String keyCrypto = symbol.toUpperCase() + "USDT";
@@ -391,6 +407,12 @@ public class TransactionService {
         throw new IllegalArgumentException("找不到可以轉換的資產: " + symbol);
     }
 
+    /**
+     * 查詢用戶所有交易紀錄
+     * @param user 用戶
+     * @return 交易紀錄
+     * @throws JsonProcessingException JSON處理錯誤
+     */
     public String getUserAllTransaction(User user) throws JsonProcessingException {
         logger.debug("查詢用戶所有交易紀錄");
         List<TransactionListDto.TransactionDto> transactions = new ArrayList<>();

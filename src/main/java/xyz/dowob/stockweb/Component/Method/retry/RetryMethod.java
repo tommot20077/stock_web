@@ -30,11 +30,21 @@ public class RetryMethod {
         private final AtomicInteger currentRetryTimes;
         private final int maxRetryTimes;
 
+        /**
+         * 創建一個重試內容。
+         * @param maxRetryTimes 最大重試次數
+         */
         public RetryContent(int maxRetryTimes) {
             this.currentRetryTimes = new AtomicInteger(0);
             this.maxRetryTimes = maxRetryTimes;
         }
 
+        /**
+         * 檢查並重試。
+         * @param lastException 最後一次錯誤
+         * @return 是否重試
+         * @throws RetryException 如果已達到最大重試次數
+         */
         public boolean checkAndRetry(Exception lastException) throws RetryException {
             if (currentRetryTimes.get() < maxRetryTimes) {
                 currentRetryTimes.getAndIncrement();

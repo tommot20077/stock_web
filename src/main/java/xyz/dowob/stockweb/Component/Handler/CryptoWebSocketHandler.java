@@ -42,20 +42,34 @@ import java.util.concurrent.TimeUnit;
 public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
     private final CryptoInfluxService cryptoInfluxService;
+
     private final CryptoRepository cryptoRepository;
+
     private final ApplicationEventPublisher eventPublisher;
+
     private final SubscribeRepository subscribeRepository;
+
     Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
+
     int maxRetryCount = 5;
+
     int retryDelay = 10;
+
     int connectMaxLiftTime = 24 * 60 * 60;
+
     Date connectionTime;
+
     @Getter
     boolean isRunning = false;
+
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
     private ThreadPoolTaskScheduler taskScheduler;
+
     private WebSocketSession webSocketSession;
+
     private int retryCount = 0;
+
     @Autowired
     public CryptoWebSocketHandler(CryptoInfluxService cryptoInfluxService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
         this.cryptoInfluxService = cryptoInfluxService;
@@ -69,6 +83,13 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         this.taskScheduler = taskScheduler;
     }
 
+    /**
+     * 當WebSocket連線建立後，此方法會被調用。它將設定WebSocket會話，並開始重新連接的計劃。
+     *
+     * @param session WebSocket會話
+     *
+     * @throws Exception 如果ApplicationEventPublisher未初始化
+     */
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) throws Exception {
         if (eventPublisher != null) {
@@ -86,6 +107,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 當WebSocket連線關閉後，此方法會被調用。它將關閉計劃，釋放資源，並重新連接WebSocket。
+     *
+     * @param session WebSocket會話
+     * @param status  關閉狀態
+     *
+     * @throws Exception 如果ApplicationEventPublisher未初始化
+     */
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws Exception {
         if (eventPublisher != null) {
@@ -114,6 +143,11 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
     }
 
+    /**
+     * 這個方法用於安排重新連接的任務。
+     * 如果計劃器已經關閉或終止，它將重新初始化。
+     */
+
     private void scheduleReconnection() {
         if (scheduler.isShutdown() || scheduler.isTerminated()) {
             scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -131,10 +165,15 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }, 1, 1, TimeUnit.HOURS);
     }
 
+    /**
+     * 當WebSocket傳輸錯誤時，此方法會被調用。它將處理錯誤並重新連接WebSocket。
+     *
+     * @param session   WebSocket會話
+     * @param exception 錯誤
+     */
 
     @Override
     public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) {
-
         logger.error("WebSocket 傳輸錯誤: ", exception);
         if (retryCount < maxRetryCount && !isRunning) {
             logger.info("嘗試重新連接WebSocket");
@@ -149,11 +188,18 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     }
 
 
+    /**
+     * 當WebSocket收到文本消息時，此方法會被調用。它將處理消息並將其寫入InfluxDB。
+     *
+     * @param session WebSocket會話
+     * @param message 文本消息
+     *
+     * @throws JsonProcessingException 如果處理消息時發生錯誤
+     */
     @Override
     @Async
     public void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) throws JsonProcessingException {
-        TypeReference<Map<String, Object>> typeRef = new TypeReference<>() {
-        };
+        TypeReference<Map<String, Object>> typeRef = new TypeReference<>() {};
         logger.debug("收到的消息: " + message.getPayload());
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> jsonMap = objectMapper.readValue(message.getPayload(), typeRef);
@@ -191,12 +237,26 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法返回false，表示不支援部分訊息。
+     *
+     * @return false
+     */
     @Override
     public boolean supportsPartialMessages() {
         return false;
     }
 
 
+    /**
+     * 這個方法用於訂閱特定的交易對。
+     *
+     * @param tradingPair 交易對
+     * @param channel     頻道
+     * @param user        用戶
+     *
+     * @throws Exception 如果找不到交易對、用戶已訂閱過、SubscribeRepository未初始化、CryptoRepository未初始化
+     */
     public void subscribeTradingPair(String tradingPair, String channel, User user) throws Exception {
         CryptoTradingPair cryptoTradingPairSymbol = findTradingPair(tradingPair);
         if (cryptoTradingPairSymbol == null) {
@@ -204,7 +264,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
             if (subscribeRepository != null) {
-                if (subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel).isPresent()) {
+                if (subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel)
+                                       .isPresent()) {
                     logger.warn("已訂閱過" + tradingPair + channel + "交易對");
                     throw new Exception("已訂閱過" + tradingPair + channel + "交易對");
                 } else {
@@ -238,6 +299,16 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法用於取消訂閱特定的交易對。
+     *
+     * @param tradingPair 交易對
+     * @param channel     頻道
+     * @param user        用戶
+     *
+     * @throws Exception 如果找不到交易對、用戶尚未訂閱過、此訂閱為用戶現在所持有的資產、CryptoRepository未初始化
+     */
+
     public void unsubscribeTradingPair(String tradingPair, String channel, User user) throws Exception {
         CryptoTradingPair cryptoTradingPairSymbol = findTradingPair(tradingPair);
         if (cryptoTradingPairSymbol == null) {
@@ -245,7 +316,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
             if (subscribeRepository != null) {
-                Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel).orElse(null);
+                Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                                           cryptoTradingPairSymbol.getId(),
+                                                                                           channel).orElse(null);
                 if (subscribe == null) {
                     logger.warn("尚未訂閱過" + tradingPair + channel + "交易對");
                     throw new Exception("尚未訂閱過" + tradingPair + channel + "交易對");
@@ -288,6 +361,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法用於查找特定的交易對。
+     *
+     * @param tradingPair 交易對
+     *
+     * @return CryptoTradingPair
+     */
+
     public CryptoTradingPair findTradingPair(String tradingPair) {
         if (cryptoRepository != null) {
             return cryptoRepository.findByTradingPair(tradingPair).orElse(null);
@@ -297,6 +378,10 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法用於重新連接WebSocket並重新訂閱之前的所有交易對。
+     * 如果重新連接失敗，將計劃下一次重新連接。
+     */
     public void reconnectAndResubscribe() {
         try {
             Instant scheduledTime = Instant.now().plusSeconds(retryDelay);
@@ -329,7 +414,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
 
                 WebSocketClient webSocketClient = new StandardWebSocketClient();
-                WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(webSocketClient, this, "wss://stream.binance.com:9443/stream?streams=");
+                WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(webSocketClient,
+                                                                                              this,
+                                                                                              "wss://stream.binance.com:9443/stream?streams=");
                 connectionManager.setAutoStartup(true);
                 connectionManager.start();
                 logger.info("WebSocket重新連線成功");
@@ -344,6 +431,10 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法用於訂閱之前的所有交易對。
+     * 如果訂閱失敗，將計劃下一次訂閱。
+     */
     private void subscribeAllPreviousTradingPair() {
         try {
             logger.info("嘗試重新訂閱");
@@ -364,18 +455,26 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法用於查找所有已訂閱的交易對。
+     * @return List<String>
+     */
     private List<String> findSubscribedTradingPairList() {
         if (cryptoRepository != null) {
             return cryptoRepository.findAllByHadSubscribed()
-                    .stream()
-                    .map(tradingPair -> "\"" + tradingPair.getTradingPair().toLowerCase() + "@kline_1m\"")
-                    .toList();
+                                   .stream()
+                                   .map(tradingPair -> "\"" + tradingPair.getTradingPair().toLowerCase() + "@kline_1m\"")
+                                   .toList();
         } else {
             logger.warn("CryptoRepository未初始化");
             return null;
         }
     }
 
+    /**
+     * 這個方法用於釋放資源。
+     * 如果WebSocket連接仍然打開，它將關閉WebSocket連接。
+     */
 
     private void releaseResources() {
         try {

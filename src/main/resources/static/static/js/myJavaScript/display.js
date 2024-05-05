@@ -37,7 +37,7 @@ async function displaySubscribeTable() {
 
             let row = `
             <tr>
-                <td>${item.assetId}</td>
+                <td><a href="/asset_info/${item.assetId}">${item.assetId}</a></td>
                 <td>${getAssetType(item.assetType)}</td>
                 <td>${item.subscribeName}</td>
                 <td>${removeAbleText}</td>

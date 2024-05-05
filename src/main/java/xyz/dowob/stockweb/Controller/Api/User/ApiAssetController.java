@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -30,36 +31,46 @@ public class ApiAssetController {
     private final AssetService assetService;
     private final RedisService redisService;
     private final UserService userService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService) {
+    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService, ObjectMapper objectMapper) {
         this.assetService = assetService;
         this.redisService = redisService;
         this.userService = userService;
+        this.objectMapper = objectMapper;
     }
 
 
+    /**
+     * 處理資產資料, 並存入Redis
+     * @param assetId 資產ID
+     * @param type 查詢類型 current 或 history
+     * @return ResponseEntity
+     */
     @PostMapping("/handleKlineInfo/{assetId}")
     public ResponseEntity<?> handleAssetInfo(
             @PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
         type = type.toLowerCase();
-        if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
-            return ResponseEntity.badRequest().body("錯誤的查詢類型");
-        }
-        String hashInnerKey = String.format("%s_%s:", type, assetId);
-        String listKey = String.format("kline_%s", hashInnerKey);
-
         try {
+            if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("錯誤的查詢類型"));
+            }
+            String hashInnerKey = String.format("%s_%s:", type, assetId);
+            String listKey = String.format("kline_%s", hashInnerKey);
+
             Asset asset = assetService.getAssetById(assetId);
             if (asset instanceof CryptoTradingPair cryptoTradingPair && !cryptoTradingPair.isHasAnySubscribed()) {
-                return ResponseEntity.badRequest().body("此資產尚未有任何訂閱，請先訂閱後再做請求");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("此資產尚未有任何訂閱，請先訂閱後再做請求"));
             } else if (asset instanceof StockTw stockTw && !stockTw.isHasAnySubscribed()) {
-                return ResponseEntity.badRequest().body("此資產尚未有任何訂閱，請先訂閱後再做請求");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("此資產尚未有任何訂閱，請先訂閱後再做請求"));
             }
 
-            List<String> dataList = redisService.getCacheListValueFromKey(listKey + ":data");
+            List<String> dataList = redisService.getCacheListValueFromKey(listKey + "data");
+            System.out.println("key: " + listKey + "data");
+            System.out.println("dataList: " + dataList);
             if ("processing".equals(redisService.getHashValueFromKey("kline", hashInnerKey + "status"))) {
-                return ResponseEntity.badRequest().body("資產資料已經在處理中");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("資產資料已經在處理中"));
             }
             if (!dataList.isEmpty()) {
                 String lastTimestamp = redisService.getHashValueFromKey("kline", hashInnerKey + "last_timestamp");
@@ -69,14 +80,21 @@ public class ApiAssetController {
                                                           .format(offsetInstant.atZone(ZoneOffset.UTC));
                 assetService.getAssetHistoryInfo(asset, type, offsetTimestamp);
             } else {
+                System.out.println("dataList is empty");
                 assetService.getAssetHistoryInfo(asset, type, null);
             }
-            return ResponseEntity.ok().body("開始處理資產資料，稍後用/getAssetInfo/assetId取得結果");
+            return ResponseEntity.ok().body(objectMapper.writeValueAsString("開始處理資產資料，稍後用/getAssetInfo/assetId取得結果"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
+    /**
+     * 取得資產資料 (K線圖)
+     * @param assetId 資產ID
+     * @param type 查詢類型 current 或 history
+     * @return ResponseEntity
+     */
     @GetMapping("/getKlineInfo/{assetId}")
     public ResponseEntity<?> getAssetInfo(
             @PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
@@ -86,18 +104,17 @@ public class ApiAssetController {
         }
         String hashInnerKey = String.format("%s_%s:", type, assetId);
         String listKey = String.format("kline_%s", hashInnerKey);
-
         try {
             String status = redisService.getHashValueFromKey("kline", hashInnerKey + "status");
 
             if ("processing".equals(status)) {
-                return ResponseEntity.badRequest().body("資產資料已經在處理中");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("資產資料已經在處理中"));
             } else if (status == null) {
-                return ResponseEntity.badRequest().body("沒有請求過資產資料");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("沒有請求過資產資料"));
             } else if ("error".equals(status)) {
-                return ResponseEntity.badRequest().body("資產資料處理錯誤，請重新使用/handleAssetInfo/[assetId]處理資產資料");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("資產資料處理錯誤，請重新使用/handleAssetInfo/[assetId]處理資產資料"));
             } else if ("no_data".equals(status)) {
-                return ResponseEntity.badRequest().body("無此資產的價格圖");
+                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("無此資產的價格圖"));
             }
 
             String json = assetService.formatRedisAssetKlineCacheToJson(type, listKey, hashInnerKey);
@@ -107,6 +124,12 @@ public class ApiAssetController {
         }
     }
 
+    /**
+     * 取得資產資訊, 並存入Redis
+     * @param assetId 資產ID
+     * @param session HttpSession
+     * @return ResponseEntity
+     */
     @GetMapping("/getAssetInfo")
     public ResponseEntity<?> getAssetInfo(
             @RequestParam(name = "id") Long assetId, HttpSession session) {
@@ -114,16 +137,21 @@ public class ApiAssetController {
             String assetKey = String.format("asset_%s:", assetId);
             User user = userService.getUserFromJwtTokenOrSession(session);
             Asset asset = assetService.getAssetById(assetId);
-            List<String> cachedAssetJson = redisService.getCacheListValueFromKey(assetKey + "statistics");
-            if (cachedAssetJson == null || cachedAssetJson.isEmpty()) {
-                cachedAssetJson = assetService.getAssetStatisticsAndSaveToRedis(asset, assetKey);
-            }
+            List<String>cachedAssetJson = assetService.getAssetStatisticsAndSaveToRedis(asset, assetKey);
             return ResponseEntity.ok().body(assetService.formatRedisAssetInfoCacheToJson(cachedAssetJson, asset, user));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }
 
+    /**
+     * 取得資產列表
+     * @param page 頁數
+     * @param isCache 是否使用後將資料存入快取
+     * @param isFrontEnd 是否為轉換成前端格式
+     * @param category 資產類型
+     * @return ResponseEntity
+     */
     @GetMapping("/getAssetList/{category}")
     public ResponseEntity<?> getAssetList(
             @RequestParam(name = "page", required = false, defaultValue = "1") int page,

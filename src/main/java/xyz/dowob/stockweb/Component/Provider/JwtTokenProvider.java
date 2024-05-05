@@ -17,6 +17,9 @@ import xyz.dowob.stockweb.Repository.User.UserRepository;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+/**
+ * @author yuan
+ */
 @Component
 public class JwtTokenProvider {
     private final UserRepository userRepository;
@@ -32,12 +35,21 @@ public class JwtTokenProvider {
         this.userRepository = userRepository;
     }
 
+    /**
+     * 初始化JwtTokenProvider, 將jwtSecret解碼為SecretKey
+     */
     @PostConstruct
     public void init() {
         byte[] encodedSecret = Decoders.BASE64.decode(jwtSecret);
         this.key = Keys.hmacShaKeyFor(encodedSecret);
     }
 
+
+    /**
+     * 從JwtToken中取得Claims
+     * @param token JwtToken
+     * @return Claims
+     */
     public Claims getClaimsFromJwt(String token) {
 
         return Jwts.parser()
@@ -46,6 +58,12 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
     }
+
+    /**
+     * 驗證JwtToken
+     * @param authToken JwtToken
+     * @return 驗證結果
+     */
 
     public boolean validateToken(String authToken) {
         try {
@@ -63,6 +81,12 @@ public class JwtTokenProvider {
         }
     }
 
+    /**
+     * 生成JwtToken
+     * @param userId 使用者ID
+     * @param version Token版本
+     * @return JwtToken
+     */
     public String generateToken(Long userId, int version) {
         Date now = new Date();
         int expirationMs = expirationMinute * 60 * 1000;
