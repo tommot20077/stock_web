@@ -98,7 +98,9 @@ public class InfluxInitial {
 
     /**
      * 這個方法會檢查指定的bucket是否存在。如果存在，則返回true，否則返回false。
+     *
      * @param bucketName 指定的bucket名稱
+     *
      * @return 如果bucket存在，則返回true，否則返回false。
      */
     private boolean checkBucketExists(String bucketName) {
@@ -108,6 +110,7 @@ public class InfluxInitial {
 
     /**
      * 這個方法會獲取組織的ID。
+     *
      * @return 組織對象
      */
 
@@ -123,8 +126,9 @@ public class InfluxInitial {
 
     /**
      * 這個方法會創建指定的bucket。
+     *
      * @param bucketName 指定的bucket名稱
-     * @param orgId 組織的ID
+     * @param orgId      組織的ID
      */
     private void createBucket(String bucketName, String orgId) {
         influxClient.getBucketsApi().createBucket(bucketName, orgId);

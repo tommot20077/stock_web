@@ -40,14 +40,21 @@ import java.util.*;
 @Service
 public class StockTwService {
     private final StockTwRepository stockTwRepository;
+
     private final SubscribeRepository subscribeRepository;
+
     private final StockTwInfluxService stockTwInfluxService;
+
     private final TaskRepository taskRepository;
+
     private final ObjectMapper objectMapper;
+
     private final ApplicationEventPublisher applicationEventPublisher;
 
     private final String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
+
     private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
+
     RateLimiter rateLimiter = RateLimiter.create(0.5);
 
     @Value(value = "${stock_tw.finmind.token}")
@@ -70,8 +77,9 @@ public class StockTwService {
 
     /**
      * 新增用戶台灣股票訂閱
+     *
      * @param stockId 股票代碼
-     * @param user 用戶
+     * @param user    用戶
      */
     @Transactional(rollbackFor = Exception.class)
     public void addStockSubscribeToUser(String stockId, User user) {
@@ -99,8 +107,9 @@ public class StockTwService {
 
     /**
      * 取消用戶台灣股票訂閱
+     *
      * @param stockId 股票代碼
-     * @param user 用戶
+     * @param user    用戶
      */
     @Transactional(rollbackFor = Exception.class)
     public void removeStockSubscribeToUser(String stockId, User user) {
@@ -166,7 +175,8 @@ public class StockTwService {
 
     /**
      * 檢查獲取股票資料網址是否有效
-     * @return Map<String, List<String>> 回傳成功與失敗的股票代碼
+     *
+     * @return Map<String, List < String>> 回傳成功與失敗的股票代碼
      */
     public Map<String, List<String>> checkSubscriptionValidity() {
         Set<Object[]> subscribeList = stockTwRepository.findAllStockCodeAndTypeBySubscribers();
@@ -215,6 +225,7 @@ public class StockTwService {
 
     /**
      * 追蹤股票即時五秒搓合交易價格
+     *
      * @param stockInquiryList 股票代碼列表
      */
     @Async
@@ -334,7 +345,9 @@ public class StockTwService {
 
     /**
      * 刪除股票在influx的資料
+     *
      * @param stockCode 股票代碼
+     *
      * @throws RuntimeException 當刪除股票資料時發生錯誤
      */
     public void removeStockTwPricesDataByStockCode(String stockCode) throws RuntimeException {
@@ -350,15 +363,18 @@ public class StockTwService {
 
     /**
      * 取得所有股票資料
-     * @return List<Object[]> 股票代碼與名稱
+     *
+     * @return List<Object [ ]> 股票代碼與名稱
      */
     public List<Object[]> getAllStockData() {
-        return stockTwRepository.findDistinctStockCodeAndName();
+        return stockTwRepository.findAllByOrderByStockCode();
     }
 
     /**
      * 轉換字串日期為LocalDate
+     *
      * @param date 日期字串
+     *
      * @return LocalDate
      */
     private LocalDate formatStringToDate(String date) {
@@ -372,7 +388,9 @@ public class StockTwService {
 
     /**
      * 透過股票代碼取得股票資料
+     *
      * @param stockCode 股票代碼
+     *
      * @return StockTw 股票資料
      */
     public StockTw getStockTwByStockCode(String stockCode) {
@@ -381,7 +399,9 @@ public class StockTwService {
 
     /**
      * 獲取指定URL的JsonNode資料
+     *
      * @param url 請求網址
+     *
      * @return JsonNode
      */
     private JsonNode getJsonNodeByUrl(String url) {

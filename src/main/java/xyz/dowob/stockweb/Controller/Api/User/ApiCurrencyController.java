@@ -23,6 +23,7 @@ import java.util.Map;
 public class ApiCurrencyController {
 
     private final CurrencyService currencyService;
+
     private final UserService userService;
 
     @Autowired
@@ -31,6 +32,14 @@ public class ApiCurrencyController {
         this.userService = userService;
     }
 
+    /**
+     * 取得貨幣匯率
+     *
+     * @param currencyCodes 貨幣代碼清單
+     *
+     * @return ResponseEntity 包含貨幣匯率
+     * Map<String, BigDecimal> exchangeRates string: 貨幣代碼, BigDecimal: 匯率
+     */
     @GetMapping("/getCurrencyExchangeRates")
     public ResponseEntity<Map<String, BigDecimal>> getCurrencyExchangeRates(
             @RequestBody List<String> currencyCodes) {
@@ -38,12 +47,26 @@ public class ApiCurrencyController {
         return ResponseEntity.ok().body(exchangeRates);
     }
 
+    /**
+     * 取得所有貨幣代碼
+     *
+     * @return ResponseEntity 包含所有貨幣代碼
+     */
     @GetMapping("/getAllCurrency")
     public ResponseEntity<?> getAllCurrency() {
         List<String> currencyList = currencyService.getCurrencyList();
         return ResponseEntity.ok().body(currencyList);
     }
 
+    /**
+     * 轉換貨幣
+     *
+     * @param from   轉換前貨幣代碼
+     * @param to     轉換後貨幣代碼
+     * @param amount 轉換金額
+     *
+     * @return ResponseEntity 包含轉換後金額
+     */
     @GetMapping("/convertCurrency")
     public ResponseEntity<?> convertCurrency(
             @RequestParam String from, @RequestParam String to, @RequestParam(defaultValue = "1") String amount) {
@@ -51,7 +74,12 @@ public class ApiCurrencyController {
         return ResponseEntity.ok().body(result);
     }
 
-
+    /**
+     * @param request 訂閱請求, 包含要訂閱的貨幣清單SubscriptionCurrencyDto
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/subscribe")
     public ResponseEntity<?> subscribe(
             @RequestBody SubscriptionCurrencyDto request, HttpSession session) {
@@ -90,6 +118,14 @@ public class ApiCurrencyController {
         }
     }
 
+    /**
+     * 用戶取消訂閱貨幣
+     *
+     * @param request 訂閱請求, 包含要取消訂閱的貨幣清單SubscriptionCurrencyDto
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/unsubscribe")
     public ResponseEntity<?> unsubscribe(
             @RequestBody SubscriptionCurrencyDto request, HttpSession session) {

@@ -37,6 +37,7 @@ import java.util.List;
 
 /**
  * @author yuan
+ * 新聞相關業務邏輯
  */
 @Service
 public class NewsService {
@@ -67,6 +68,16 @@ public class NewsService {
         this.newsRepository = newsRepository;
     }
 
+    /**
+     * 根據參數獲取查詢Url
+     *
+     * @param isHeadline 是否為頭條
+     * @param page       頁數
+     * @param keyword    關鍵字
+     * @param asset      資產
+     *
+     * @return 查詢Url
+     */
     public String getInquiryUrl(boolean isHeadline, int page, String keyword, Asset asset) {
         String inquiryUrl = newsApiUrl;
         if (asset != null && StringUtils.isBlank(keyword) && !isHeadline) {
@@ -99,10 +110,19 @@ public class NewsService {
         inquiryUrl = inquiryUrl + "pageSize=" + pageSize + "&";
         inquiryUrl = inquiryUrl + "page=" + page;
         logger.debug("查詢Url: " + inquiryUrl);
-
         return inquiryUrl;
     }
 
+    /**
+     * 發送新聞請求,並處理回應
+     *
+     * @param isHeadline 是否為頭條
+     * @param page       頁數
+     * @param keyword    關鍵字
+     * @param asset      資產
+     *
+     * @throws RuntimeException 當請求失敗時拋出
+     */
     @Async
     public void sendNewsRequest(boolean isHeadline, int page, String keyword, Asset asset) {
 
@@ -136,6 +156,15 @@ public class NewsService {
     }
 
 
+    /**
+     * 處理請求新聞的回應並存入數據庫
+     *
+     * @param responseBody 回應內容
+     * @param isHeadline   是否為頭條
+     * @param page         頁數
+     * @param keyword      關鍵字
+     * @param asset        資產
+     */
     public void handleResponse(String responseBody, boolean isHeadline, int page, String keyword, Asset asset) {
         JsonObject responseJson = JsonParser.parseString(responseBody).getAsJsonObject();
         int totalResults = responseJson.get("totalResults").getAsInt();
@@ -210,7 +239,6 @@ public class NewsService {
             }
             news.setAsset(asset);
             newsRepository.save(news);
-
         }
 
 
@@ -223,11 +251,24 @@ public class NewsService {
     }
 
 
-    public void deleteNewsAfterDate(LocalDateTime date) {
+    /**
+     * 刪除指定日期之前的新聞
+     *
+     * @param date 指定日期
+     */
+    public void deleteNewsBeforeDate(LocalDateTime date) {
         newsRepository.deleteAllByPublishedAtBefore(date);
     }
 
 
+    /**
+     * 根據新聞類型獲取所有新聞分頁內容
+     *
+     * @param categoryString 類型
+     * @param page           頁數
+     *
+     * @return Page<News>
+     */
     public Page<News> getAllNewsByType(String categoryString, int page) {
         try {
             NewsType type = NewsType.valueOf(categoryString.toUpperCase());
@@ -239,12 +280,27 @@ public class NewsService {
         }
     }
 
+    /**
+     * 根據資產獲取所有新聞分頁內容
+     *
+     * @param asset 資產
+     * @param page  頁數
+     *
+     * @return Page<News>
+     */
     public Page<News> getAllNewsByAsset(Asset asset, int page) {
         PageRequest pageRequest = PageRequest.of(page - 1, 50);
         return newsRepository.findAllByAssetOrderByPublishedAtDesc(asset, pageRequest);
     }
 
 
+    /**
+     * 轉換新聞列表為Json格式
+     *
+     * @param newsList 新聞列表
+     *
+     * @return Json格式的新聞列表
+     */
     public String formatNewsListToJson(Page<News> newsList) {
         logger.debug("newsList: " + newsList);
         if (newsList == null || newsList.isEmpty()) {
@@ -260,6 +316,4 @@ public class NewsService {
             throw new RuntimeException(e);
         }
     }
-
-
 }

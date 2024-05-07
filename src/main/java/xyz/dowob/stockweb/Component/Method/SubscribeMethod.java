@@ -28,9 +28,13 @@ import java.util.Set;
 @Component
 public class SubscribeMethod {
     Logger logger = LoggerFactory.getLogger(SubscribeMethod.class);
+
     private final SubscribeRepository subscribeRepository;
+
     private final StockTwRepository stockTwRepository;
+
     private final CryptoRepository cryptoRepository;
+
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
@@ -45,8 +49,9 @@ public class SubscribeMethod {
      * 訂閱資產，分成貨幣匯率和其他匯率
      * 如果是貨幣匯率，不須處理訂閱數量
      * 如果是其他匯率，訂閱數量加 1
+     *
      * @param property 資產
-     * @param user 用戶
+     * @param user     用戶
      */
     @Transactional(rollbackFor = Exception.class)
     public void subscribeProperty(Property property, User user) {
@@ -120,8 +125,9 @@ public class SubscribeMethod {
      * 取消訂閱資產, 分成貨幣匯率和其他匯率
      * 如果是貨幣匯率，不須處理訂閱數量
      * 如果是其他匯率，訂閱數量減 1
+     *
      * @param property 資產
-     * @param user 用戶
+     * @param user     用戶
      */
 
     @Transactional(rollbackFor = Exception.class)
@@ -171,8 +177,9 @@ public class SubscribeMethod {
 
     /**
      * 將用戶訂閱加入股票訂閱表，並檢查是否有訂閱
+     *
      * @param stockTw 股票
-     * @param userId 用戶ID
+     * @param userId  用戶ID
      */
 
     private void addSubscriberToStockTw(StockTw stockTw, Long userId) {
@@ -181,8 +188,9 @@ public class SubscribeMethod {
 
     /**
      * 將用戶訂閱從股票訂閱表移除，並檢查是否有訂閱
+     *
      * @param stockTw 股票
-     * @param userId 用戶ID
+     * @param userId  用戶ID
      */
     private void removeSubscriberFromStockTw(StockTw stockTw, Long userId) {
         stockTwRepository.removeAndCheckSubscriber(stockTw, userId, eventPublisher);
@@ -190,8 +198,9 @@ public class SubscribeMethod {
 
     /**
      * 將用戶訂閱加入加密貨幣訂閱表，並檢查是否有訂閱
+     *
      * @param cryptoTradingPair 加密貨幣
-     * @param userId 用戶ID
+     * @param userId            用戶ID
      */
     private void addSubscriberToCryptoTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.addAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
@@ -199,8 +208,9 @@ public class SubscribeMethod {
 
     /**
      * 將用戶訂閱從加密貨幣訂閱表移除，並檢查是否有訂閱
+     *
      * @param cryptoTradingPair 加密貨幣
-     * @param userId 用戶ID
+     * @param userId            用戶ID
      */
     private void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.removeAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);

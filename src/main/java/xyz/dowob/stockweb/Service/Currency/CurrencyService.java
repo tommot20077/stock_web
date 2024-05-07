@@ -26,36 +26,52 @@ import java.util.*;
 
 /**
  * @author yuan
+ * 有關貨幣的業務邏輯
  */
 @Service
 public class CurrencyService {
     @Value(value = "${currency.api.url}")
-    private String API_URL;
+    private String apiUrl;
 
     private final CurrencyRepository currencyRepository;
 
     private final SubscribeRepository subscribeRepository;
-    private final CurrencyInfluxDBService currencyInfluxService;
+
+    private final CurrencyInfluxService currencyInfluxService;
+
     Logger logger = LoggerFactory.getLogger(CurrencyService.class);
 
     @Autowired
-    public CurrencyService(CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, CurrencyInfluxDBService currencyInfluxService) {
+    public CurrencyService(CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, CurrencyInfluxService currencyInfluxService) {
         this.currencyRepository = currencyRepository;
         this.subscribeRepository = subscribeRepository;
         this.currencyInfluxService = currencyInfluxService;
     }
 
 
+    /**
+     * 獲取匯率資料並更新資料庫
+     * 使用Async注解，使方法異步執行
+     * 使用Transactional注解，異步方法內的事務管理
+     * 使用RestTemplate獲取貨幣資料
+     */
     @Async
     @Transactional(rollbackFor = {Exception.class})
     public void updateCurrencyData() {
         logger.info("獲取匯率資料中");
         RestTemplate restTemplate = new RestTemplate();
-        String result = restTemplate.getForObject(API_URL, String.class);
+        String result = restTemplate.getForObject(apiUrl, String.class);
         logger.info("開始新匯率資料");
         processCurrencyData(result);
     }
 
+    /**
+     * 處理匯率資料
+     * 將資料轉換為Currency對象並寫入資料庫
+     * 拆解json數據，並根據數據是否存在進行新增或更新
+     *
+     * @param jsonData 匯率資料
+     */
     public void processCurrencyData(String jsonData) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -114,6 +130,19 @@ public class CurrencyService {
         }
     }
 
+    /**
+     * 轉換貨幣
+     * 根據貨幣名稱和金額進行貨幣轉換
+     * 通過查詢資料庫獲取匯率資料，並進行轉換
+     *
+     * @param originCurrency 原始貨幣
+     * @param targetCurrency 目標貨幣
+     * @param amount         金額
+     *
+     * @return 轉換後的金額
+     *
+     * @throws RuntimeException 無法轉換指定貨幣的資料
+     */
     public BigDecimal convertCurrency(String originCurrency, String targetCurrency, String amount) {
         BigDecimal amountDecimal = new BigDecimal(amount);
 
@@ -127,6 +156,15 @@ public class CurrencyService {
     }
 
 
+    /**
+     * 獲取匯率資料
+     * 根據貨幣名稱列表獲取匯率資料
+     * 通過查詢資料庫獲取匯率資料
+     *
+     * @param currencies 貨幣名稱列表
+     *
+     * @return 匯率資料
+     */
     public Map<String, BigDecimal> getExchangeRates(List<String> currencies) {
         Map<String, BigDecimal> rates = new HashMap<>();
         for (String currency : currencies) {
@@ -141,6 +179,13 @@ public class CurrencyService {
         return rates;
     }
 
+    /**
+     * 獲取用戶訂閱的貨幣對
+     * 根據用戶獲取訂閱的貨幣對
+     * 通過查詢資料庫獲取訂閱資料
+     *
+     * @param user 用戶
+     */
     public void subscribeCurrency(String from, String to, User user) {
         if (from.equals(to)) {
             throw new RuntimeException("訂閱貨幣不可相同");
@@ -170,6 +215,13 @@ public class CurrencyService {
 
     }
 
+    /**
+     * 取消用戶訂閱的貨幣對
+     * 根據用戶取消訂閱的貨幣對
+     * 通過查詢資料庫獲取訂閱資料
+     *
+     * @param user 用戶
+     */
     public void unsubscribeCurrency(String from, String to, User user) throws Exception {
         if (from.equals(to)) {
             throw new RuntimeException("取消訂閱貨幣不可相同");
@@ -190,11 +242,15 @@ public class CurrencyService {
             logger.warn("此訂閱: " + fromCurrency.getCurrency() + "  ⇄  " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
             throw new Exception("此訂閱: " + fromCurrency.getCurrency() + "  ⇄  " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
         }
-
     }
 
+    /**
+     * 獲取貨幣列表
+     * 獲取資料庫中所有貨幣的名稱
+     *
+     * @return 貨幣列表
+     */
     public List<String> getCurrencyList() {
         return currencyRepository.findAllDistinctCurrencies();
     }
-
 }

@@ -20,6 +20,24 @@ import java.util.*;
 
 /**
  * @author yuan
+ * 使用者
+ * 實現Serializable, 用於序列化
+ * 1. id : 使用者編號
+ * 2. username : 使用者名稱
+ * 3. firstName : 名
+ * 4. lastName : 姓
+ * 5. password : 密碼
+ * 6. email : 電子郵件
+ * 7. created : 建立時間
+ * 8. updated : 更新時間
+ * 9. timezone : 時區
+ * 10. preferredCurrency : 偏好貨幣
+ * 11. role : 角色
+ * 12. gender : 性別
+ * 13. token : Token
+ * 14. subscriptions : 訂閱
+ * 15. property : 資產
+ * 16. todoLists : 待辦事項
  */
 @Entity
 @Data
@@ -88,14 +106,6 @@ public class User implements Serializable {
                       property = "id")
     private List<Property> property = new ArrayList<>();
 
-
-    @OneToMany(cascade = CascadeType.ALL,
-               mappedBy = "user",
-               orphanRemoval = true)
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
-                      property = "id")
-    private List<PropertySummary> propertySummary = new ArrayList<>();
-
     @OneToMany(cascade = CascadeType.ALL,
                mappedBy = "user",
                orphanRemoval = true)
@@ -116,6 +126,13 @@ public class User implements Serializable {
     }
 
 
+    /**
+     * 從電子郵件中提取使用者名稱
+     *
+     * @param email 電子郵件
+     *
+     * @return 使用者名稱
+     */
     public String extractUsernameFromEmail(String email) {
         if (email.contains("@")) {
             return email.substring(0, email.indexOf('@'));
@@ -124,11 +141,23 @@ public class User implements Serializable {
         }
     }
 
+    /**
+     * 取得使用者角色
+     * 繼承GrantedAuthority
+     *
+     * @return 使用者角色
+     */
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singleton(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
 
+    /**
+     * 重寫toString
+     * 隱藏token, subscriptions, property, todoLists, 避免循環參考
+     *
+     * @return 字串
+     */
     @Override
     public String toString() {
         return (new ReflectionToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE) {
@@ -140,6 +169,14 @@ public class User implements Serializable {
         }).toString();
     }
 
+    /**
+     * 重寫equals
+     * 比較id
+     *
+     * @param o 物件
+     *
+     * @return 是否相同
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -152,6 +189,11 @@ public class User implements Serializable {
         return Objects.equals(id, user.id);
     }
 
+    /**
+     * 重寫hashCode
+     *
+     * @return hashCode
+     */
     @Override
     public int hashCode() {
         return Objects.hash(id);

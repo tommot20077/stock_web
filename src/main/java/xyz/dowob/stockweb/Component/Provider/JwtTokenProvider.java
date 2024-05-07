@@ -23,11 +23,15 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
     private final UserRepository userRepository;
+
     Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
+
     @Value(value = "${security.jwt.secret}")
     private String jwtSecret;
+
     @Value(value = "${security.jwt.expiration}")
     private int expirationMinute;
+
     private SecretKey key;
 
     @Autowired
@@ -47,21 +51,21 @@ public class JwtTokenProvider {
 
     /**
      * 從JwtToken中取得Claims
+     *
      * @param token JwtToken
+     *
      * @return Claims
      */
     public Claims getClaimsFromJwt(String token) {
 
-        return Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }
 
     /**
      * 驗證JwtToken
+     *
      * @param authToken JwtToken
+     *
      * @return 驗證結果
      */
 
@@ -74,8 +78,7 @@ public class JwtTokenProvider {
             Integer tokenVersionInToken = claims.get("token_version", Integer.class);
             return tokenVersionInDb.equals(tokenVersionInToken);
 
-        } catch (SignatureException | IllegalArgumentException | UnsupportedJwtException | ExpiredJwtException |
-                 MalformedJwtException ex) {
+        } catch (SignatureException | IllegalArgumentException | UnsupportedJwtException | ExpiredJwtException | MalformedJwtException ex) {
             logger.error("不合法的Jwt Token: " + ex.getMessage());
             throw new RuntimeException(ex.getMessage());
         }
@@ -83,8 +86,10 @@ public class JwtTokenProvider {
 
     /**
      * 生成JwtToken
-     * @param userId 使用者ID
+     *
+     * @param userId  使用者ID
      * @param version Token版本
+     *
      * @return JwtToken
      */
     public String generateToken(Long userId, int version) {
@@ -93,11 +98,11 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .subject(Long.toString(userId))
-                .issuedAt(now)
-                .claim("token_version", version)
-                .expiration(expiryDate)
-                .signWith(this.key)
-                .compact();
+                   .subject(Long.toString(userId))
+                   .issuedAt(now)
+                   .claim("token_version", version)
+                   .expiration(expiryDate)
+                   .signWith(this.key)
+                   .compact();
     }
 }

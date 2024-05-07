@@ -28,7 +28,9 @@ import java.util.concurrent.TimeUnit;
 public class ApiPropertyController {
 
     private final UserService userService;
+
     private final PropertyService propertyService;
+
     Logger logger = LoggerFactory.getLogger(ApiPropertyController.class);
 
     @Autowired
@@ -37,6 +39,16 @@ public class ApiPropertyController {
         this.propertyService = propertyService;
     }
 
+    /**
+     * 修改股票資產
+     *
+     * @param propertyListDto 股票資產清單
+     * @param session         用戶session
+     *
+     * @return ResponseEntity
+     * 如果修改成功, 回傳"修改成功"
+     * 如果修改失敗, 回傳Map<String, String> key: 股票代碼, value: 失敗原因
+     */
     @PostMapping("/modify/stock_tw")
     public ResponseEntity<?> modifyStock(
             @RequestBody PropertyListDto propertyListDto, HttpSession session) {
@@ -75,6 +87,16 @@ public class ApiPropertyController {
 
     }
 
+    /**
+     * 修改貨幣資產
+     *
+     * @param propertyListDto 貨幣資產清單
+     * @param session         用戶session
+     *
+     * @return ResponseEntity
+     * 如果修改成功, 回傳"修改成功"
+     * 如果修改失敗, 回傳Map<String, String> key: 貨幣代碼, value: 失敗原因
+     */
     @PostMapping("/modify/currency")
     public ResponseEntity<?> modifyCurrency(
             @RequestBody PropertyListDto propertyListDto, HttpSession session) {
@@ -112,6 +134,16 @@ public class ApiPropertyController {
         }
     }
 
+    /**
+     * 修改加密貨幣資產
+     *
+     * @param propertyListDto 加密貨幣資產清單
+     * @param session         用戶session
+     *
+     * @return ResponseEntity
+     * 如果修改成功, 回傳"修改成功"
+     * 如果修改失敗, 回傳Map<String, String> key: 加密貨幣代碼, value: 失敗原因
+     */
     @PostMapping("/modify/crypto")
     public ResponseEntity<?> modifyCrypto(
             @RequestBody PropertyListDto propertyListDto, HttpSession session) {
@@ -148,6 +180,13 @@ public class ApiPropertyController {
         }
     }
 
+    /**
+     * 取得使用者所有資產
+     *
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getUserAllProperty")
     public ResponseEntity<?> getAllProperties(HttpSession session) {
         try {
@@ -168,6 +207,11 @@ public class ApiPropertyController {
         }
     }
 
+    /**
+     * 取得資產類型
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getPropertyType")
     public ResponseEntity<?> getPropertyType() {
         try {
@@ -177,6 +221,13 @@ public class ApiPropertyController {
         }
     }
 
+    /**
+     * 根據資產類型取得所有資產名稱
+     *
+     * @param type 資產類型
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getAllNameByPropertyType")
     public ResponseEntity<?> getAllNameByPropertyType(
             @RequestParam String type) {
@@ -189,6 +240,13 @@ public class ApiPropertyController {
     }
 
 
+    /**
+     * 取得用戶資產歷史紀錄
+     *
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getPropertySummary/history")
     public ResponseEntity<?> getPropertyHistorySummary(HttpSession session) {
         try {
@@ -205,6 +263,13 @@ public class ApiPropertyController {
     }
 
 
+    /**
+     * 取得用戶資產狀況總覽
+     *
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getPropertyOverview")
     public ResponseEntity<?> getPropertyOverview(HttpSession session) {
         try {

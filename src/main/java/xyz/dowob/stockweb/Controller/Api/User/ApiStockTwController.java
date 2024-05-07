@@ -26,7 +26,9 @@ import java.util.Map;
 @RequestMapping("/api/user/stock/tw")
 public class ApiStockTwController {
     private final StockTwService stockTwService;
+
     private final UserService userService;
+
     private final CrontabMethod crontabMethod;
 
 
@@ -37,6 +39,14 @@ public class ApiStockTwController {
         this.crontabMethod = crontabMethod;
     }
 
+    /**
+     * 用戶訂閱台灣股票
+     *
+     * @param subscriptionStockDto 訂閱請求, 包含要訂閱的股票清單SubscriptionStockDto
+     * @param session              用戶session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/subscribe")
     public ResponseEntity<?> addNewStock(
             @RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
@@ -61,6 +71,17 @@ public class ApiStockTwController {
         }
     }
 
+    /**
+     * 用戶取消訂閱台灣股票
+     *
+     * @param subscriptionStockDto 訂閱請求, 包含要取消訂閱的股票清單SubscriptionStockDto
+     * @param session              用戶session
+     *
+     * @return ResponseEntity
+     * 如果所有股票退訂成功, 則回傳200, 並回傳"股票退訂成功"
+     * 如果有任何一支股票退訂失敗, 則回傳500, 並列出失敗的股票 Map<String, String> failedSubscribes
+     * Map的key為股票代碼, value為失敗原因
+     */
     @PostMapping("/unsubscribe")
     public ResponseEntity<?> removeStock(
             @RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
@@ -85,6 +106,11 @@ public class ApiStockTwController {
         }
     }
 
+    /**
+     * 取得所有台灣股票資料
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getAllStock")
     public ResponseEntity<?> getAllStockData() {
         try {
@@ -101,6 +127,11 @@ public class ApiStockTwController {
         }
     }
 
+    /**
+     * 取得台灣股票目前更新狀態
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getTrackImmediateStatus")
     public ResponseEntity<?> getTrackImmediateStatus() {
         try {

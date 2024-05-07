@@ -12,7 +12,7 @@ import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
-import xyz.dowob.stockweb.Service.Common.ProgressTracker;
+import xyz.dowob.stockweb.Service.Common.ProgressTrackerService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
@@ -38,19 +38,19 @@ public class ApiAdminController {
 
     private final NewsService newsService;
 
-    private final ProgressTracker progressTracker;
+    private final ProgressTrackerService progressTrackerService;
 
     private final CrontabMethod crontabMethod;
 
     private final AssetService assetService;
 
     @Autowired
-    public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTracker progressTracker, CrontabMethod crontabMethod, AssetService assetService) {
+    public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTrackerService progressTrackerService, CrontabMethod crontabMethod, AssetService assetService) {
         this.currencyService = currencyService;
         this.cryptoService = cryptoService;
         this.stockTwService = stockTwService;
         this.newsService = newsService;
-        this.progressTracker = progressTracker;
+        this.progressTrackerService = progressTrackerService;
         this.crontabMethod = crontabMethod;
         this.assetService = assetService;
     }
@@ -66,7 +66,7 @@ public class ApiAdminController {
      * 7. 追蹤加密貨幣每日價格
      * 8. 取得所有任務進度
      * 9. 檢查並重新連接WebSocket
-
+     * <p>
      * 更新加密貨幣清單
      *
      * @param response HttpServletResponse
@@ -185,7 +185,7 @@ public class ApiAdminController {
     @ResponseBody
     public List<Progress.ProgressDto> getAllTaskProgress() {
         List<Progress.ProgressDto> progressList = new ArrayList<>();
-        for (Progress progress : progressTracker.getAllProgressInfo()) {
+        for (Progress progress : progressTrackerService.getAllProgressInfo()) {
             Progress.ProgressDto dto = new Progress.ProgressDto(progress.getTaskName(),
                                                                 progress.getProgressCount(),
                                                                 progress.getTotalTask(),
@@ -219,7 +219,7 @@ public class ApiAdminController {
      * 4. 追蹤股票每日價格
      * 5. 開啟即時股價追蹤
      * 6. 關閉即時股價追蹤
-
+     * <p>
      * 更新股票清單
      *
      * @return ResponseEntity
@@ -320,7 +320,7 @@ public class ApiAdminController {
     /**
      * 管理員-貨幣類
      * 1. 更新貨幣清單
-
+     * <p>
      * 更新貨幣清單
      *
      * @return ResponseEntity
@@ -348,7 +348,7 @@ public class ApiAdminController {
      * 9. 移除過期新聞
      * 10. 更新資產列表快取
      * 11. 更新所有資產列表快取
-
+     * <p>
      * 更新ROI資料
      *
      * @return ResponseEntity

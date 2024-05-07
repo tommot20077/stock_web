@@ -15,6 +15,7 @@ import java.util.List;
 @Component
 public class CombineMethod {
     private final PropertyRepository propertyRepository;
+
     private static final Logger logger = LoggerFactory.getLogger(CombineMethod.class);
 
     public CombineMethod(PropertyRepository propertyRepository) {
@@ -23,7 +24,9 @@ public class CombineMethod {
 
     /**
      * 合併用戶持有資產
+     *
      * @param properties 持有資產
+     *
      * @return 合併後的持有資產
      */
     @Transactional

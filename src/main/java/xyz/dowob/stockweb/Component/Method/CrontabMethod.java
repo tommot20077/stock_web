@@ -320,7 +320,7 @@ public class CrontabMethod {
     public void removeExpiredNews() {
         logger.info("開始刪除過期的新聞");
         LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
-        newsService.deleteNewsAfterDate(removeTime);
+        newsService.deleteNewsBeforeDate(removeTime);
         logger.debug("刪除完成");
     }
 
@@ -375,6 +375,7 @@ public class CrontabMethod {
 
     /**
      * 變更股票台灣自動更新狀態
+     *
      * @param isOpen 是否開啟
      */
     public void operateStockTwTrack(boolean isOpen) {
@@ -384,6 +385,7 @@ public class CrontabMethod {
 
     /**
      * 獲取股票台灣自動更新狀態
+     *
      * @return 是否開啟
      */
     public boolean isStockTwAutoStart() {

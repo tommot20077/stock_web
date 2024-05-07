@@ -13,6 +13,16 @@ import java.time.ZoneId;
 
 /**
  * @author yuan
+ * 使用者財產
+ * 實現Serializable, 用於序列化
+ * 1. id : 財產編號
+ * 2. user : 使用者
+ * 3. asset : 資產
+ * 4. assetName : 資產名稱
+ * 5. quantity : 數量
+ * 6. description : 描述
+ * 7. createTime : 創建時間
+ * 8. updateTime : 更新時間
  */
 @Data
 @Entity
@@ -24,19 +34,26 @@ public class Property implements Serializable {
 
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id", nullable = false)
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @JoinColumn(name = "user_id",
+                nullable = false)
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private User user;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "asset_id", nullable = false)
-    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @JoinColumn(name = "asset_id",
+                nullable = false)
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
+                      property = "id")
     private Asset asset;
 
-    @Column(name = "asset_name", nullable = false)
+    @Column(name = "asset_name",
+            nullable = false)
     private String assetName;
 
-    @Column(precision = 25, scale = 8, nullable = false)
+    @Column(precision = 25,
+            scale = 8,
+            nullable = false)
     private BigDecimal quantity;
 
     @Column(columnDefinition = "TEXT")
@@ -45,6 +62,7 @@ public class Property implements Serializable {
     private OffsetDateTime createTime;
 
     private OffsetDateTime updateTime;
+
 
     @PreUpdate
     protected void onUpdate() {

@@ -22,8 +22,9 @@ import java.util.UUID;
  * @author yuan
  */
 @Component
-public class MailTokenProvider{
+public class MailTokenProvider {
     private final TokenRepository tokenRepository;
+
     private final JavaMailSender javaMailSender;
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -34,17 +35,23 @@ public class MailTokenProvider{
         this.javaMailSender = javaMailSender;
     }
 
-    @Value(value = "${security.email.receive.url}") private String emailReceiveUrl;
+    @Value(value = "${security.email.receive.url}")
+    private String emailReceiveUrl;
 
-    @Value(value = "${spring.mail.username}") private String emailSender;
+    @Value(value = "${spring.mail.username}")
+    private String emailSender;
 
-    @Value(value = "${security.email.expiration}") private int expirationMinute;
+    @Value(value = "${security.email.expiration}")
+    private int expirationMinute;
 
-    @Value(value = "${common.send_mail_times:3}") private int sendMailTimes;
+    @Value(value = "${common.send_mail_times:3}")
+    private int sendMailTimes;
 
     /**
      * 發送驗證電子郵件，並將token存入數據庫
+     *
      * @param user 用戶
+     *
      * @throws RuntimeException 發送郵件失敗
      */
     public void sendVerificationEmail(User user) throws RuntimeException {
@@ -72,7 +79,9 @@ public class MailTokenProvider{
 
     /**
      * 發送重設密碼電子郵件，並將token存入數據庫
+     *
      * @param user 用戶
+     *
      * @throws RuntimeException 發送郵件失敗
      */
     public void sendResetPasswordEmail(User user) throws RuntimeException {
@@ -98,7 +107,9 @@ public class MailTokenProvider{
 
     /**
      * 檢查用戶是否可以發送電子郵件
+     *
      * @param user 用戶
+     *
      * @return 是否可以發送電子郵件
      */
     private synchronized boolean canSendEmail(User user) {
@@ -119,7 +130,9 @@ public class MailTokenProvider{
 
     /**
      * 驗證token並返回用戶，如果token無效，將拋出異常
+     *
      * @param base128Token token
+     *
      * @return 用戶
      */
     public User validateTokenAndReturnUser(String base128Token) {

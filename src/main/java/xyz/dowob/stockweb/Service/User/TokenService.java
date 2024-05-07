@@ -34,16 +34,21 @@ import java.util.UUID;
  * 2重置密碼
  * 3生成JWT token
  * 4生成RememberMe token
- *
  */
 @Service
 public class TokenService {
     private final UserRepository userRepository;
+
     private final TokenRepository tokenRepository;
+
     private final JwtTokenProvider jwtTokenProvider;
+
     private final PasswordEncoder passwordEncoder;
+
     private final MailTokenProvider mailTokenProvider;
+
     private final UserService userService;
+
     private final RetryTemplate retryTemplate;
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -61,8 +66,10 @@ public class TokenService {
 
     /**
      * 發送驗證信到註冊信箱
+     *
      * @param session HttpSession
      *                用戶未驗證時發送驗證信
+     *
      * @throws RuntimeException 用戶已經完成驗證
      */
 
@@ -78,7 +85,9 @@ public class TokenService {
 
     /**
      * 驗證信箱
+     *
      * @param base128Token base128Token
+     *
      * @throws RuntimeException 密鑰不存在
      */
     public void verifyEmail(String base128Token) {
@@ -97,7 +106,9 @@ public class TokenService {
 
     /**
      * 發送重置密碼信到註冊信箱
+     *
      * @param email email
+     *
      * @throws RuntimeException 找不到用戶
      */
     public void sendResetPasswordEmail(String email) {
@@ -110,8 +121,9 @@ public class TokenService {
 
     /**
      * 重置密碼 (忘記密碼)
-     * @param email email
-     * @param token token
+     *
+     * @param email       email
+     * @param token       token
      * @param newPassword 設定的新密碼
      */
     public void resetPassword(String email, String token, String newPassword) {
@@ -130,8 +142,9 @@ public class TokenService {
 
     /**
      * 生成RememberMe token, 並存入cookie
+     *
      * @param response HttpServletResponse
-     * @param user User
+     * @param user     User
      */
     public void generateRememberMeToken(HttpServletResponse response, User user) {
         Token userToken = user.getToken();
@@ -157,8 +170,11 @@ public class TokenService {
 
     /**
      * 驗證RememberMe token
+     *
      * @param base64Token base64Token
+     *
      * @return Long userId
+     *
      * @throws RuntimeException token不存在
      */
     @Transactional
@@ -179,9 +195,10 @@ public class TokenService {
 
     /**
      * 刪除RememberMe cookie
+     *
      * @param response HttpServletResponse
-     * @param session HttpSession
-     * @param cookies Cookie[]
+     * @param session  HttpSession
+     * @param cookies  Cookie[]
      */
     public void deleteRememberMeCookie(HttpServletResponse response, HttpSession session, Cookie[] cookies) {
         if (cookies != null) {
@@ -207,8 +224,10 @@ public class TokenService {
 
     /**
      * 生成JWT token
-     * @param user User
+     *
+     * @param user     User
      * @param response HttpServletResponse
+     *
      * @return String jwt
      */
     public String generateJwtToken(User user, HttpServletResponse response) {
@@ -224,8 +243,8 @@ public class TokenService {
 
     /**
      * 刪除過期的emailApiToken
-     * @throws RuntimeException 清理過期的token失敗
      *
+     * @throws RuntimeException 清理過期的token失敗
      */
     @Transactional(rollbackFor = Exception.class)
     public void removeExpiredTokens() {

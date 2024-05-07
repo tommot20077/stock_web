@@ -56,6 +56,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至cryptoBucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "CryptoInfluxClient")
@@ -65,6 +66,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至cryptoHistoryBucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "CryptoHistoryInfluxClient")
@@ -74,6 +76,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至stockTwBucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "StockTwInfluxClient")
@@ -83,6 +86,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至stockTwHistoryBucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "StockTwHistoryInfluxClient")
@@ -92,6 +96,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至currencyBucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "CurrencyInfluxClient")
@@ -101,6 +106,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至propertySummaryBucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "propertySummaryInfluxClient")
@@ -110,6 +116,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至預設bucket
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "influxClient")
@@ -120,23 +127,25 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient
+     *
      * @param bucketName bucket名稱
+     *
      * @return InfluxDBClient
      */
     private InfluxDBClient createClient(String bucketName) {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder()
-                .connectTimeout(influxConnectTimeout, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS)
-                .writeTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS);
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().connectTimeout(influxConnectTimeout,
+                                                                                 java.util.concurrent.TimeUnit.SECONDS)
+                                                                 .readTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS)
+                                                                 .writeTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS);
 
 
         InfluxDBClientOptions options = InfluxDBClientOptions.builder()
-                .url(url)
-                .authenticateToken(token.toCharArray())
-                .org(org)
-                .bucket(bucketName)
-                .okHttpClient(builder)
-                .build();
+                                                             .url(url)
+                                                             .authenticateToken(token.toCharArray())
+                                                             .org(org)
+                                                             .bucket(bucketName)
+                                                             .okHttpClient(builder)
+                                                             .build();
 
         return InfluxDBClientFactory.create(options);
     }

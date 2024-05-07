@@ -21,22 +21,28 @@ import java.util.Map;
 
 /**
  * @author yuan
+ * 有關加密貨幣的InfluxDB業務邏輯
  */
 @Service
 public class CryptoInfluxService {
     private final InfluxDBClient cryptoInfluxDBClient;
+
     private final InfluxDBClient cryptoHistoryInfluxDBClient;
+
     private final AssetInfluxMethod assetInfluxMethod;
+
     private final RetryTemplate retryTemplate;
+
     Logger logger = LoggerFactory.getLogger(CryptoInfluxService.class);
+
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
+
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
 
     @Autowired
     public CryptoInfluxService(
-            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient,
-            @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.cryptoInfluxDBClient = cryptoInfluxClient;
         this.cryptoHistoryInfluxDBClient = cryptoHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -52,6 +58,11 @@ public class CryptoInfluxService {
     @Value("${db.influxdb.org}")
     private String org;
 
+    /**
+     * WebSocket的kline數據寫入InfluxDB
+     *
+     * @param kline kline數據
+     */
     public void writeToInflux(Map<String, Object> kline) {
         logger.debug("讀取kline數據");
         logger.debug(kline.toString());
@@ -75,6 +86,12 @@ public class CryptoInfluxService {
         assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
     }
 
+    /**
+     * 將加密貨幣歷史數據寫入InfluxDB
+     *
+     * @param data        加密貨幣歷史數據
+     * @param tradingPair 交易對
+     */
     public void writeCryptoHistoryToInflux(List<String[]> data, String tradingPair) {
         for (String[] record : data) {
             Long time = Long.parseLong(record[0]);
@@ -99,6 +116,13 @@ public class CryptoInfluxService {
     }
 
 
+    /**
+     * 根據交易對刪除InfluxDB中的數據
+     *
+     * @param tradingPair 交易對
+     *
+     * @throws RuntimeException 刪除數據時發生錯誤
+     */
     public void deleteDataByTradingPair(String tradingPair) {
         String predicate = String.format("_measurement=\"kline_data\" AND tradingPair=\"%s\"", tradingPair);
         logger.warn("刪除" + tradingPair + "的歷史資料");
@@ -120,6 +144,13 @@ public class CryptoInfluxService {
         }
     }
 
+    /**
+     * 根據交易對獲取最後一條數據的日期
+     *
+     * @param tradingPair 交易對
+     *
+     * @return 最後一條數據的日期
+     */
     public LocalDate getLastDateByTradingPair(String tradingPair) {
         var ref = new Object() {
             FluxTable result;

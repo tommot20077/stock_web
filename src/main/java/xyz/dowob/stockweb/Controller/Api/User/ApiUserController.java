@@ -42,12 +42,19 @@ import java.util.stream.Collectors;
 @RestController
 public class ApiUserController {
     private final UserService userService;
+
     private final TokenService tokenService;
+
     private final NewsService newsService;
+
     private final RedisService redisService;
+
     private final AssetService assetService;
+
     private final CryptoService cryptoService;
+
     private final TodoService todoService;
+
     private final CrontabMethod crontabMethod;
 
 
@@ -64,6 +71,13 @@ public class ApiUserController {
     }
 
 
+    /**
+     * 註冊用戶
+     *
+     * @param registerUserDto 註冊用戶資料
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(
             @RequestBody RegisterUserDto registerUserDto) {
@@ -75,6 +89,15 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 登入用戶
+     *
+     * @param loginUserDto 登入用戶資料
+     * @param response     HttpServletResponse
+     * @param session      HttpSession
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(
             @RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session) {
@@ -97,6 +120,13 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 重設密碼驗證信
+     *
+     * @param userInfo 用戶資訊 email
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/sendResetPasswordEmail")
     public ResponseEntity<?> sendResetPasswordEmail(@RequestBody Map<String, String> userInfo) {
         try {
@@ -109,6 +139,13 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 重設密碼
+     *
+     * @param userInfo 用戶資訊 email, token, newPassword
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/resetPassword")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> userInfo) {
         try {
@@ -120,6 +157,13 @@ public class ApiUserController {
     }
 
 
+    /**
+     * 取得用戶詳細資訊
+     *
+     * @param session HttpSession
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getUserDetail")
     public ResponseEntity<?> getUserDetail(HttpSession session) {
         try {
@@ -144,6 +188,14 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 更新用戶詳細資訊
+     *
+     * @param userInfo 用戶資訊
+     * @param session  HttpSession
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/updateUserDetail")
     public ResponseEntity<?> updateUserDetail(
             @RequestBody Map<String, String> userInfo, HttpSession session) {
@@ -163,6 +215,13 @@ public class ApiUserController {
     }
 
 
+    /**
+     * 發送用戶信箱確認信
+     *
+     * @param session HttpSession
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/sendVerificationEmail")
     public ResponseEntity<?> verifyEmail(HttpSession session) {
         try {
@@ -173,6 +232,13 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 驗證信箱token
+     *
+     * @param token 驗證token
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/verifyEmail")
     public ResponseEntity<?> verifyEmail(
             @RequestParam("token") String token) {
@@ -184,6 +250,11 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 獲取時區列表
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getTimeZoneList")
     public ResponseEntity<?> getTimeZoneList() {
 
@@ -193,6 +264,13 @@ public class ApiUserController {
     }
 
 
+    /**
+     * 獲取csrf token
+     *
+     * @param request HttpServletRequest
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getCsrfToken")
     public ResponseEntity<?> getCsrfToken(HttpServletRequest request) {
         try {
@@ -203,6 +281,13 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 獲取用戶訂閱列表
+     *
+     * @param session HttpSession
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getUserSubscriptionsList")
     public ResponseEntity<?> getUserSubscriptionsList(HttpSession session) {
         try {
@@ -217,11 +302,22 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 獲取新聞,使用assetId或category查詢
+     *
+     * @param category 類別
+     * @param assetId  資產ID
+     * @param page     頁數
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getNews")
     public ResponseEntity<?> getNews(
-            @RequestParam(name = "category", required = false) String category,
-            @RequestParam(name = "asset", required = false) Long assetId,
-            @RequestParam(name = "page", required = false, defaultValue = "1") int page) {
+            @RequestParam(name = "category",
+                          required = false) String category, @RequestParam(name = "asset",
+                                                                           required = false) Long assetId, @RequestParam(name = "page",
+                                                                                                                         required = false,
+                                                                                                                         defaultValue = "1") int page) {
         String key = "news";
         String innerKey;
         Asset asset = null;
@@ -264,6 +360,11 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 獲取伺服器即時狀態
+     *
+     * @return ResponseEntity, 包含是否連接加密貨幣WebSocket和是否啟動台灣股票五秒搓合交易
+     */
     @GetMapping("/getServerStatus")
     public ResponseEntity<?> getServerStatus() {
         try {
@@ -277,6 +378,13 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 獲取所有待辦事項列表
+     *
+     * @param session HttpSession
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getTodoList")
     public ResponseEntity<?> getTodoList(HttpSession session) {
         try {
@@ -292,9 +400,17 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 新增待辦事項
+     *
+     * @param todoDto 待辦事項
+     * @param session HttpSession
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/addTodoList")
-    public ResponseEntity<?> addTodoList(@RequestBody
-                                         TodoDto todoDto, HttpSession session) {
+    public ResponseEntity<?> addTodoList(
+            @RequestBody TodoDto todoDto, HttpSession session) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user != null) {
@@ -308,6 +424,13 @@ public class ApiUserController {
         }
     }
 
+    /**
+     * 刪除待辦事項
+     *
+     * @param todoListId 待辦事項ID
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/deleteTodoList")
     public ResponseEntity<?> deleteTodoList(@RequestBody List<Long> todoListId) {
         try {

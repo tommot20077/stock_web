@@ -20,17 +20,30 @@ import java.io.IOException;
 
 /**
  * @author yuan
+ * Jwt驗證過濾器繼承OncePerRequestFilter
+ * 當請求到達時，檢查是否有JWT，如果有，則驗證JWT，並將用戶設置為已驗證
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
-    @Autowired private CustomUserDetailsService customUserDetailsService;
 
+    @Autowired
+    private CustomUserDetailsService customUserDetailsService;
+
+    /**
+     * 驗證JWT
+     *
+     * @param request     請求
+     * @param response    響應
+     * @param filterChain 過濾器鏈
+     *
+     * @throws ServletException 錯誤
+     * @throws IOException      錯誤
+     */
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
+            @NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
@@ -50,6 +63,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * 從請求中獲取JWT
+     *
+     * @param request 請求
+     *
+     * @return JWT
+     */
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {

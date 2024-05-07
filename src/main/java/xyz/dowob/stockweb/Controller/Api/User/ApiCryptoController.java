@@ -35,6 +35,14 @@ public class ApiCryptoController {
     }
 
 
+    /**
+     * 用戶訂閱加密貨幣
+     *
+     * @param request 訂閱請求, 包含要訂閱的加密貨幣清單SubscriptionCryptoDto
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/subscribe")
     public ResponseEntity<?> subscribeSymbol(
             @RequestBody SubscriptionCryptoDto request, HttpSession session) {
@@ -74,6 +82,14 @@ public class ApiCryptoController {
         }
     }
 
+    /**
+     * 用戶取消訂閱加密貨幣
+     *
+     * @param request 訂閱請求, 包含要取消訂閱的加密貨幣清單SubscriptionCryptoDto
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/unsubscribe")
     public ResponseEntity<?> unsubscribeSymbol(
             @RequestBody SubscriptionCryptoDto request, HttpSession session) {
@@ -113,6 +129,11 @@ public class ApiCryptoController {
     }
 
 
+    /**
+     * 取得所有加密貨幣清單
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getAllTradingPairs")
     public ResponseEntity<?> getAllTradingPairs() {
         try {
@@ -124,6 +145,11 @@ public class ApiCryptoController {
     }
 
 
+    /**
+     * 查看WebSocket連線狀態
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/ws/status")
     public ResponseEntity<?> webSocketStatus() {
         try {
@@ -136,7 +162,5 @@ public class ApiCryptoController {
             return ResponseEntity.badRequest().body("取得WebSocket狀態失敗: " + e.getMessage());
         }
     }
-
-
 }
 

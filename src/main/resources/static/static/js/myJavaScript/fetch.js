@@ -220,8 +220,7 @@ async function fetchUserAllProperties() {
             return await response.json();
         } else if (response.status === 445) {
             return []
-        }
-        else {
+        } else {
             new Error('錯誤的請求: ' + response.status + '' + response.statusText);
         }
     } catch (error) {
@@ -746,8 +745,6 @@ async function fetchUserPropertySummary() {
 }
 
 
-
-
 async function fetchStatisticsOverview() {
     try {
         const response = await fetch("/api/user/property/getPropertyOverview", {
@@ -901,7 +898,6 @@ async function deleteTodo(body) {
         console.error(errorText);
     }
 }
-
 
 
 function hideById(id) {

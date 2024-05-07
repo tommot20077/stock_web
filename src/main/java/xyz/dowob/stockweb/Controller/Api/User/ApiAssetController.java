@@ -29,8 +29,11 @@ import java.util.Objects;
 @RequestMapping("/api/user/asset")
 public class ApiAssetController {
     private final AssetService assetService;
+
     private final RedisService redisService;
+
     private final UserService userService;
+
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -44,13 +47,16 @@ public class ApiAssetController {
 
     /**
      * 處理資產資料, 並存入Redis
+     *
      * @param assetId 資產ID
-     * @param type 查詢類型 current 或 history
+     * @param type    查詢類型 current 或 history
+     *
      * @return ResponseEntity
      */
     @PostMapping("/handleKlineInfo/{assetId}")
     public ResponseEntity<?> handleAssetInfo(
-            @PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
+            @PathVariable Long assetId, @RequestParam(name = "type",
+                                                      defaultValue = "current") String type) {
         type = type.toLowerCase();
         try {
             if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
@@ -88,13 +94,16 @@ public class ApiAssetController {
 
     /**
      * 取得資產資料 (K線圖)
+     *
      * @param assetId 資產ID
-     * @param type 查詢類型 current 或 history
+     * @param type    查詢類型 current 或 history
+     *
      * @return ResponseEntity
      */
     @GetMapping("/getKlineInfo/{assetId}")
-    public ResponseEntity<?> getAssetInfo(
-            @PathVariable Long assetId, @RequestParam(name = "type", defaultValue = "current") String type) {
+    public ResponseEntity<?> getKlineInfo(
+            @PathVariable Long assetId, @RequestParam(name = "type",
+                                                      defaultValue = "current") String type) {
         type = type.toLowerCase();
         if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
             return ResponseEntity.badRequest().body("錯誤的查詢類型");
@@ -109,7 +118,8 @@ public class ApiAssetController {
             } else if (status == null) {
                 return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("沒有請求過資產資料"));
             } else if ("error".equals(status)) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("資產資料處理錯誤，請重新使用/handleAssetInfo/[assetId]處理資產資料"));
+                return ResponseEntity.badRequest()
+                                     .body(objectMapper.writeValueAsString("資產資料處理錯誤，請重新使用/handleAssetInfo/[assetId]處理資產資料"));
             } else if ("no_data".equals(status)) {
                 return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("無此資產的價格圖"));
             }
@@ -123,18 +133,19 @@ public class ApiAssetController {
 
     /**
      * 取得資產資訊, 並存入Redis
+     *
      * @param assetId 資產ID
      * @param session HttpSession
+     *
      * @return ResponseEntity
      */
     @GetMapping("/getAssetInfo")
     public ResponseEntity<?> getAssetInfo(
             @RequestParam(name = "id") Long assetId, HttpSession session) {
         try {
-            String assetKey = String.format("asset_%s:", assetId);
             User user = userService.getUserFromJwtTokenOrSession(session);
             Asset asset = assetService.getAssetById(assetId);
-            List<String>cachedAssetJson = assetService.getAssetStatisticsAndSaveToRedis(asset, assetKey);
+            List<String> cachedAssetJson = assetService.getAssetStatisticsAndSaveToRedis(asset);
             return ResponseEntity.ok().body(assetService.formatRedisAssetInfoCacheToJson(cachedAssetJson, asset, user));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
@@ -143,18 +154,23 @@ public class ApiAssetController {
 
     /**
      * 取得資產列表
-     * @param page 頁數
-     * @param isCache 是否使用後將資料存入快取
+     *
+     * @param page       頁數
+     * @param isCache    是否使用後將資料存入快取
      * @param isFrontEnd 是否為轉換成前端格式
-     * @param category 資產類型
+     * @param category   資產類型
+     *
      * @return ResponseEntity
      */
     @GetMapping("/getAssetList/{category}")
     public ResponseEntity<?> getAssetList(
-            @RequestParam(name = "page", required = false, defaultValue = "1") int page,
-            @RequestParam(name = "isCache", required = false, defaultValue = "true") boolean isCache,
-            @RequestParam(name = "isFrontEnd", required = false, defaultValue = "false") boolean isFrontEnd,
-            @PathVariable(name = "category") String category) {
+            @RequestParam(name = "page",
+                          required = false,
+                          defaultValue = "1") int page, @RequestParam(name = "isCache",
+                                                                      required = false,
+                                                                      defaultValue = "true") boolean isCache, @RequestParam(name = "isFrontEnd",
+                                                                                                                            required = false,
+                                                                                                                            defaultValue = "false") boolean isFrontEnd, @PathVariable(name = "category") String category) {
         try {
             if (category == null || category.isEmpty()) {
                 return ResponseEntity.badRequest().body("沒有任何查詢參數可以使用");

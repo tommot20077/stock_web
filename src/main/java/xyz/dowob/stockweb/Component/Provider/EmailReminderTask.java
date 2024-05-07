@@ -11,8 +11,11 @@ import xyz.dowob.stockweb.Model.User.Todo;
  */
 public class EmailReminderTask implements Runnable {
     private final Todo todo;
+
     private final JavaMailSender javaMailSender;
+
     private final String emailSender;
+
     Logger logger = LoggerFactory.getLogger(EmailReminderTask.class);
 
     public EmailReminderTask(Todo todo, JavaMailSender javaMailSender, String emailSender) {

@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RetryMethod {
     @Value("${common.max_retryTimes}")
     private int maxRetryTimesValue;
+
     private AtomicInteger maxRetryTimes;
 
     @PostConstruct
@@ -28,10 +29,12 @@ public class RetryMethod {
 
     public class RetryContent {
         private final AtomicInteger currentRetryTimes;
+
         private final int maxRetryTimes;
 
         /**
          * 創建一個重試內容。
+         *
          * @param maxRetryTimes 最大重試次數
          */
         public RetryContent(int maxRetryTimes) {
@@ -41,8 +44,11 @@ public class RetryMethod {
 
         /**
          * 檢查並重試。
+         *
          * @param lastException 最後一次錯誤
+         *
          * @return 是否重試
+         *
          * @throws RetryException 如果已達到最大重試次數
          */
         public boolean checkAndRetry(Exception lastException) throws RetryException {

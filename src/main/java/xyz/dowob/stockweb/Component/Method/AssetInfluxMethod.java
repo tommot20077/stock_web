@@ -335,6 +335,7 @@ public class AssetInfluxMethod {
      * @param needToFillData        是否需要自動填充資料
      *
      * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     *
      * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
     public Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
@@ -384,14 +385,16 @@ public class AssetInfluxMethod {
 
     /**
      * 查詢資產價格根據時間跟用戶
-     * @param bucket 使用的資料庫
-     * @param measurement 資料表
-     * @param filters 過濾條件, key: 欄位名, value: 欄位值
-     * @param user 用戶
-     * @param specificTimes 指定時間
+     *
+     * @param bucket           使用的資料庫
+     * @param measurement      資料表
+     * @param filters          過濾條件, key: 欄位名, value: 欄位值
+     * @param user             用戶
+     * @param specificTimes    指定時間
      * @param allowRangeOfHour 允許的時間誤差範圍
-     * @param isLast 是否只只要最新的資料點
-     * @param needToFillData 是否需要自動填充資料
+     * @param isLast           是否只只要最新的資料點
+     * @param needToFillData   是否需要自動填充資料
+     *
      * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
      */
 
@@ -428,6 +431,7 @@ public class AssetInfluxMethod {
 
     /**
      * 取得ROI統計日期
+     *
      * @return List<LocalDateTime>
      */
     public List<LocalDateTime> getStatisticDate() {

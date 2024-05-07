@@ -51,8 +51,7 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
      */
     @Override
     public void onApplicationEvent(
-            @NotNull
-            PropertyUpdateEvent event) {
+            @NotNull PropertyUpdateEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getUser() != null) {

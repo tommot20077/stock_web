@@ -1,4 +1,5 @@
 let count = 0;
+
 function generateAdminCommandTable(tbodyId, name, paramDescription, url, method, csrfToken) {
     count++;
     let tbody = document.getElementById(tbodyId)

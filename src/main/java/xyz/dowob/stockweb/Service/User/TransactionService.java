@@ -39,15 +39,25 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class TransactionService {
     private final TransactionRepository transactionRepository;
+
     private final CurrencyRepository currencyRepository;
+
     private final CryptoRepository cryptoRepository;
+
     private final PropertyRepository propertyRepository;
+
     private final StockTwRepository stockTwRepository;
+
     private final SubscribeMethod subscribeMethod;
+
     private final CombineMethod combineMethod;
+
     private final PropertyInfluxService propertyInfluxService;
+
     private final EventCacheMethod eventCacheMethod;
+
     private final ApplicationEventPublisher eventPublisher;
+
     Logger logger = LoggerFactory.getLogger(TransactionService.class);
 
     @Autowired
@@ -71,7 +81,7 @@ public class TransactionService {
      * 提款: 扣除交易資產數量，並計算淨流量寫入 InfluxDB
      * 存款: 增加交易資產數量，並計算淨流量寫入 InfluxDB
      *
-     * @param user 用戶
+     * @param user        用戶
      * @param transaction 交易
      */
     @Transactional(rollbackFor = Exception.class)
@@ -380,7 +390,9 @@ public class TransactionService {
 
     /**
      * 取得資料庫中資產
+     *
      * @param symbol 資產名稱
+     *
      * @return 資產
      */
 
@@ -409,8 +421,11 @@ public class TransactionService {
 
     /**
      * 查詢用戶所有交易紀錄
+     *
      * @param user 用戶
+     *
      * @return 交易紀錄
+     *
      * @throws JsonProcessingException JSON處理錯誤
      */
     public String getUserAllTransaction(User user) throws JsonProcessingException {

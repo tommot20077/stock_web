@@ -51,6 +51,8 @@ import java.util.stream.Collectors;
 
 /**
  * @author yuan
+ * 用於有關用戶財產的相關服務
+ * 這包括股票、貨幣和加密貨幣
  */
 @Service
 public class PropertyService {
@@ -89,6 +91,11 @@ public class PropertyService {
     @Value("${db.influxdb.bucket.property_summary}") private String propertySummaryBucket;
 
 
+    /**
+     * 修改股票持有數量，以及新增或刪除持有股票處理相關訂閱和事件
+     * @param user 用戶
+     * @param request 請求 PropertyDto 物件
+     */
     @Transactional(rollbackOn = Exception.class)
     public void modifyStock(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
@@ -249,6 +256,11 @@ public class PropertyService {
         }
     }
 
+    /**
+     * 修改貨幣持有數量，以及新增或刪除持有貨幣
+     * @param user 用戶
+     * @param request 請求 PropertyDto 物件
+     */
     @Transactional(rollbackOn = Exception.class)
     public void modifyCurrency(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
@@ -402,6 +414,11 @@ public class PropertyService {
         }
     }
 
+    /**
+     * 修改加密貨幣持有數量，以及新增或刪除持有加密貨幣以及處理相關訂閱和事件
+     * @param user 用戶
+     * @param request 請求 PropertyDto 物件
+     */
     @Transactional(rollbackOn = Exception.class)
     public void modifyCrypto(User user, PropertyListDto.PropertyDto request) {
         logger.debug("讀取資料: " + request);
@@ -556,13 +573,19 @@ public class PropertyService {
         }
     }
 
+    /**
+     * 當用戶資產變動時伺服器自動記錄交易
+     * @param user 用戶
+     * @param property 持有資產
+     * @param operationType 操作類型
+     */
     @Async
     protected void recordTransaction(User user, Property property, OperationType operationType) {
         logger.debug("自動記錄交易");
         Transaction transaction = new Transaction();
         logger.debug("建立交易物件");
         transaction.setUser(user);
-        logger.debug("設定使用者");
+        logger.debug("設定用戶");
         logger.debug("設定交易類型: " + operationType);
 
         if (Objects.equals(operationType.toString(), "ADD")) {
@@ -600,6 +623,12 @@ public class PropertyService {
     }
 
 
+    /**
+     * 取得用戶所有持有資產
+     * @param user 用戶
+     * @param isFormattedToPreferredCurrency 是否格式化為用戶偏好貨幣
+     * @return 用戶所有持有資產
+     */
     public List<PropertyListDto.getAllPropertiesDto> getUserAllProperties(User user, boolean isFormattedToPreferredCurrency) {
         List<Property> propertyList = propertyRepository.findAllByUser(user);
         logger.debug("格式資料: " + propertyList);
@@ -645,6 +674,11 @@ public class PropertyService {
 
     }
 
+    /**
+     * 取得用戶所有持有資產並轉換為 InfluxDB 格式
+     * @param getUserAllProperties 用戶所有持有資產
+     * @return InfluxDB 格式的持有資產
+     */
     public List<PropertyListDto.writeToInfluxPropertyDto> convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(List<PropertyListDto.getAllPropertiesDto> getUserAllProperties) {
         return getUserAllProperties.stream()
                                    .map(prop -> new PropertyListDto.writeToInfluxPropertyDto(prop.getUserId(),
@@ -659,6 +693,11 @@ public class PropertyService {
 
     }
 
+    /**
+     * 將用戶資產轉換為 JSON 格式
+     * @param getAllPropertiesDto 用戶所有持有資產
+     * @return JSON 格式的持有資產
+     */
     public String writeAllPropertiesToJson(List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto) {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
@@ -675,6 +714,11 @@ public class PropertyService {
     }
 
 
+    /**
+     * 將用戶資產寫入 InfluxDB
+     * @param writeToInfluxPropertyDto InfluxDB 格式的持有資產
+     * @param user 用戶
+     */
     public void writeAllPropertiesToInflux(List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
         try {
             propertyInfluxService.writePropertyDataToInflux(writeToInfluxPropertyDto, user);
@@ -684,6 +728,14 @@ public class PropertyService {
         }
     }
 
+    /**
+     * 依照資產類型取得所有財產名稱
+     * 1.當類型為台灣股票時為 key:股票代碼 value:股票代碼-股票名稱
+     * 2.當類型為貨幣時為 key:幣別 value:幣別
+     * 3.當類型為加密貨幣時為 key:加密貨幣名稱 value:加密貨幣名稱
+     *
+     * @return 所有資產名稱
+     */
     public Map<String, String> getAllNameByPropertyType(String propertyType) {
         logger.debug("取得所有 " + propertyType + " 的名稱");
         Map<String, String> map = new LinkedHashMap<>();
@@ -727,6 +779,12 @@ public class PropertyService {
     }
 
 
+    /**
+     * 獲取用戶資產總和
+     * @param user 用戶
+     * @return 用戶資產總和
+     * @throws RuntimeException 當取得資產總和失敗時拋出
+     */
     public String getPropertySummary(User user) {
         Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket,
                                                                                      "summary_property",
@@ -748,6 +806,14 @@ public class PropertyService {
         }
     }
 
+    /**
+     * 計算處理用戶資產報酬率
+     * 分成兩個部分:
+     * 1.獲取個時間點的總財產、淨流量
+     * 2.搓合時間點相近的數據，計算報酬率分成日報酬率、週報酬率、月報酬率、年報酬率
+     * @param user 用戶
+     * @return 計算處理後的報酬率列表
+     */
     public List<String> prepareRoiDataAndCalculate(User user) {
         List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         List<String> roiResult = new ArrayList<>();
@@ -871,6 +937,12 @@ public class PropertyService {
     }
 
 
+    /**
+     * 取得用戶資產總覽
+     * @param user 用戶
+     * @return 用戶資產總覽
+     * @throws JsonProcessingException 當轉換 JSON 失敗時拋出
+     */
     public String getUserPropertyOverview(User user) throws JsonProcessingException {
         Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
         Map<String, List<FluxTable>> cashFlowDataTable = propertyInfluxService.queryByUser(propertySummaryBucket,
@@ -922,6 +994,11 @@ public class PropertyService {
         return mapper.writeValueAsString(propertyOverviewResult);
     }
 
+    /**
+     * 將用戶資產總覽轉換為 JSON 格式
+     * @param roiResult 用戶資產回報率列表
+     * @return JSON 格式的用戶資產總覽
+     */
     public ObjectNode formatToObjectNode(List<String> roiResult) {
 
         ObjectMapper mapper = new ObjectMapper();
@@ -939,6 +1016,13 @@ public class PropertyService {
         return objectNode;
     }
 
+    /**
+     * 尋找資料點之間最接近的時間
+     * @param times 時間點
+     * @param targetTime 目標時間
+     * @param maxDifference 最大差異
+     * @return 最接近的時間
+     */
     public LocalDateTime findClosestTime(Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference) {
         LocalDateTime closestTime = null;
         long smallestDifference = maxDifference.toMinutes();
@@ -954,6 +1038,10 @@ public class PropertyService {
         return closestTime;
     }
 
+    /**
+     * 重置用戶資產總覽
+     * @param user 用戶
+     */
     public void resetUserPropertySummary(User user) {
         propertyInfluxService.deleteSpecificPropertyDataByUserAndAsset(user);
         propertyInfluxService.setZeroSummaryByUser(user);

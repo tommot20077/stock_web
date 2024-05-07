@@ -24,6 +24,7 @@ import java.util.List;
 @Service
 public class EventCacheMethod {
     private final EventCacheRepository eventCacheRepository;
+
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired

@@ -21,14 +21,26 @@ import java.util.zip.ZipInputStream;
 
 /**
  * @author yuan
+ * 檔案相關業務邏輯
  */
 @Service
 public class FileService {
     @Value("${common.download.path:./}")
     private String downloadPath;
+
     Logger logger = LoggerFactory.getLogger(FileService.class);
 
 
+    /**
+     * 下載檔案並解壓縮並讀取csv檔案
+     *
+     * @param url      下載的URL
+     * @param fileName 下載的檔案名稱
+     *
+     * @return List<String [ ]> csv檔案的數據
+     *
+     * @throws RuntimeException 當檔案下載失敗或解壓縮失敗時拋出
+     */
     public List<String[]> downloadFileAndUnzipAndRead(String url, String fileName) {
         byte[] buffer = new byte[1024];
         List<String[]> result = new ArrayList<>();
@@ -106,12 +118,20 @@ public class FileService {
                 logger.error("壓縮檔刪除失敗");
                 throw new RuntimeException("壓縮檔刪除失敗" + zipFile.getAbsolutePath());
             }
-
         }
         return result;
     }
 
 
+    /**
+     * 讀取csv檔案
+     *
+     * @param fileName 檔案名稱
+     *
+     * @return List<String [ ]> csv檔案的數據
+     *
+     * @throws RuntimeException 當檔案讀取失敗時拋出
+     */
     public List<String[]> readCsvFile(String fileName) {
         List<String[]> result = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {

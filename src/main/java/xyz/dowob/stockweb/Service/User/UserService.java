@@ -222,7 +222,9 @@ public class UserService {
 
     /**
      * 根據userId尋找用戶
+     *
      * @param id 用戶ID
+     *
      * @return User
      */
     public User getUserById(Long id) {
@@ -231,6 +233,7 @@ public class UserService {
 
     /**
      * 獲取所有用戶
+     *
      * @return List<User>
      */
     public List<User> getAllUsers() {
@@ -240,12 +243,14 @@ public class UserService {
 
     /**
      * 驗證密碼
+     *
      * @param userPassword 用戶密碼
+     *
      * @throws RuntimeException 當密碼不符合規定時拋出
-     *                         當密碼不包含英文字母時拋出
-     *                         當密碼不包含數字時拋出
-     *                         當密碼長度不足時拋出
-     *                         當密碼長度過長時拋出
+     *                          當密碼不包含英文字母時拋出
+     *                          當密碼不包含數字時拋出
+     *                          當密碼長度不足時拋出
+     *                          當密碼長度過長時拋出
      */
     public void validatePassword(String userPassword) {
         if (userPassword.length() < 8) {
@@ -264,7 +269,9 @@ public class UserService {
 
     /**
      * 根據JWT Token或Session獲取用戶
+     *
      * @param session HttpSession
+     *
      * @return User
      */
 
@@ -281,7 +288,9 @@ public class UserService {
 
     /**
      * 獲取用戶訂閱資料
+     *
      * @param user 用戶
+     *
      * @return String
      */
     public String getChannelAndAssetAndRemoveAbleByUserId(User user) {

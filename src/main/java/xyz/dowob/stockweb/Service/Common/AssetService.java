@@ -38,16 +38,24 @@ import java.util.*;
 
 /**
  * @author yuan
+ * 用於資產相關的業務邏輯。
  */
 @Service
 public class AssetService {
     private final AssetRepository assetRepository;
+
     private final AssetInfluxMethod assetInfluxMethod;
+
     private final ObjectMapper objectMapper;
+
     private final RedisService redisService;
+
     private final AssetHandler assetHandler;
+
     private final CurrencyRepository currencyRepository;
+
     private final StockTwRepository stockTwRepository;
+
     private final CryptoRepository cryptoRepository;
 
     Logger logger = LoggerFactory.getLogger(AssetService.class);
@@ -77,6 +85,13 @@ public class AssetService {
     private int pageSize;
 
 
+    /**
+     * 異步處理資產歷史數據，並將其存儲到Redis中。
+     *
+     * @param asset     資產對象。
+     * @param type      查詢類型。
+     * @param timestamp 查詢時間戳。
+     */
     @Async
     public void getAssetHistoryInfo(Asset asset, String type, String timestamp) {
         logger.info("開始處理資產type: " + type + " timestamp: " + timestamp);
@@ -113,6 +128,19 @@ public class AssetService {
         }
     }
 
+    /**
+     * 當資產歷史數據判斷邏輯
+     * 當資產沒有數據時，設定緩存狀態為no_data
+     * 當資產有數據時，設定緩存狀態為success
+     *
+     * @param asset        資產對象
+     * @param type         查詢類型
+     * @param tableMap     資料表
+     * @param listKey      緩存列表鍵
+     * @param hashInnerKey 緩存內部鍵
+     *
+     * @return 是否有數據
+     */
     private boolean nodataMethod(Asset asset, String type, Map<String, List<FluxTable>> tableMap, String listKey, String hashInnerKey) {
         logger.debug("tableMap: " + tableMap);
         if (tableMap.get("%s_%s".formatted(asset.getId(), type)).isEmpty()) {
@@ -129,6 +157,14 @@ public class AssetService {
     }
 
 
+    /**
+     * 將資產數據存儲到Redis中。
+     *
+     * @param tableMap     資料表。
+     * @param key          緩存鍵。
+     * @param hashInnerKey 緩存內部鍵。
+     * @param type         查詢類型。
+     */
     private void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey, String type) {
         try {
             Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
@@ -205,7 +241,8 @@ public class AssetService {
         }
     }
 
-    public List<String> getAssetStatisticsAndSaveToRedis(Asset asset, String key) {
+
+    public List<String> getAssetStatisticsAndSaveToRedis(Asset asset) {
         List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         Map<LocalDateTime, String> priceMap = new TreeMap<>();
         Map<String, String> filters = new HashMap<>();
@@ -390,7 +427,7 @@ public class AssetService {
                         resultMap.put("isSubscribed", stockTw.isHasAnySubscribed());
                     }
                     case CryptoTradingPair cryptoTradingPair -> {
-                        resultMap.put("assetName", cryptoTradingPair.getBaseAsset());
+                        resultMap.put("assetName", cryptoTradingPair.getTradingPair());
                         resultMap.put("isSubscribed", cryptoTradingPair.isHasAnySubscribed());
                     }
                     case Currency currency -> {

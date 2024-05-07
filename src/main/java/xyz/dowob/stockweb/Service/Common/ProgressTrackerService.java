@@ -15,30 +15,41 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author yuan
+ * 進度追踪器服務
+ * 實現DisposableBean接口，用於關閉線程池
  */
 @Service
-public class ProgressTracker implements DisposableBean {
+public class ProgressTrackerService implements DisposableBean {
     private final TaskRepository taskRepository;
-    private final DynamicThreadPoolManager dynamicThreadPoolManager;
+
+    private final DynamicThreadPoolService dynamicThreadPoolService;
 
     private final ConcurrentHashMap<String, Progress> progressMap = new ConcurrentHashMap<>();
 
-    public ProgressTracker(TaskRepository taskRepository, DynamicThreadPoolManager dynamicThreadPoolManager) {
+    public ProgressTrackerService(TaskRepository taskRepository, DynamicThreadPoolService dynamicThreadPoolService) {
         this.taskRepository = taskRepository;
-        this.dynamicThreadPoolManager = dynamicThreadPoolManager;
+        this.dynamicThreadPoolService = dynamicThreadPoolService;
     }
 
+    /**
+     * 創建並追踪新任務
+     *
+     * @param totalTask 任務總數
+     * @param name      任務名稱
+     *
+     * @return 任務ID
+     */
     public String createAndTrackNewTask(int totalTask, String name) {
         String taskId = UUID.randomUUID().toString();
         progressMap.put(taskId, new Progress(totalTask, name));
         return taskId;
     }
 
-    public void resetProgress(String taskId, int totalTask, String name) {
-        Progress progress = new Progress(totalTask, name);
-        progressMap.put(taskId, progress);
-    }
-
+    /**
+     * 增加任務進度
+     *
+     * @param taskId 任務ID
+     */
     public void incrementProgress(String taskId) {
         Progress progress = progressMap.get(taskId);
         if (progress != null) {
@@ -46,19 +57,30 @@ public class ProgressTracker implements DisposableBean {
         }
     }
 
-
-    public void updateProgress(String taskId, int progress, String name) {
-        progressMap.put(taskId, new Progress(progress, name));
-    }
-
+    /**
+     * 刪除任務進度
+     *
+     * @param taskId 任務ID
+     */
     public void deleteProgress(String taskId) {
         progressMap.remove(taskId);
     }
 
+    /**
+     * 獲取所有進度信息
+     *
+     * @return 進度信息列表
+     */
     public List<Progress> getAllProgressInfo() {
         return new ArrayList<>(progressMap.values());
     }
 
+
+    /**
+     * 重寫destroy方法，關閉線程池
+     *
+     * @throws Exception 關閉線程池時可能拋出的異常
+     */
     @Override
     public void destroy() throws Exception {
         List<Task> tasks = taskRepository.findAllByTaskStatus(TaskStatusType.IN_PROGRESS);
@@ -66,7 +88,7 @@ public class ProgressTracker implements DisposableBean {
             task.completeTask(TaskStatusType.FAILED, "程式被終止，任務失敗");
             taskRepository.save(task);
         }
-        dynamicThreadPoolManager.shutdown(5, TimeUnit.SECONDS);
+        dynamicThreadPoolService.shutdown(5, TimeUnit.SECONDS);
     }
 
 

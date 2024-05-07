@@ -57,8 +57,7 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
      */
     @Override
     public void onApplicationEvent(
-            @NotNull
-            AssetHistoryDataFetchCompleteEvent event) {
+            @NotNull AssetHistoryDataFetchCompleteEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getSuccess()) {

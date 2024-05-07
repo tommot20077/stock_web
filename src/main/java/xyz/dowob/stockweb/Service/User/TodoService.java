@@ -37,14 +37,17 @@ import java.util.stream.Collectors;
 @Service
 public class TodoService {
     private final TodoListRepository todoListRepository;
+
     private final JavaMailSender javaMailSender;
+
     private final TaskScheduler taskScheduler;
+
     private Map<Long, ScheduledFuture<?>> scheduledFutureMap = new HashMap<>();
 
     @Value(value = "${spring.mail.username}")
     private String emailSender;
-    private final
-    Logger logger = LoggerFactory.getLogger(TodoService.class);
+
+    private final Logger logger = LoggerFactory.getLogger(TodoService.class);
 
     public TodoService(TodoListRepository todoListRepository, JavaMailSender javaMailSender, TaskScheduler taskScheduler) {
         this.todoListRepository = todoListRepository;
@@ -76,8 +79,9 @@ public class TodoService {
 
     /**
      * 新增待辦事項
+     *
      * @param todoDto 待辦事項資料
-     * @param user 使用者
+     * @param user    使用者
      */
     public void addTodo(TodoDto todoDto, User user) {
         logger.info("addTodo: " + todoDto.toString());
@@ -90,28 +94,28 @@ public class TodoService {
 
     /**
      * 取得使用者所有待辦事項, 並轉換成Dto
+     *
      * @param user 使用者
+     *
      * @return List<TodoDto>
      */
     public List<TodoDto> findAllByUser(User user) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         String timeZone = user.getTimezone();
-        return todoListRepository.findAllByUserId(user.getId())
-                                 .stream()
-                                 .map(todoList-> {
-                                        TodoDto todoDto = new TodoDto();
-                                        todoDto.setId(todoList.getId());
-                                        todoDto.setContent(todoList.getContent());
-                                        todoDto.setPriority(String.valueOf(todoList.getPriority()));
-                                        LocalDateTime localDateTime = todoList.getDueDate().atZoneSameInstant(ZoneId.of(timeZone)).toLocalDateTime();
-                                        todoDto.setDueDate(localDateTime.format(formatter));
-                                        return todoDto;
-                                 })
-                                 .collect(Collectors.toList());
+        return todoListRepository.findAllByUserId(user.getId()).stream().map(todoList -> {
+            TodoDto todoDto = new TodoDto();
+            todoDto.setId(todoList.getId());
+            todoDto.setContent(todoList.getContent());
+            todoDto.setPriority(String.valueOf(todoList.getPriority()));
+            LocalDateTime localDateTime = todoList.getDueDate().atZoneSameInstant(ZoneId.of(timeZone)).toLocalDateTime();
+            todoDto.setDueDate(localDateTime.format(formatter));
+            return todoDto;
+        }).collect(Collectors.toList());
     }
 
     /**
      * 刪除待辦事項，如果有設置提醒則取消提醒任務
+     *
      * @param id 待辦事項ID
      */
     public void delete(Long id) {
@@ -125,7 +129,9 @@ public class TodoService {
 
     /**
      * 轉換待辦事項Dto為Json
+     *
      * @param todoListDto 待辦事項Dto
+     *
      * @return String
      */
     public String formatToJson(List<TodoDto> todoListDto) {
@@ -146,7 +152,8 @@ public class TodoService {
     private void scheduleEmailReminderTask(Todo todo) {
         logger.debug("設定提醒任務: " + todo.getId());
         EmailReminderTask emailReminderTask = new EmailReminderTask(todo, javaMailSender, emailSender);
-        ScheduledFuture<?> scheduledFuture =  taskScheduler.schedule(emailReminderTask, todo.getReminderTime().atZoneSameInstant(ZoneId.of("UTC")).toInstant());
+        ScheduledFuture<?> scheduledFuture = taskScheduler.schedule(emailReminderTask,
+                                                                    todo.getReminderTime().atZoneSameInstant(ZoneId.of("UTC")).toInstant());
         logger.debug("提醒時間: " + todo.getReminderTime().atZoneSameInstant(ZoneId.of("UTC")).toInstant());
         scheduledFutureMap.put(todo.getId(), scheduledFuture);
     }

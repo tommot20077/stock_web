@@ -46,10 +46,7 @@ public class StockTwInfluxService {
 
     @Autowired
     public StockTwInfluxService(
-            @Qualifier("StockTwInfluxClient")
-            InfluxDBClient stockTwInfluxClient,
-            @Qualifier("StockTwHistoryInfluxClient")
-            InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -66,6 +63,11 @@ public class StockTwInfluxService {
     @Value("${db.influxdb.bucket.stock_tw_history}")
     private String stockHistoryBucket;
 
+    /**
+     * 五秒搓合交易的kline數據寫入InfluxDB
+     *
+     * @param msgArray kline數據
+     */
     public void writeStockTwToInflux(JsonNode msgArray) {
         logger.debug("讀取即時股價數據");
         Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
@@ -88,7 +90,7 @@ public class StockTwInfluxService {
             BigDecimal lowUsd = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
 
             logger.debug("(轉換後) z = " + priceUsd + ", c = " + msgNode.path("c").asText() + ", tlong = " + msgNode.path("tlong")
-                                                                                                                       .asText() + ", o = " + openUsd + ", h = " + highUsd + ", l = " + lowUsd + ", v = " + msgNode.path(
+                                                                                                                    .asText() + ", o = " + openUsd + ", h = " + highUsd + ", l = " + lowUsd + ", v = " + msgNode.path(
                     "v").asText());
 
             Double priceDouble = priceUsd.doubleValue();
@@ -119,7 +121,12 @@ public class StockTwInfluxService {
         }
     }
 
-
+    /**
+     * 歷史股價數據寫入InfluxDB
+     *
+     * @param dataArray 股價數據
+     * @param stockCode 股票代碼
+     */
     public void writeStockTwHistoryToInflux(ArrayNode dataArray, String stockCode) {
         logger.debug("讀取歷史股價數據");
         for (JsonNode dataEntry : dataArray) {
@@ -144,7 +151,13 @@ public class StockTwInfluxService {
         }
     }
 
-    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long todayTlong) {
+    /**
+     * 每日更新股價數據寫入InfluxDB
+     *
+     * @param node          股價數據
+     * @param todayLongTime 日期Long格式
+     */
+    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long todayLongTime) {
         logger.debug("讀取每日更新股價數據");
         String stockCode = node.path("Code").asText();
         String tradeVolume = node.path("TradeVolume").asText();
@@ -153,7 +166,7 @@ public class StockTwInfluxService {
         String lowestPrice = node.path("LowestPrice").asText();
         String closingPrice = node.path("ClosingPrice").asText();
 
-        logger.debug("(轉換前)日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
+        logger.debug("(轉換前)日期(Long): " + todayLongTime.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + openingPrice + ", 最高價: " + highestPrice + ", 最低價: " + lowestPrice + ", 收盤價: " + closingPrice);
 
         if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice, "--") || Objects.equals(
                 closingPrice,
@@ -161,9 +174,16 @@ public class StockTwInfluxService {
             return;
         }
 
-        writeKlineDataPoint(todayTlong, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
+        writeKlineDataPoint(todayLongTime, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
     }
 
+    /**
+     * 將民國日期轉換為西元日期
+     *
+     * @param dateStr 民國日期
+     *
+     * @return 西元日期
+     */
     private Long formattedRocData(String dateStr) {
         String[] dateParts = dateStr.split("/");
         int yearRoc = Integer.parseInt(dateParts[0]);
@@ -178,6 +198,13 @@ public class StockTwInfluxService {
     }
 
 
+    /**
+     * 刪除股票代碼的歷史資料
+     *
+     * @param stockCode 股票代碼
+     *
+     * @throws RuntimeException 重試失敗
+     */
     public void deleteDataByStockCode(String stockCode) {
         String predicate = String.format("_measurement=\"kline_data\" AND stock_tw=\"%s\"", stockCode);
         logger.debug("刪除" + stockCode + "的歷史資料");
@@ -196,12 +223,21 @@ public class StockTwInfluxService {
             logger.error("重試失敗，最後一次錯誤信息：" + e.getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getMessage(), e);
         }
-
-
     }
 
 
-    private void writeKlineDataPoint(Long todayTlong, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) {
+    /**
+     * 將kline數據寫入InfluxDB
+     *
+     * @param todayLongTime 日期Long格式
+     * @param stockCode     股票代碼
+     * @param tradeVolume   成交股數
+     * @param openingPrice  開盤價
+     * @param highestPrice  最高價
+     * @param lowestPrice   最低價
+     * @param closingPrice  收盤價
+     */
+    private void writeKlineDataPoint(Long todayLongTime, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) {
         Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
 
@@ -218,9 +254,9 @@ public class StockTwInfluxService {
                            .addField("open", formatOpeningPrice)
                            .addField("close", formatClosingPrice)
                            .addField("volume", Double.parseDouble(tradeVolume))
-                           .time(todayTlong, WritePrecision.MS);
+                           .time(todayLongTime, WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
-        logger.debug("(轉換後)日期(Long): " + todayTlong.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + formatOpeningPrice + ", 最高價: " + formatHighestPrice + ", 最低價: " + formatLowestPrice + ", 收盤價: " + formatClosingPrice);
+        logger.debug("(轉換後)日期(Long): " + todayLongTime.toString() + ", 成交股數: " + tradeVolume + ", 開盤價: " + formatOpeningPrice + ", 最高價: " + formatHighestPrice + ", 最低價: " + formatLowestPrice + ", 收盤價: " + formatClosingPrice);
 
         assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
     }

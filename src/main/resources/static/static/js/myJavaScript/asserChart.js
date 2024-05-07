@@ -1,6 +1,7 @@
 let lastUpdateTimestamp = {};
 let HistoryIsUpdate = false;
 let CurrentIsUpdate = false;
+
 async function getAssetKlineChart(assetId, type, method) {
     toggleLoadingDisplay(type, true);
 

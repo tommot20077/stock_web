@@ -16,20 +16,31 @@ import java.time.ZonedDateTime;
 
 /**
  * @author yuan
+ * <p>
+ * 有關貨幣的InfluxDB業務邏輯
  */
 @Service
-public class CurrencyInfluxDBService {
-    private final InfluxDBClient currencyDBClient;
+public class CurrencyInfluxService {
+    private final InfluxDBClient currencyClient;
+
     private final AssetInfluxMethod assetInfluxMethod;
-    Logger logger = LoggerFactory.getLogger(CurrencyInfluxDBService.class);
+
+    Logger logger = LoggerFactory.getLogger(CurrencyInfluxService.class);
 
     @Autowired
-    public CurrencyInfluxDBService(
+    public CurrencyInfluxService(
             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyClient, AssetInfluxMethod assetInfluxMethod) {
-        this.currencyDBClient = currencyClient;
+        this.currencyClient = currencyClient;
         this.assetInfluxMethod = assetInfluxMethod;
     }
 
+    /**
+     * 將匯率數據寫入InfluxDB
+     *
+     * @param currency      貨幣
+     * @param rate          匯率
+     * @param zonedDateTime 時間
+     */
     public void writeToInflux(String currency, BigDecimal rate, ZonedDateTime zonedDateTime) {
         logger.debug("讀取匯率數據");
         long epochMilli = zonedDateTime.toInstant().toEpochMilli();
@@ -39,6 +50,6 @@ public class CurrencyInfluxDBService {
                            .addField("rate", formattedRate.doubleValue())
                            .time(epochMilli, WritePrecision.MS);
         logger.debug("建立InfluxDB Point");
-        assetInfluxMethod.writeToInflux(currencyDBClient, point);
+        assetInfluxMethod.writeToInflux(currencyClient, point);
     }
 }

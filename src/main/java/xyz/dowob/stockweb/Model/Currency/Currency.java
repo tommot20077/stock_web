@@ -14,6 +14,13 @@ import java.time.LocalDateTime;
 
 /**
  * @author yuan
+ * 貨幣
+ * 繼承Asset, 用於保存貨幣
+ * 實現Serializable, 用於序列化
+ * 利用EqualsAndHashCode, 用於比較Asset是否相同
+ * 1. currency : 貨幣名稱
+ * 2. exchangeRate : 匯率
+ * 3. updateTime : 更新時間
  */
 @EqualsAndHashCode(callSuper = true)
 @Entity
@@ -24,7 +31,9 @@ public class Currency extends Asset implements Serializable {
     @Column(unique = true)
     private String currency;
 
-    @Column(name = "exchange_rate", precision = 12, scale = 6)
+    @Column(name = "exchange_rate",
+            precision = 12,
+            scale = 6)
     private BigDecimal exchangeRate;
 
     @Column(name = "update_time")

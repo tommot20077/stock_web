@@ -30,10 +30,9 @@ import static xyz.dowob.stockweb.Enum.Role.ADMIN;
  */
 @Controller
 public class PageController {
-
     private final UserService userService;
-    private final TokenService tokenService;
 
+    private final TokenService tokenService;
 
     @Autowired
     public PageController(UserService userService, TokenService tokenService) {
@@ -41,12 +40,25 @@ public class PageController {
         this.tokenService = tokenService;
     }
 
-
+    /**
+     * 前往登入頁面
+     *
+     * @return 登入頁面
+     */
     @GetMapping("/login")
     public String login() {
         return "login";
     }
 
+    /**
+     * 登入(網頁前端使用)
+     *
+     * @param loginUserDto 登入資訊
+     * @param response     response
+     * @param session      session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/login_p")
     public ResponseEntity<?> loginUser(
             @RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session) {
@@ -65,11 +77,23 @@ public class PageController {
     }
 
 
+    /**
+     * 前往註冊頁面
+     *
+     * @return 註冊頁面
+     */
     @GetMapping("/register")
     public String register() {
         return "register";
     }
 
+    /**
+     * 註冊請求
+     *
+     * @param registerUserDto 註冊資訊
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(
             @RequestBody RegisterUserDto registerUserDto) {
@@ -82,6 +106,14 @@ public class PageController {
     }
 
 
+    /**
+     * 前往首頁
+     *
+     * @param session session
+     * @param model   model
+     *
+     * @return 首頁
+     */
     @GetMapping({"/index", "/"})
     public String index2(HttpSession session, Model model) {
         if (session.getAttribute("currentUserId") != null) {
@@ -91,16 +123,29 @@ public class PageController {
         return "index";
     }
 
+    /**
+     * 前往個人資料頁面
+     *
+     * @return 個人資料頁面
+     */
     @GetMapping("/profile")
     public String profile() {
         return "profile";
     }
 
-
+    /**
+     * 登出
+     *
+     * @param session     session
+     * @param request     request
+     * @param response    response
+     * @param redirection 是否重導向
+     */
     @GetMapping("/logout")
     public void logout(
-            HttpSession session, HttpServletRequest request, HttpServletResponse response,
-            @RequestParam(required = false, name = "redirection", defaultValue = "true") boolean redirection) {
+            HttpSession session, HttpServletRequest request, HttpServletResponse response, @RequestParam(required = false,
+                                                                                                         name = "redirection",
+                                                                                                         defaultValue = "true") boolean redirection) {
         Cookie[] cookies = request.getCookies();
         tokenService.deleteRememberMeCookie(response, session, cookies);
         session.invalidate();
@@ -110,41 +155,83 @@ public class PageController {
         }
     }
 
+    /**
+     * 前往重設密碼頁面
+     *
+     * @return 重設密碼頁面
+     */
     @GetMapping("/reset_password")
     public String resetPassword() {
         return "resetPassword";
     }
 
+    /**
+     * 前往用戶財產頁面
+     *
+     * @return 用戶財產頁面
+     */
     @GetMapping("/property_info")
     public String propertyEdit() {
         return "propertyInfo";
     }
 
+    /**
+     * 前往交易資訊頁面
+     *
+     * @return 交易資訊頁面
+     */
     @GetMapping("/transaction_info")
     public String transactionEdit() {
         return "transactionInfo";
     }
 
+    /**
+     * 前往用戶訂閱資訊頁面
+     *
+     * @return 用戶訂閱資訊頁面
+     */
     @GetMapping("/user_subscribe")
     public String userSubscribe() {
         return "subscribeInfo";
     }
 
+    /**
+     * 前往資產資訊頁面, assetId為資產ID
+     *
+     * @return 資產資訊頁面
+     */
     @GetMapping("/asset_info/{assetId}")
     public String assetInfo() {
         return "assetInfo";
     }
 
+    /**
+     * 前往個別種類新聞頁面, category為新聞類別
+     *
+     * @return 新聞頁面
+     */
     @GetMapping("/news/{category}")
     public String news() {
         return "news";
     }
 
+    /**
+     * 前往個別種類資產頁面, category為資訊類別
+     *
+     * @return 資訊頁面
+     */
     @GetMapping("/info/{category}")
     public String info() {
         return "info";
     }
 
+    /**
+     * 前往管理員管理頁面, 需要管理員權限
+     *
+     * @param session session
+     *
+     * @return 管理員管理頁面
+     */
     @GetMapping("/admin/serverManage")
     public String adminServerConfig(HttpSession session) {
         User user = userService.getUserFromJwtTokenOrSession(session);

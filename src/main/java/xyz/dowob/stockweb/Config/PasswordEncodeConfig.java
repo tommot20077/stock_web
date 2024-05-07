@@ -14,6 +14,7 @@ import xyz.dowob.stockweb.Component.Method.CustomArgon2PasswordEncoderMethod;
 public class PasswordEncodeConfig {
     /**
      * 創建PasswordEncoder, 使用CustomArgon2PasswordEncoderMethod
+     *
      * @return PasswordEncoder
      */
     @Bean

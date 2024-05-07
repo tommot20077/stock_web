@@ -10,6 +10,17 @@ import java.time.LocalDateTime;
 
 /**
  * @author yuan
+ * 新聞
+ * 實現Serializable, 用於序列化
+ * 1. id : 新聞編號
+ * 2. sourceName : 新聞來源名稱
+ * 3. title : 新聞標題
+ * 4. url : 新聞連結
+ * 5. urlToImage : 新聞圖片連結
+ * 6. publishedAt : 新聞發布時間
+ * 7. author : 新聞作者
+ * 8. newsType : 新聞種類
+ * 9. asset : 新聞所屬的資產
  */
 @Data
 @Entity

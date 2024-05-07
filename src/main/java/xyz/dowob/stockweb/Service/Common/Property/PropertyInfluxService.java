@@ -29,6 +29,8 @@ import java.util.Map;
 
 /**
  * @author yuan
+ * 用戶資產Influx操作服務
+ * 用於將用戶資產寫入InfluxDB以及查詢用戶資產
  */
 @Service
 public class PropertyInfluxService {
@@ -59,6 +61,15 @@ public class PropertyInfluxService {
     @Value("${db.influxdb.org}")
     private String org;
 
+    /**
+     * 將用戶資產寫入InfluxDB並計算總資產
+     * 分成specific_property與summary_property兩個表
+     * specific_property用於存放特定資產，分為currency, crypto, stock_tw
+     * summary_property用於存放總資產，分為currency_sum, crypto_sum, stock_tw_sum, total_sum
+     *
+     * @param userPropertiesDtoList 用戶資產列表 DTO
+     * @param user                  用戶
+     */
     public void writePropertyDataToInflux(List<PropertyListDto.writeToInfluxPropertyDto> userPropertiesDtoList, User user) {
         Long time;
         if (userPropertiesDtoList.getFirst().getTimeMillis() == 0L) {
@@ -123,6 +134,14 @@ public class PropertyInfluxService {
     }
 
 
+    /**
+     * 計算用戶資產淨流量
+     *
+     * @param quantity 數量
+     * @param asset    資產
+     *
+     * @return 淨流量
+     */
     public BigDecimal calculateNetFlow(BigDecimal quantity, Asset asset) {
         BigDecimal price = assetInfluxMethod.getLatestPrice(asset);
         if (price.compareTo(BigDecimal.valueOf(-1)) == 0) {
@@ -132,6 +151,12 @@ public class PropertyInfluxService {
         return price.multiply(quantity);
     }
 
+    /**
+     * 將用戶淨流量寫入InfluxDB
+     *
+     * @param newNetFlow 新淨流量
+     * @param user       用戶
+     */
     public void writeNetFlowToInflux(BigDecimal newNetFlow, User user) {
 
         Map<String, List<FluxTable>> netCashFlowTablesMap = queryByUser(propertySummaryBucket, "net_cash_flow", user, "3d", true);
@@ -172,6 +197,17 @@ public class PropertyInfluxService {
     }
 
 
+    /**
+     * 透過用戶查詢用戶資產
+     *
+     * @param bucket         bucket
+     * @param measurement    查詢表
+     * @param user           用戶
+     * @param queryTimeRange 查詢時間範圍
+     * @param isLast         是否取最後一筆
+     *
+     * @return 用戶資產列表
+     */
     public Map<String, List<FluxTable>> queryByUser(String bucket, String measurement, User user, String queryTimeRange, boolean isLast) {
         Map<String, List<FluxTable>> userPropertyTablesMap = new HashMap<>();
         String summaryPredicate = createInquiryPredicateWithUserAndTimeInRange(bucket, measurement, user, queryTimeRange, isLast);
@@ -191,6 +227,17 @@ public class PropertyInfluxService {
         return userPropertyTablesMap;
     }
 
+    /**
+     * 建立influx查詢語句
+     *
+     * @param propertySummaryBucket bucket
+     * @param measurement           查詢表
+     * @param user                  用戶
+     * @param dateRange             查詢時間範圍
+     * @param isLast                是否取最後一筆
+     *
+     * @return 查詢條件
+     */
     private String createInquiryPredicateWithUserAndTimeInRange(String propertySummaryBucket, String measurement, User user, String dateRange, boolean isLast) {
         String baseQuery = String.format("from(bucket: \"%s\")" + " |> range(start: -%s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
                                          propertySummaryBucket,
@@ -205,6 +252,14 @@ public class PropertyInfluxService {
     }
 
 
+    /**
+     * 將用戶ROI資料寫入InfluxDB
+     * 分成日、週、月、年四個表
+     *
+     * @param node ROI資料
+     * @param user 用戶
+     * @param time 時間
+     */
     public void writeUserRoiDataToInflux(ObjectNode node, User user, Long time) {
         logger.debug("讀取資料: " + node);
         Point roiPoint = Point.measurement("roi")
@@ -219,6 +274,11 @@ public class PropertyInfluxService {
 
     }
 
+    /**
+     * 刪除特定用戶的特定資產歷史資料
+     *
+     * @param user 用戶
+     */
     public void deleteSpecificPropertyDataByUserAndAsset(User user) {
         String predicate = String.format("_measurement=\"specific_property\" AND user_id=\"%s\"", user.getId());
         logger.warn("刪除" + user.getId() + "的特定資產歷史資料");
@@ -239,6 +299,11 @@ public class PropertyInfluxService {
         }
     }
 
+    /**
+     * 重設特定用戶的淨流量歷史資料
+     *
+     * @param user 用戶
+     */
     public void setZeroSummaryByUser(User user) {
         Long time = Instant.now().toEpochMilli();
         Point summaryPoint = Point.measurement("summary_property")

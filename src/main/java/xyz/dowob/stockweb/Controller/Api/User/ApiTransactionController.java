@@ -24,6 +24,7 @@ import java.util.Map;
 @RequestMapping("/api/user/transaction")
 public class ApiTransactionController {
     private final TransactionService transactionService;
+
     private final UserService userService;
 
     @Autowired
@@ -33,6 +34,14 @@ public class ApiTransactionController {
         this.userService = userService;
     }
 
+    /**
+     * 紀錄交易 分成買入、賣出、提款、存款
+     *
+     * @param transactionListDto 交易紀錄
+     * @param session            用戶session
+     *
+     * @return ResponseEntity
+     */
     @PostMapping("/operation")
     public ResponseEntity<?> operation(
             @RequestBody TransactionListDto transactionListDto, HttpSession session) {
@@ -61,6 +70,13 @@ public class ApiTransactionController {
         }
     }
 
+    /**
+     * 取得用戶所有交易紀錄
+     *
+     * @param session 用戶session
+     *
+     * @return ResponseEntity
+     */
     @GetMapping("/getUserAllTransaction")
     public ResponseEntity<?> getUserAllTransaction(HttpSession session) {
         try {

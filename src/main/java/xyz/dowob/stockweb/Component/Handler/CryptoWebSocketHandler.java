@@ -461,7 +461,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      */
     private List<String> findSubscribedTradingPairList() {
         if (cryptoRepository != null) {
-            return cryptoRepository.findAllByHadSubscribed()
+            return cryptoRepository.findAllByHasAnySubscribed(true)
                                    .stream()
                                    .map(tradingPair -> "\"" + tradingPair.getTradingPair().toLowerCase() + "@kline_1m\"")
                                    .toList();

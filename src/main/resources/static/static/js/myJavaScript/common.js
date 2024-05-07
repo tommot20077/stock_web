@@ -39,7 +39,7 @@ function generateAssetListTable(asset) {
     let isSubscribed = asset.isSubscribed;
     let row = document.createElement("tr");
     let selectAsset = isSubscribed ?
-        `<a href="/asset_info/${assetId}">${assetId}</a>`:
+        `<a href="/asset_info/${assetId}">${assetId}</a>` :
         `<span>${assetId}</span>`;
 
     row.innerHTML =

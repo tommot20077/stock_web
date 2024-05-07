@@ -15,10 +15,12 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author yuan
+ * 有關redis緩存的業務邏輯
  */
 @Service
 public class RedisService {
     private final RedisTemplate<String, String> redisTemplate;
+
     Logger logger = LoggerFactory.getLogger(RedisService.class);
 
     @Autowired
@@ -26,10 +28,25 @@ public class RedisService {
         this.redisTemplate = redisTemplate;
     }
 
+    /**
+     * 將數據存入緩存
+     *
+     * @param key   緩存的key值
+     * @param value 要存入的數據
+     * @param hours 緩存過期時間（單位：小時）
+     */
     public void saveValueToCache(String key, String value, int hours) {
         redisTemplate.opsForValue().set(key, value, hours, TimeUnit.HOURS);
     }
 
+    /**
+     * 將數據存入哈希表緩存
+     *
+     * @param key      緩存的key值
+     * @param innerKey 哈希表的key值
+     * @param value    要存入的數據
+     * @param hours    緩存過期時間（單位：小時）
+     */
     public void saveHashToCache(String key, String innerKey, String value, int hours) {
         redisTemplate.opsForHash().put(key, innerKey, value);
         redisTemplate.expire(key, hours, TimeUnit.HOURS);
@@ -63,10 +80,24 @@ public class RedisService {
     }
 
 
+    /**
+     * 取得緩存中的數據值
+     *
+     * @param key 緩存的key值
+     *
+     * @return 緩存中的數據值
+     */
     public String getCacheValueFromKey(String key) {
         return redisTemplate.opsForValue().get(key);
     }
 
+    /**
+     * 取得緩存列表中的數據值
+     *
+     * @param key 緩存的key值
+     *
+     * @return 緩存列表中的數據值
+     */
     public List<String> getCacheListValueFromKey(String key) {
         try {
             return redisTemplate.opsForList().range(key, 0, -1);
@@ -76,6 +107,14 @@ public class RedisService {
         }
     }
 
+    /**
+     * 取得哈希表緩存中的數據值
+     *
+     * @param key      緩存的key值
+     * @param innerKey 哈希表的key值
+     *
+     * @return 哈希表緩存中的數據值
+     */
     public String getHashValueFromKey(String key, String innerKey) {
         return (String) redisTemplate.opsForHash().get(key, innerKey);
     }
@@ -85,6 +124,9 @@ public class RedisService {
      * 使用 scan 命令根据模式删除匹配的鍵
      *
      * @param pattern 模式字符串，例如："news_headline_page_*"
+     *                這將刪除所有以"news_headline_page_"開頭的鍵
+     *
+     * @throws RuntimeException 當刪除redis時發生錯誤時拋出
      */
     public void deleteByPattern(String pattern) {
         int deleteNum = 100;

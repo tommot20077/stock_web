@@ -12,7 +12,9 @@ public class CustomArgon2PasswordEncoderMethod implements PasswordEncoder {
 
     /**
      * 加密操作
+     *
      * @param rawPassword 原始密碼
+     *
      * @return 加密後的密碼
      */
     @Override
@@ -27,8 +29,10 @@ public class CustomArgon2PasswordEncoderMethod implements PasswordEncoder {
 
     /**
      * 比對密碼
-     * @param rawPassword 原始密碼
+     *
+     * @param rawPassword     原始密碼
      * @param encodedPassword 加密後的密碼
+     *
      * @return 是否相符
      */
     @Override

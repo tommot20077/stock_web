@@ -11,7 +11,7 @@ import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
 import xyz.dowob.stockweb.Component.Event.Crypto.CryptoHistoryDataChangeEvent;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Exception.RetryException;
-import xyz.dowob.stockweb.Service.Common.ProgressTracker;
+import xyz.dowob.stockweb.Service.Common.ProgressTrackerService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 
 /**
@@ -23,16 +23,16 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
 
     private final CryptoService cryptoService;
 
-    private final ProgressTracker progressTracker;
+    private final ProgressTrackerService progressTrackerService;
 
     private final RetryTemplate retryTemplate;
 
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
-    public CryptoHistoryDataChangeListener(CryptoService cryptoService, ProgressTracker progressTracker, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {
+    public CryptoHistoryDataChangeListener(CryptoService cryptoService, ProgressTrackerService progressTrackerService, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {
         this.cryptoService = cryptoService;
-        this.progressTracker = progressTracker;
+        this.progressTrackerService = progressTrackerService;
         this.retryTemplate = retryTemplate;
         this.eventPublisher = eventPublisher;
     }
@@ -55,13 +55,12 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
      */
     @Override
     public void onApplicationEvent(
-            @NotNull
-            CryptoHistoryDataChangeEvent event) {
+            @NotNull CryptoHistoryDataChangeEvent event) {
         logger.info("收到虛擬貨幣資料變更通知");
         if ("add".equals(event.getAddOrRemove())) {
-            if (progressTracker.getAllProgressInfo()
-                               .stream()
-                               .anyMatch(x -> x.getTaskName().equals(event.getCryptoTradingPair().getTradingPair()))) {
+            if (progressTrackerService.getAllProgressInfo()
+                                      .stream()
+                                      .anyMatch(x -> x.getTaskName().equals(event.getCryptoTradingPair().getTradingPair()))) {
                 logger.debug("該虛擬貨幣已經在執行中，不處理");
                 return;
             }

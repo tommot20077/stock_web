@@ -24,19 +24,34 @@ import java.io.IOException;
 
 /**
  * @author yuan
+ * 記住我驗證過濾器繼承OncePerRequestFilter
+ * 當請求到達時，檢查是否有記住我Cookie，如果有，則驗證Cookie，並將用戶設置為已驗證
  */
 @Component
 public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
-    @Autowired private UserService userService;
+    @Autowired
+    private UserService userService;
+
     @Autowired
     private TokenService tokenService;
-    @Autowired private CacheManager cacheManager;
+
+    @Autowired
+    private CacheManager cacheManager;
 
 
+    /**
+     * 驗證Cookie
+     *
+     * @param request     請求
+     * @param response    響應
+     * @param filterChain 過濾器鏈
+     *
+     * @throws ServletException 錯誤
+     * @throws IOException      錯誤
+     */
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
-            @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
+            HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         User user = null;
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("currentUserId") == null) {

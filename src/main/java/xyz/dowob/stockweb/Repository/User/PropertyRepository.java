@@ -13,23 +13,41 @@ import java.util.Optional;
 
 /**
  * @author yuan
+ * 用戶資產與spring data jpa的資料庫操作介面
+ * 繼承JpaRepository, 用於操作資料庫
  */
 public interface PropertyRepository extends JpaRepository<Property, Long> {
 
+    /**
+     * 透過ID尋找用戶資產
+     *
+     * @param id 不為null的ID
+     *
+     * @return 用戶資產
+     */
     @Override
     @NotNull
     Optional<Property> findById(
             @NotNull Long id);
 
+    /**
+     * 透過用戶與資產尋找用戶財產
+     *
+     * @param asset 資產
+     * @param user  用戶
+     *
+     * @return 用戶財產
+     */
     List<Property> findByAssetAndUser(Asset asset, User user);
 
+    /**
+     * 透過用戶尋找用戶財產列表
+     *
+     * @param user 用戶
+     *
+     * @return 用戶財產列表
+     */
     @Query("SELECT p FROM Property p JOIN FETCH p.asset a WHERE p.user = :user")
     List<Property> findAllByUser(
             @Param("user") User user);
-
-    @Query("SELECT p FROM Property p WHERE p.user = :user ORDER BY p.asset.assetType, p.assetName")
-    List<Property> findAllByUserAndOrderByAssetTypeAndOrderByAssetName(User user);
-
-    @Query("SELECT COUNT(p) FROM Property p WHERE p.user = :user AND p.asset = :asset")
-    int getUserSpecifyAssetCount(User user, Asset asset);
 }

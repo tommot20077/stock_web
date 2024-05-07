@@ -59,7 +59,7 @@ function addTodo() {
             priority,
             content,
             dueDate,
-            isReminder:isRemind.toString()
+            isReminder: isRemind.toString()
         };
 
         if (isRemind) {
@@ -93,7 +93,7 @@ function addTodo() {
     });
 }
 
-function removeTodo () {
+function removeTodo() {
     showSpinner(true);
     hideById("addTodoCard");
     let checkedBoxes = document.querySelectorAll('#todoList input[type="checkbox"]:checked');
