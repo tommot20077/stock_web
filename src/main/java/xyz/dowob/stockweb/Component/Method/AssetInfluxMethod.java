@@ -72,10 +72,10 @@ public class AssetInfluxMethod {
     @Value("${db.influxdb.org}")
     private String org;
 
-    @Value("${db.influxdb.bucket.crypto_history.dateline}")
+    @Value("${db.influxdb.bucket.crypto_history.dateline:20180101}")
     private String cryptoHistoryDateline;
 
-    @Value("${db.influxdb.bucket.stock_tw_history.dateline}")
+    @Value("${db.influxdb.bucket.stock_tw_history.dateline:20110101}")
     private String stockHistoryDateline;
 
     Logger logger = LoggerFactory.getLogger(AssetInfluxMethod.class);
@@ -191,7 +191,7 @@ public class AssetInfluxMethod {
                 logger.debug("可能貨幣資料對更新時間太久，改以從MySQL取得: " + asset);
                 Currency currency = (Currency) asset;
                 if (currency.getExchangeRate() != null) {
-                    return BigDecimal.ONE.divide(currency.getExchangeRate(), 3, RoundingMode.HALF_UP);
+                    return BigDecimal.ONE.divide(currency.getExchangeRate(), 6, RoundingMode.HALF_UP);
                 }
             } else {
                 logger.debug("取得最新價格失敗 + " + asset);
@@ -208,7 +208,7 @@ public class AssetInfluxMethod {
                 if (historyValue instanceof Number) {
                     if (asset instanceof StockTw) {
                         return BigDecimal.valueOf(((Number) historyValue).doubleValue())
-                                         .divide(twd.getExchangeRate(), 3, RoundingMode.HALF_UP);
+                                         .divide(twd.getExchangeRate(), 6, RoundingMode.HALF_UP);
                     } else {
                         return BigDecimal.valueOf(((Number) historyValue).doubleValue());
                     }

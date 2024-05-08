@@ -645,8 +645,8 @@ function addSubscription(event) {
     }
 }
 
-function deleteSubscription(event, elementId) {
-    this.disabled = true;
+function deleteSubscription(elementId) {
+    elementId.disabled = true;
     showSpinner(false);
     hideById("success_add_message")
     hideById("fail_add_message")

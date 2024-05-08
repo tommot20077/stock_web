@@ -81,7 +81,7 @@ public class AssetService {
     @Value("${db.influxdb.bucket.crypto_history}")
     private String cryptoHistoryBucket;
 
-    @Value("${common.global_size}")
+    @Value("${common.global_page_size:100}")
     private int pageSize;
 
 
@@ -94,7 +94,7 @@ public class AssetService {
      */
     @Async
     public void getAssetHistoryInfo(Asset asset, String type, String timestamp) {
-        logger.info("開始處理資產type: " + type + " timestamp: " + timestamp);
+        logger.debug("開始處理資產type: " + type + " timestamp: " + timestamp);
         Map<String, List<FluxTable>> tableMap;
         String hashInnerKey = String.format("%s_%s:", type, asset.getId());
         String listKey = String.format("kline_%s", hashInnerKey);
@@ -148,6 +148,7 @@ public class AssetService {
             if (listCache.isEmpty()) {
                 logger.debug("此資產沒有過資料紀錄，設定緩存狀態為no_data");
                 redisService.saveHashToCache("kline", hashInnerKey + "status", "no_data", 168);
+                return true;
             }
             logger.debug("此資產有資料紀錄，設定緩存狀態為success");
             redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 168);
@@ -165,7 +166,8 @@ public class AssetService {
      * @param hashInnerKey 緩存內部鍵。
      * @param type         查詢類型。
      */
-    private void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey, String type) {
+    @Async
+    protected void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey, String type) {
         try {
             Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
             String lastTimePoint = null;
@@ -187,12 +189,12 @@ public class AssetService {
                             lastTimePoint = timestamp;
                         }
                         String field = (String) record.getValueByKey("_field");
-                        Double value = null;
+                        BigDecimal value = null;
                         String formattedValue = null;
                         Object valueObj = record.getValueByKey("_value");
-                        if (valueObj instanceof Double) {
-                            value = ((Double) valueObj);
-                            formattedValue = String.format("%.2f", value);
+                        if (valueObj instanceof Double doubleValue) {
+                            value = BigDecimal.valueOf(doubleValue);
+                            formattedValue = String.format("%.6f", value);
                         }
                         AssetKlineDataDto dataDto = klineDataMap.getOrDefault(timestamp, new AssetKlineDataDto());
                         dataDto.setTimestamp(timestamp);
@@ -288,12 +290,13 @@ public class AssetService {
             } else {
                 for (FluxTable table : entry.getValue()) {
                     for (FluxRecord record : table.getRecords()) {
-                        Double value = (Double) record.getValueByKey("_value");
-                        logger.debug(entry.getKey() + " 取得指定資產價格資料: " + value);
-                        if (value == null) {
-                            priceMap.put(entry.getKey(), null);
+                        if (record.getValueByKey("_value") instanceof Double doubleValue) {
+                            BigDecimal value = BigDecimal.valueOf(doubleValue);
+                            logger.debug(entry.getKey() + " 取得指定資產價格資料: " + value);
+                            priceMap.put(entry.getKey(), String.format("%.6f", value));
                         } else {
-                            priceMap.put(entry.getKey(), String.format("%.3f", value));
+                            logger.debug(entry.getKey() + " 取得指定資產價格資料: " + null);
+                            priceMap.put(entry.getKey(), null);
                         }
                     }
                 }
@@ -332,7 +335,7 @@ public class AssetService {
                     }
                     BigDecimal bigDecimal = new BigDecimal(item);
                     BigDecimal formatPrice = assetHandler.exrateToPreferredCurrency(asset, bigDecimal, user.getPreferredCurrency());
-                    statisticsListForUser.add(formatPrice.setScale(2, RoundingMode.HALF_UP).toString());
+                    statisticsListForUser.add(formatPrice.setScale(6, RoundingMode.HALF_UP).toString());
                 }
                 resultMap.put("statistics", statisticsListForUser);
             }
@@ -353,7 +356,7 @@ public class AssetService {
         }
     }
 
-    public String formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey) {
+    public String formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey, User user) {
         ArrayNode mergeArray = objectMapper.createArrayNode();
         Map<String, Object> resultMap = new HashMap<>();
 
@@ -368,6 +371,7 @@ public class AssetService {
             resultMap.put("data", mergeArray);
             resultMap.put("type", type);
             resultMap.put("last_timestamp", timestamp);
+            resultMap.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
 
 
             return objectMapper.writeValueAsString(resultMap);
@@ -460,8 +464,7 @@ public class AssetService {
             return null;
         }
         objectMapper.registerModule(new JavaTimeModule());
-        List<Map<String, Object>> assetList = objectMapper.readValue(assetJson, new TypeReference<>() {});
-        return assetList;
+        return objectMapper.readValue(assetJson, new TypeReference<>() {});
     }
 
 

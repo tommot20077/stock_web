@@ -449,42 +449,9 @@
 		const currentPageElement = document.getElementById('currentPage');
 		updateNewsTable(prevPageButton, nextPageButton, currentPageElement, 1, "", assetId);
 	})
-	getAssetKlineChart(assetId, "history", "get");
-	getAssetKlineChart(assetId, "current", "get");
-	let historyCount = 0;
-	let currentCount = 0;
 
-	let historyInterval = setInterval(async function () {
-		historyCount++;
-		if (historyCount > 5) {
-			clearInterval(historyInterval);
-			return;
-		}
-
-		await getAssetKlineChart(assetId, "history", "handle");
-		let updated = await getAssetKlineChart(assetId, "history", "get");
-		if (updated) {
-			clearInterval(historyInterval);
-		} else {
-			showFlexById('history-loader');
-		}
-	}, 5000);
-
-	// 當前數據更新的定時器
-	let currentInterval = setInterval(async function () {
-		currentCount++;
-		if (currentCount > 5) {
-			clearInterval(currentInterval);
-			return;
-		}
-		await getAssetKlineChart(assetId, "current", "handle");
-		let updated = await getAssetKlineChart(assetId, "current", "get");
-		if (updated) {
-			clearInterval(currentInterval);
-		} else {
-			showFlexById('current-loader');
-		}
-	}, 5000);
+	klineChart("history")
+	klineChart("current")
 
 </script>
 

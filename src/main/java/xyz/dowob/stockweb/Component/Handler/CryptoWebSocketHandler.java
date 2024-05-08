@@ -21,6 +21,7 @@ import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import xyz.dowob.stockweb.Component.Event.Crypto.WebSocketConnectionStatusEvent;
+import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
@@ -43,11 +44,15 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
     private final CryptoInfluxService cryptoInfluxService;
 
+    private final SubscribeMethod subscribeMethod;
+
     private final CryptoRepository cryptoRepository;
 
     private final ApplicationEventPublisher eventPublisher;
 
     private final SubscribeRepository subscribeRepository;
+
+    private final
 
     Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
 
@@ -71,8 +76,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     private int retryCount = 0;
 
     @Autowired
-    public CryptoWebSocketHandler(CryptoInfluxService cryptoInfluxService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
+    public CryptoWebSocketHandler(CryptoInfluxService cryptoInfluxService, SubscribeMethod subscribeMethod, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
         this.cryptoInfluxService = cryptoInfluxService;
+        this.subscribeMethod = subscribeMethod;
         this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
         this.subscribeRepository = subscribeRepository;
@@ -249,7 +255,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
 
     /**
-     * 這個方法用於訂閱特定的交易對。
+     * 這個方法用於訂閱特定的交易對，並利用subscribeMethod添加訂閱者和發布事件。
      *
      * @param tradingPair 交易對
      * @param channel     頻道
@@ -263,44 +269,39 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.warn("沒有找到" + tradingPair + "的交易對");
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
-            if (subscribeRepository != null) {
+            if (subscribeRepository != null && subscribeMethod != null && eventPublisher != null && cryptoRepository != null) {
                 if (subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel)
                                        .isPresent()) {
                     logger.warn("已訂閱過" + tradingPair + channel + "交易對");
                     throw new Exception("已訂閱過" + tradingPair + channel + "交易對");
                 } else {
-                    logger.debug("用戶主動訂閱，此訂閱設定可刪除");
-                    Subscribe subscribe = new Subscribe();
-                    subscribe.setUser(user);
-                    subscribe.setAsset(cryptoTradingPairSymbol);
-                    subscribe.setChannel(channel);
-                    subscribe.setUserSubscribed(true);
-                    subscribe.setRemoveAble(true);
-                    subscribeRepository.save(subscribe);
-                    logger.info("已訂閱" + tradingPair + channel + "交易對");
-
                     if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
-                        logger.warn("已訂閱過" + tradingPair + channel + "交易對，不進行訂閱");
+                        logger.warn(user.getUsername() + "已訂閱過" + tradingPair + channel + "交易對，不進行訂閱");
                     } else {
-                        cryptoTradingPairSymbol.getSubscribers().add(user.getId());
-                        logger.info("已訂閱" + tradingPair + channel + "交易對，進行訂閱");
-                    }
-                    if (cryptoRepository != null) {
-                        cryptoRepository.save(cryptoTradingPairSymbol);
-                    } else {
-                        logger.warn("CryptoRepository未初始化");
-                        throw new Exception("CryptoRepository未初始化");
+                        logger.debug("用戶主動訂閱，此訂閱設定可刪除");
+                        Subscribe subscribe = new Subscribe();
+                        subscribe.setUser(user);
+                        subscribe.setAsset(cryptoTradingPairSymbol);
+                        subscribe.setChannel(channel);
+                        subscribe.setUserSubscribed(true);
+                        subscribe.setRemoveAble(true);
+                        subscribeRepository.save(subscribe);
+                        logger.info("已訂閱" + tradingPair + channel + "交易對");
+
+                        if (!cryptoTradingPairSymbol.checkUserIsSubscriber(user)){
+                            subscribeMethod.addSubscriberToCryptoTradingPair(cryptoTradingPairSymbol, user.getId());
+                        }
                     }
                 }
             } else {
-                logger.warn("SubscribeRepository未初始化");
-                throw new Exception("SubscribeRepository未初始化");
+                logger.error("Repository未初始化");
+                throw new Exception("Repository未初始化");
             }
         }
     }
 
     /**
-     * 這個方法用於取消訂閱特定的交易對。
+     * 這個方法用於取消訂閱特定的交易對, 並利用subscribeMethod刪除訂閱者與發佈事件。
      *
      * @param tradingPair 交易對
      * @param channel     頻道
@@ -315,7 +316,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.warn("沒有找到" + tradingPair + "的交易對");
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
-            if (subscribeRepository != null) {
+            if (subscribeRepository != null && cryptoRepository != null && eventPublisher != null && subscribeMethod != null) {
                 Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
                                                                                            cryptoTradingPairSymbol.getId(),
                                                                                            channel).orElse(null);
@@ -325,33 +326,23 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 } else if (subscribe.isRemoveAble()) {
                     subscribeRepository.delete(subscribe);
                     if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
-                        cryptoTradingPairSymbol.getSubscribers().remove(user.getId());
-                        logger.info("已訂閱" + tradingPair + channel + "交易對，進行取消訂閱");
-                    } else {
-                        logger.info("沒有訂閱" + tradingPair + channel + "交易對，不進行取消訂閱");
+                        subscribeMethod.removeSubscriberFromTradingPair(cryptoTradingPairSymbol, user.getId());
                     }
-                    logger.info("已取消訂閱" + tradingPair + channel + "交易對");
 
-                    if (cryptoRepository != null && eventPublisher != null) {
-                        cryptoRepository.save(cryptoTradingPairSymbol);
-                        if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0 && webSocketSession != null && webSocketSession.isOpen()) {
-                            String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
-                            logger.debug("取消訂閱訊息: " + message);
-                            webSocketSession.sendMessage(new TextMessage(message));
-                            logger.info("已取消訂閱" + tradingPair + channel + "交易對");
-                            int allSubscribeNumber = cryptoRepository.countAllSubscribeNumber();
-                            if (allSubscribeNumber == 0) {
-                                logger.warn("目前沒有交易對的訂閱");
-                                webSocketSession.close(CloseStatus.GOING_AWAY);
-                                eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
-                                webSocketSession = null;
-                                logger.info("WebSocket連線已關閉");
-                                isRunning = false;
-                            }
+                    if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0 && webSocketSession != null && webSocketSession.isOpen()) {
+                        String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
+                        logger.debug("取消訂閱訊息: " + message);
+                        webSocketSession.sendMessage(new TextMessage(message));
+                        logger.info("已取消訂閱" + tradingPair + channel + "交易對");
+                        int allSubscribeNumber = cryptoRepository.countAllSubscribeNumber();
+                        if (allSubscribeNumber == 0) {
+                            logger.warn("目前沒有交易對的訂閱");
+                            webSocketSession.close(CloseStatus.GOING_AWAY);
+                            eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
+                            webSocketSession = null;
+                            logger.info("WebSocket連線已關閉");
+                            isRunning = false;
                         }
-                    } else {
-                        logger.warn("CryptoRepository未初始化");
-                        throw new Exception("CryptoRepository未初始化");
                     }
                 } else {
                     logger.warn("此訂閱: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
@@ -457,6 +448,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * 這個方法用於查找所有已訂閱的交易對。
+     *
      * @return List<String>
      */
     private List<String> findSubscribedTradingPairList() {

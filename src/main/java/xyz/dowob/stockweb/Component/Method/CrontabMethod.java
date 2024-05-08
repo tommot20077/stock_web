@@ -83,22 +83,22 @@ public class CrontabMethod {
 
     Logger logger = LoggerFactory.getLogger(CrontabMethod.class);
 
-    @Value("${news.remain.days}")
+    @Value("${news.remain.days:30}")
     private int newsRemainDays;
 
-    @Value("${news.autoupdate.currency}")
+    @Value("${news.autoupdate.currency:false}")
     private boolean newsAutoupdateCurrency;
 
-    @Value("${news.autoupdate.crypto}")
+    @Value("${news.autoupdate.crypto:false}")
     private boolean newsAutoupdateCrypto;
 
-    @Value("${news.autoupdate.stock_tw}")
+    @Value("${news.autoupdate.stock_tw:false}")
     private boolean newsAutoupdateStockTw;
 
-    @Value("${common.global_size}")
+    @Value("${common.global_size:100}")
     private int pageSize;
 
-    @Value("${stock_tw.enable_auto_start}")
+    @Value("${stock_tw.enable_auto_start:false}")
     private boolean isStockTwAutoStart;
 
     /**

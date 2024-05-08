@@ -68,7 +68,7 @@ public class Token implements Serializable {
     private OffsetDateTime rememberMeTokenExpireTime;
 
 
-    @Value(value = "${security.jwt.expiration}")
+    @Value(value = "${security.jwt.expiration:120}")
     private int expirationMs;
 
     /**

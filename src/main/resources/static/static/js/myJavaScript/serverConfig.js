@@ -10,13 +10,15 @@ function generateAdminCommandTable(tbodyId, name, paramDescription, url, method,
             <td>${name}</td}">
             <td>${paramDescription}</td>
             <td><input type="text" class="admin-command-param-${count} form-control"></td>
-            <td><button class="btn btn-primary btn-rounded btn-fw" id="${commandButton}" onclick="executeAdminCommand('${method}', '${url}', '${csrfToken}')">執行</button></td>
+            <td><button class="btn btn-primary btn-rounded btn-fw" id="${commandButton}">執行</button></td>
         `;
     tbody.appendChild(row);
 
     document.getElementById(commandButton).addEventListener('click', function () {
         showSpinner(false);
-        executeAdminCommand(method, url, csrfToken, `.admin-command-param-${count}`);
+
+        let thisCount = commandButton.split("-")[1];
+        executeAdminCommand(method, url, csrfToken, `.admin-command-param-${thisCount}`);
         document.getElementById("close").addEventListener('click', function () {
             window.location.reload();
         })
@@ -25,8 +27,11 @@ function generateAdminCommandTable(tbodyId, name, paramDescription, url, method,
 
 function executeAdminCommand(method, baseUrl, csrfToken, inputSelector) {
     let commandParam = document.querySelector(inputSelector).value;
+    let formatParam = commandParam.trim().replace(',', ' ')
+    let commandParamArray = formatParam.replace(/\s+/g, ' ').split(" ");
+    commandParam = commandParamArray.join("&");
 
-    fetch(baseUrl, {
+    fetch(baseUrl + "?" + commandParam, {
         method: method,
         redirect: 'manual',
         headers: {

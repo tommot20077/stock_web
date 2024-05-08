@@ -625,6 +625,8 @@ public class PropertyService {
 
     /**
      * 取得用戶所有持有資產
+     * 分成2個部分，一個是用戶持有的資產查詢以及相同類型資產合併
+     * 另一個是將合併後的資產依照需求轉換貨幣價格
      * @param user 用戶
      * @param isFormattedToPreferredCurrency 是否格式化為用戶偏好貨幣
      * @return 用戶所有持有資產
@@ -666,8 +668,8 @@ public class PropertyService {
                 currentTotalPrice = BigDecimal.valueOf(0);
             } else {
                 BigDecimal quantity = property.getQuantity();
-                currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
-                currentTotalPrice = exchangeRate.multiply(quantity).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros();
+                currentPropertyValue = exchangeRate.stripTrailingZeros().setScale(6, RoundingMode.HALF_UP).stripTrailingZeros();
+                currentTotalPrice = exchangeRate.multiply(quantity).setScale(6, RoundingMode.HALF_UP).stripTrailingZeros();
             }
             return new PropertyListDto.getAllPropertiesDto(property, currentPropertyValue, currentTotalPrice);
         }).collect(Collectors.toList());

@@ -56,3 +56,37 @@ function getAssetParamFromUrl() {
     const pathArray = window.location.pathname.split('/');
     return pathArray[pathArray.length - 1];
 }
+
+function thousands (value) {
+    if (value) {
+        value += "";
+        let arr = value.split(".");
+        let re = /(\d{1,3})(?=(\d{3})+$)/g;
+
+        return arr[0].replace(re, "$1,") + (arr.length === 2 ? "." + arr[1] : "");
+    } else {
+        return ''
+    }
+}
+function createAssetListPage(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
+    return function (e) {
+        e.preventDefault();
+        updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
+        scrollToElement('assetsListTableBody');
+    };
+}
+
+function createNewsListPage(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
+    return function (e) {
+        e.preventDefault();
+        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
+        scrollToElement('newsTableBody');
+    };
+}
+
+function scrollToElement(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+}

@@ -10,9 +10,9 @@ async function displayPropertyTable() {
                 <td>${item.propertyId}</td>
                 <td>${getAssetType(item.assetType)}</td>
                 <td><a href="/asset_info/${item.assetId}">${item.assetName}</a></td>
-                <td>${item.quantity}</td>
-                <td style="text-align: right">${item.currentPrice}</td>
-                <td style="text-align: right">${numTotal.toFixed(3).replace(/\.?0+$/, "")}</td>
+                <td>${thousands(item.quantity)}</td>
+                <td style="text-align: right">${thousands(item.currentPrice.toFixed(3))}</td>
+                <td style="text-align: right">${thousands(numTotal.toFixed(3).replace(/\.?0+$/, ""))}</td>
                 <td>${item.description}</td>
                 <td><a href="#" style="color: blue" onclick="displayEditProperty(this)">編輯</a>&nbsp&nbsp&nbsp<a id="deleteButton" data-property-type="${item.assetType}" data-property-id="${item.propertyId}" href="#" style="color: red" onclick="deleteProperty(this, this)">刪除</a></td>
             </tr>`;
@@ -127,19 +127,19 @@ async function displayStatisticsOverview() {
             `
             <div class="d-none d-md-block">
                 <p class="statistics-title">目前總資產</p>
-                <h3 class="rate-percentage">${latestTotalSum}</h3>
+                <h3 class="rate-percentage">${thousands(latestTotalSum)}</h3>
                 <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
             </div>
             <div class="d-none d-md-block">
                 <p class="statistics-title">資金淨流量</p>
-                <h3 class="rate-percentage">${propertyOverviewData.cash_flow}</h3>
+                <h3 class="rate-percentage">${thousands(propertyOverviewData.cash_flow)}</h3>
                 <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
             </div>
             ` +
-            generateStatisticsTable("日收益", (parseFloat(propertyOverviewData.day) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.day) +
-            generateStatisticsTable("周收益", (parseFloat(propertyOverviewData.week) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.week) +
-            generateStatisticsTable("月收益", (parseFloat(propertyOverviewData.month) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.month) +
-            generateStatisticsTable("年收益", (parseFloat(propertyOverviewData.year) * latestTotalSumFloat / 100).toFixed(3), propertyOverviewData.year);
+            generateStatisticsTable("日收益", thousands((parseFloat(propertyOverviewData.day) * latestTotalSumFloat / 100).toFixed(3)), propertyOverviewData.day) +
+            generateStatisticsTable("周收益", thousands((parseFloat(propertyOverviewData.week) * latestTotalSumFloat / 100).toFixed(3)), propertyOverviewData.week) +
+            generateStatisticsTable("月收益", thousands((parseFloat(propertyOverviewData.month) * latestTotalSumFloat / 100).toFixed(3)), propertyOverviewData.month) +
+            generateStatisticsTable("年收益", thousands((parseFloat(propertyOverviewData.year) * latestTotalSumFloat / 100).toFixed(3)), propertyOverviewData.year);
 
     } catch (error) {
         console.error(error);
@@ -200,40 +200,15 @@ async function updateNewsTable(prevPageButton, nextPageButton, currentPageElemen
     nextPageButton.removeEventListener('click', nextPageButton.nextHandler);
 
     if (!isLastPage) {
-        nextPageButton.nextHandler = createNewsHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
+        nextPageButton.nextHandler = createNewsListPage(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
         nextPageButton.addEventListener('click', nextPageButton.nextHandler);
     }
 
     if (currentPage > 1) {
-        prevPageButton.prevHandler = createNewsHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
+        prevPageButton.prevHandler = createNewsListPage(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
         prevPageButton.addEventListener('click', prevPageButton.prevHandler);
     }
 }
-
-
-function createNewsHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
-    return function (e) {
-        e.preventDefault();
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
-        scrollToElement('newsTableBody');
-    };
-}
-
-function createNewsHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, category, asset) {
-    return function (e) {
-        e.preventDefault();
-        updateNewsTable(prevPageButton, nextPageButton, currentPageElement, newPage, category, asset);
-        scrollToElement('newsTableBody');
-    };
-}
-
-function scrollToElement(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.scrollIntoView({behavior: 'smooth', block: 'start'});
-    }
-}
-
 
 async function displayAssetsList(pageNumber, category) {
     let tableBody = document.getElementById("assetsListTableBody");
@@ -268,39 +243,23 @@ async function updateAssetsList(prevPageButton, nextPageButton, currentPageEleme
 
     nextPageButton.classList.toggle('disabled', isLastPage);
     nextPageButton.style.display = isLastPage ? 'none' : '';
-    nextPageButton.href = `#newsTableBody`;
+    nextPageButton.href = `#assetsListTableBody`;
     prevPageButton.classList.toggle('disabled', currentPage <= 1);
     prevPageButton.style.display = currentPage <= 1 ? 'none' : '';
-    prevPageButton.href = currentPage > 1 ? `#newsTableBody` : '#';
+    prevPageButton.href = currentPage > 1 ? `#assetsListTableBody` : '#';
 
     prevPageButton.removeEventListener('click', prevPageButton.prevHandler);
     nextPageButton.removeEventListener('click', nextPageButton.nextHandler);
 
     if (!isLastPage) {
-        nextPageButton.nextHandler = createAssetListHandleNext(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, category);
+        nextPageButton.nextHandler = createAssetListPage(currentPage + 1, prevPageButton, nextPageButton, currentPageElement, category);
         nextPageButton.addEventListener('click', nextPageButton.nextHandler);
     }
 
     if (currentPage > 1) {
-        prevPageButton.prevHandler = createAssetListHandlePrev(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category);
+        prevPageButton.prevHandler = createAssetListPage(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category);
         prevPageButton.addEventListener('click', prevPageButton.prevHandler);
     }
-}
-
-function createAssetListHandlePrev(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
-    return function (e) {
-        e.preventDefault();
-        updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
-        scrollToElement('newsTableBody');
-    };
-}
-
-function createAssetListHandleNext(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
-    return function (e) {
-        e.preventDefault();
-        updateAssetsList(prevPageButton, nextPageButton, currentPageElement, newPage, category);
-        scrollToElement('newsTableBody');
-    };
 }
 
 async function displayServerStatus() {

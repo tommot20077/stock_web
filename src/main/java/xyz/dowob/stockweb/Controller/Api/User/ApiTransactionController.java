@@ -90,5 +90,4 @@ public class ApiTransactionController {
             return ResponseEntity.status(500).body("伺服器錯誤: " + e.getMessage());
         }
     }
-
 }

@@ -9,6 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
+import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
@@ -32,7 +33,9 @@ public class WebSocketConfig {
 
     /**
      * 創建WebSocketConnectionManager
+     *
      * @param cryptoWebSocketHandler CryptoWebSocketHandler
+     *
      * @return WebSocketConnectionManager
      */
     @Bean
@@ -49,6 +52,7 @@ public class WebSocketConfig {
 
     /**
      * 創建ThreadPoolTaskScheduler
+     *
      * @return ThreadPoolTaskScheduler
      */
     @Bean
@@ -60,15 +64,17 @@ public class WebSocketConfig {
 
     /**
      * 創建CryptoWebSocketHandler
+     *
      * @param cryptoInfluxService CryptoInfluxService
-     * @param cryptoRepository CryptoRepository
-     * @param eventPublisher ApplicationEventPublisher
+     * @param cryptoRepository    CryptoRepository
+     * @param eventPublisher      ApplicationEventPublisher
      * @param subscribeRepository SubscribeRepository
+     *
      * @return CryptoWebSocketHandler
      */
     @Bean
     public CryptoWebSocketHandler cryptoWebSocketHandler(
-            CryptoInfluxService cryptoInfluxService, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
-        return new CryptoWebSocketHandler(cryptoInfluxService, cryptoRepository, eventPublisher, subscribeRepository);
+            CryptoInfluxService cryptoInfluxService, SubscribeMethod subscribeMethod, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
+        return new CryptoWebSocketHandler(cryptoInfluxService, subscribeMethod, cryptoRepository, eventPublisher, subscribeRepository);
     }
 }

@@ -103,7 +103,7 @@ public class ApiAssetController {
     @GetMapping("/getKlineInfo/{assetId}")
     public ResponseEntity<?> getKlineInfo(
             @PathVariable Long assetId, @RequestParam(name = "type",
-                                                      defaultValue = "current") String type) {
+                                                      defaultValue = "current") String type, HttpSession session) {
         type = type.toLowerCase();
         if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
             return ResponseEntity.badRequest().body("錯誤的查詢類型");
@@ -124,7 +124,8 @@ public class ApiAssetController {
                 return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("無此資產的價格圖"));
             }
 
-            String json = assetService.formatRedisAssetKlineCacheToJson(type, listKey, hashInnerKey);
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            String json = assetService.formatRedisAssetKlineCacheToJson(type, listKey, hashInnerKey, user);
             return ResponseEntity.ok().body(json);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("錯誤: " + e.getMessage());

@@ -29,7 +29,7 @@ public class JwtTokenProvider {
     @Value(value = "${security.jwt.secret}")
     private String jwtSecret;
 
-    @Value(value = "${security.jwt.expiration}")
+    @Value(value = "${security.jwt.expiration:120}")
     private int expirationMinute;
 
     private SecretKey key;

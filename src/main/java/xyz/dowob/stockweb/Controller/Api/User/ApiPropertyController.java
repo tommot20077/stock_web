@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 @Controller
 @RequestMapping("/api/user/property")
 public class ApiPropertyController {
-
     private final UserService userService;
 
     private final PropertyService propertyService;

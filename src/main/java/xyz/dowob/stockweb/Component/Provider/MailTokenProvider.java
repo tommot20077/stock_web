@@ -41,7 +41,7 @@ public class MailTokenProvider {
     @Value(value = "${spring.mail.username}")
     private String emailSender;
 
-    @Value(value = "${security.email.expiration}")
+    @Value(value = "${security.email.expiration:10}")
     private int expirationMinute;
 
     @Value(value = "${common.send_mail_times:3}")

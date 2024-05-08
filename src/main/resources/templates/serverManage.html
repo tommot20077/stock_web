@@ -366,7 +366,7 @@
 	generateAdminCommandTable("commandListTableBody", "停止虛擬貨幣即時價格連線", "無", "/api/admin/crypto/ws/stop", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "重啟虛擬貨幣即時價格連線", "無", "/api/admin/crypto/ws/restart", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "確認虛擬貨幣即時價格連線", "無", "/api/user/crypto/ws/status", "GET", csrfToken);
-	generateAdminCommandTable("commandListTableBody", "更新虛擬貨幣歷史價格資料", "無", "/api/admin/crypto/trackCryptoHistoryData", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "更新虛擬貨幣歷史價格資料", "tradingPair: 交易對，必填: true", "/api/admin/crypto/trackCryptoHistoryData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新虛擬貨幣每日歷史價格資料", "無", "/api/admin/crypto/trackCryptoDailyData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新虛擬貨幣歷史價格取得進度", "無", "/api/admin/crypto/getAllTaskProgress", "GET", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "確認虛擬貨幣即時價格連線狀態", "無", "/api/admin/crypto/checkAndReconnectWebSocket", "POST", csrfToken);
@@ -374,7 +374,7 @@
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票清單", "無", "/api/admin/stock/tw/updateStockList", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "取得台灣股票列表", "無", "/api/admin/stock/tw/getStockList", "GET", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票5秒搓合交易價格", "無", "/api/admin/stock/tw/updateStockDetail", "POST", csrfToken);
-	generateAdminCommandTable("commandListTableBody", "更新台灣股票歷史價格資料", "無", "/api/admin/stock/tw/trackStockHistoryData", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "更新台灣股票歷史價格資料", "stockCode: 股票代碼，必填: true", "/api/admin/stock/tw/trackStockHistoryData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票每日歷史價格資料", "無", "/api/admin/stock/tw/trackStockDailyData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "開啟台灣股票即時價格功能", "無", "/api/admin/stock/tw/trackImmediatePrice", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "關閉台灣股票即時價格功能", "無", "/api/admin/stock/tw/unTrackImmediatePrice", "POST", csrfToken);

@@ -19,7 +19,7 @@ async function getAssetKlineChart(assetId, type, method) {
         if (jsonData && jsonData.data && jsonData.data.length > 0) {
             let newTimestamp = new Date(jsonData.data[jsonData.data.length - 1].timestamp).getTime();
             if (newTimestamp > (lastUpdateTimestamp[type] || 0)) {
-                updateKlineChart(type, jsonData.data);
+                updateKlineChart(type, jsonData.data, jsonData.preferCurrencyExrate);
                 toggleLoadingDisplay(type, false);
                 return true;
             } else {
@@ -64,16 +64,46 @@ function toggleLoadingDisplay(type, shouldDisplay) {
     }
 }
 
-function updateKlineChart(type, data) {
+async function klineChart(type) {
+    await getAssetKlineChart(assetId, type, "get")
+        .then(async () => {
+            return getAssetKlineChart(assetId, type, "handle");
+        })
+        .then(() => {
+            async function updateChart() {
+                let updated = await getAssetKlineChart(assetId, type, "get");
+                if (updated) {
+                    clearInterval(interval);
+                } else {
+                    let loader = type === "history" ? 'history-loader' : 'current-loader';
+                    showFlexById(loader);
+                }
+            }
+
+            let count = 0;
+            let interval = setInterval(async function () {
+                count++;
+                if (count > 5) {
+                    clearInterval(interval);
+                    return;
+                }
+                await updateChart();
+            }, 10000);
+        });
+}
+
+function updateKlineChart(type, data, preferCurrencyExrate) {
     let chartContainerId = type === 'history' ? 'historyKlineChart' : 'currentKlineChart';
     let chartContainer = document.getElementById(chartContainerId);
-    chartContainer.innerHTML = '';  // 清空當前圖表
+    chartContainer.innerHTML = '';
+    let exrate = parseFloat(preferCurrencyExrate)
+
     let kData = data.map(d => ({
         timestamp: new Date(d.timestamp).getTime(),
-        open: +d.open,
-        high: +d.high,
-        low: +d.low,
-        close: +d.close,
+        open: +d.open * exrate,
+        high: +d.high * exrate,
+        low: +d.low * exrate,
+        close: +d.close * exrate,
         volume: Math.ceil(+d.volume),
     }));
 
@@ -89,16 +119,11 @@ async function getAssetDetails(assetId) {
     let jsonData = await fetchAssetInfoData(assetId);
     try {
         let assetName = jsonData.assetName;
-        let todayValue = Number(jsonData.statistics[4]);
-        let today = !isNaN(todayValue) && todayValue >= 0 ? todayValue.toFixed(3) : "數據不足";
-        let dayValue = Number(jsonData.statistics[3]);
-        let day = !isNaN(dayValue) && dayValue >= 0 ? dayValue.toFixed(3) : "數據不足";
-        let weekValue = Number(jsonData.statistics[2]);
-        let week = !isNaN(weekValue) && weekValue >= 0 ? weekValue.toFixed(3) : "數據不足";
-        let monthValue = Number(jsonData.statistics[1]);
-        let month = !isNaN(monthValue) && monthValue >= 0 ? monthValue.toFixed(3) : "數據不足";
-        let yearValue = Number(jsonData.statistics[0]);
-        let year = !isNaN(yearValue) && yearValue >= 0 ? yearValue.toFixed(3) : "數據不足";
+        let today = formatDetailToFloatString(jsonData.statistics[4]);
+        let day = formatDetailToFloatString(jsonData.statistics[3]);
+        let week = formatDetailToFloatString(jsonData.statistics[2]);
+        let month = formatDetailToFloatString(jsonData.statistics[1]);
+        let year = formatDetailToFloatString(jsonData.statistics[0]);
 
         let body = document.getElementById("statistics_overview");
         body.innerHTML =
@@ -110,17 +135,27 @@ async function getAssetDetails(assetId) {
                 </div>
                 <div class="d-none d-md-block">
                     <p class="statistics-title">目前資產價格</p>
-                    <h3 class="rate-percentage">${today}</h3>
+                    <h3 class="rate-percentage">${thousands(today)}</h3>
                     <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
                 </div>
                 ` +
-            generateStatisticsTable("昨日價格", day, ((((+today) - (+day)) / (+day)) * 100).toFixed(2)) +
-            generateStatisticsTable("上周價格", week, ((((+today) - (+week)) / (+week)) * 100).toFixed(2)) +
-            generateStatisticsTable("上月價格", month, ((((+today) - (+month)) / (+month)) * 100).toFixed(2)) +
-            generateStatisticsTable("去年價格", year, ((((+today) - (+year)) / (+year)) * 100).toFixed(2));
+            generateStatisticsTable("昨日價格", thousands(day), ((((+today) - (+day)) / (+day)) * 100).toFixed(3)) +
+            generateStatisticsTable("上周價格", thousands(week), ((((+today) - (+week)) / (+week)) * 100).toFixed(3)) +
+            generateStatisticsTable("上月價格", thousands(month), ((((+today) - (+month)) / (+month)) * 100).toFixed(3)) +
+            generateStatisticsTable("去年價格", thousands(year), ((((+today) - (+year)) / (+year)) * 100).toFixed(3));
     } catch (error) {
         console.error(error);
     }
 }
 
+function formatDetailToFloatString(input) {
+    console.log("Input: " + input);
+    let Value = Number(input);
+    console.log("Value: " + Value);
+    if (!isNaN(Value) && Value >= 0) {
+        return Value < 1 ? Value.toFixed(6) : Value.toFixed(2);
+    } else {
+        return "數據不足";
+    }
+}
 

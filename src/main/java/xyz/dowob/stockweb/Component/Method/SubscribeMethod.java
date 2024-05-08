@@ -164,9 +164,7 @@ public class SubscribeMethod {
                         removeSubscriberFromStockTw(stockTw, user.getId());
                     }
                 }
-                case Currency ignored -> {
-                    logger.debug("貨幣不做額外處理");
-                }
+                case Currency ignored -> logger.debug("貨幣不做額外處理");
                 case null, default -> throw new IllegalArgumentException("錯誤的資產類型");
             }
             logger.debug("資產訂閱數量減 1");
@@ -182,7 +180,7 @@ public class SubscribeMethod {
      * @param userId  用戶ID
      */
 
-    private void addSubscriberToStockTw(StockTw stockTw, Long userId) {
+    public void addSubscriberToStockTw(StockTw stockTw, Long userId) {
         stockTwRepository.addAndCheckSubscriber(stockTw, userId, eventPublisher);
     }
 
@@ -192,7 +190,7 @@ public class SubscribeMethod {
      * @param stockTw 股票
      * @param userId  用戶ID
      */
-    private void removeSubscriberFromStockTw(StockTw stockTw, Long userId) {
+    public void removeSubscriberFromStockTw(StockTw stockTw, Long userId) {
         stockTwRepository.removeAndCheckSubscriber(stockTw, userId, eventPublisher);
     }
 
@@ -202,7 +200,7 @@ public class SubscribeMethod {
      * @param cryptoTradingPair 加密貨幣
      * @param userId            用戶ID
      */
-    private void addSubscriberToCryptoTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
+    public void addSubscriberToCryptoTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.addAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
     }
 
@@ -212,7 +210,7 @@ public class SubscribeMethod {
      * @param cryptoTradingPair 加密貨幣
      * @param userId            用戶ID
      */
-    private void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
+    public void removeSubscriberFromTradingPair(CryptoTradingPair cryptoTradingPair, Long userId) {
         cryptoRepository.removeAndCheckSubscriber(cryptoTradingPair, userId, eventPublisher);
     }
 

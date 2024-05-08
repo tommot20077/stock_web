@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Component
 public class RetryMethod {
-    @Value("${common.max_retryTimes}")
+    @Value("${common.max_retryTimes:3}")
     private int maxRetryTimesValue;
 
     private AtomicInteger maxRetryTimes;

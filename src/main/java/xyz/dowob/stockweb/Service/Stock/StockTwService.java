@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Component.Event.Asset.AssetHistoryDataFetchCompleteEvent;
+import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
 import xyz.dowob.stockweb.Model.Common.Task;
@@ -51,7 +52,7 @@ public class StockTwService {
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    private final String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
+    private final SubscribeMethod subscribeMethod;
 
     private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
 
@@ -60,19 +61,20 @@ public class StockTwService {
     @Value(value = "${stock_tw.finmind.token}")
     private String finMindToken;
 
-    @Value(value = "${db.influxdb.bucket.stock_tw_history.dateline}")
+    @Value(value = "${db.influxdb.bucket.stock_tw_history.dateline:20110101}")
     private String stockTwHistoryDateline;
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
 
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
         this.stockTwInfluxService = stockTwInfluxService;
         this.taskRepository = taskRepository;
         this.objectMapper = objectMapper;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.subscribeMethod = subscribeMethod;
     }
 
     /**
@@ -91,11 +93,8 @@ public class StockTwService {
         }
 
         if (!stock.checkUserIsSubscriber(user)) {
-            stock.getSubscribers().add(user.getId());
-            logger.debug("訂閱成功");
+            subscribeMethod.addSubscriberToStockTw(stock, user.getId());
         }
-        stock.setAssetType(AssetType.STOCK_TW);
-        stockTwRepository.save(stock);
         logger.debug("用戶主動訂閱，此訂閱設定可刪除");
         Subscribe subscribe = new Subscribe();
         subscribe.setUser(user);
@@ -121,14 +120,12 @@ public class StockTwService {
         if (subscribe.isUserSubscribed()) {
             if (subscribe.isRemoveAble()) {
                 if (stock.checkUserIsSubscriber(user)) {
-                    stock.getSubscribers().remove(user.getId());
-                    logger.debug("取消訂閱成功");
+                    subscribeMethod.removeSubscriberFromStockTw(stock, user.getId());
                 }
             } else {
                 logger.warn("此訂閱: " + stock.getStockCode() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
                 throw new RuntimeException("此訂閱: " + stock.getStockCode() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
             }
-            stockTwRepository.save(stock);
             subscribeRepository.delete(subscribe);
         }
     }
@@ -140,6 +137,7 @@ public class StockTwService {
     @Async
     public void updateStockList() {
         StockTw stock;
+        String stockListUrl = "https://api.finmindtrade.com/api/v4/data?";
         String url = stockListUrl + "dataset=TaiwanStockInfo&stock_id=&token=" + finMindToken;
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);

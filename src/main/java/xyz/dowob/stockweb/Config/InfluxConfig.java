@@ -47,10 +47,10 @@ public class InfluxConfig {
     @Value("${db.influxdb.bucket.property_summary}")
     private String propertySummaryBucket;
 
-    @Value("${db.influxdb.connect_timeout}")
+    @Value("${db.influxdb.connect_timeout:60}")
     private int influxConnectTimeout;
 
-    @Value("${db.influxdb.read_write_timeout}")
+    @Value("${db.influxdb.read_write_timeout:30}")
     private int influxReadTimeout;
 
 

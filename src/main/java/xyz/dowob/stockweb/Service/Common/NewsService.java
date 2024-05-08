@@ -47,19 +47,19 @@ public class NewsService {
     @Value("${news.api.token}")
     private String newsApiToken;
 
-    @Value("${news.api.url}")
+    @Value("${news.api.url:https://newsapi.org/v2/}")
     private String newsApiUrl;
 
-    @Value("${news.index.category}")
+    @Value("${news.index.category:business}")
     private String indexCategory;
 
-    @Value("${news.prefer.country}")
+    @Value("${news.prefer.country:tw}")
     private String preferCountry;
 
-    @Value("${news.prefer.language}")
+    @Value("${news.prefer.language:zh}")
     private String preferLanguage;
 
-    @Value("${common.global_size}")
+    @Value("${common.global_page_size}")
     private int pageSize;
 
     Logger logger = LoggerFactory.getLogger(NewsService.class);

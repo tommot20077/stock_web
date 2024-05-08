@@ -77,7 +77,7 @@ public class CryptoService {
     @Value("${db.influxdb.bucket.crypto_history.detail}")
     private String frequency;
 
-    @Value("${db.influxdb.bucket.crypto_history.dateline}")
+    @Value("${db.influxdb.bucket.crypto_history.dateline:20180101}")
     private String dateline;
 
     @Value("${crypto.enable_auto_start}")
