@@ -26,7 +26,6 @@ import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
 import xyz.dowob.stockweb.Dto.Property.RoiDataDto;
 import xyz.dowob.stockweb.Enum.OperationType;
 import xyz.dowob.stockweb.Enum.TransactionType;
-import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.EventCache;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -41,9 +40,10 @@ import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import xyz.dowob.stockweb.Repository.User.TransactionRepository;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
-import java.text.DecimalFormat;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -57,23 +57,34 @@ import java.util.stream.Collectors;
 @Service
 public class PropertyService {
     private final StockTwRepository stockTwRepository;
+
     private final PropertyRepository propertyRepository;
+
     private final CurrencyRepository currencyRepository;
+
     private final CryptoRepository cryptoRepository;
+
     private final TransactionRepository transactionRepository;
+
     private final SubscribeMethod subscribeMethod;
+
     private final AssetInfluxMethod assetInfluxMethod;
+
     private final PropertyInfluxService propertyInfluxService;
+
     private final AssetHandler assetHandler;
+
     private final ChartMethod chartMethod;
+
     private final EventCacheMethod eventCacheMethod;
+
     private final ApplicationEventPublisher eventPublisher;
+
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
     @Autowired
     public PropertyService(
-            StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod,
-            @Lazy EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
+            StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod, @Lazy EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
         this.stockTwRepository = stockTwRepository;
         this.propertyRepository = propertyRepository;
         this.currencyRepository = currencyRepository;
@@ -88,12 +99,26 @@ public class PropertyService {
         this.eventPublisher = eventPublisher;
     }
 
-    @Value("${db.influxdb.bucket.property_summary}") private String propertySummaryBucket;
+    @Value("${db.influxdb.bucket.property_summary}")
+    private String propertySummaryBucket;
+
+    @Value("${db.influxdb.bucket.common_economy}")
+    private String commonEconomyBucket;
+
+    @Value("${asset.sharp_ratio.country:us}")
+    private String baseRateCountry;
+
+    @Value("${asset.sharp_ratio.year_base:1-year}")
+    private String yearBaseTime;
+
+    @Value("${asset.sharp_ratio.month_base:1-month}")
+    private String monthBaseTime;
 
 
     /**
      * 修改股票持有數量，以及新增或刪除持有股票處理相關訂閱和事件
-     * @param user 用戶
+     *
+     * @param user    用戶
      * @param request 請求 PropertyDto 物件
      */
     @Transactional(rollbackOn = Exception.class)
@@ -258,7 +283,8 @@ public class PropertyService {
 
     /**
      * 修改貨幣持有數量，以及新增或刪除持有貨幣
-     * @param user 用戶
+     *
+     * @param user    用戶
      * @param request 請求 PropertyDto 物件
      */
     @Transactional(rollbackOn = Exception.class)
@@ -285,7 +311,6 @@ public class PropertyService {
             logger.debug("持有貨幣: " + property.getAsset());
             currency = (Currency) property.getAsset();
         }
-
 
 
         switch (request.formatOperationTypeEnum()) {
@@ -322,7 +347,7 @@ public class PropertyService {
                 propertyRepository.save(propertyToAdd);
                 subscribeMethod.subscribeProperty(propertyToAdd, user);
                 recordTransaction(user, propertyToAdd, request.formatOperationTypeEnum());
-                netFlow  = propertyInfluxService.calculateNetFlow(quantity, currency);
+                netFlow = propertyInfluxService.calculateNetFlow(quantity, currency);
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                 logger.debug("新增成功");
 
@@ -347,7 +372,7 @@ public class PropertyService {
                     throw new RuntimeException("無法刪除其他人的持有貨幣");
                 }
 
-                netFlow  = propertyInfluxService.calculateNetFlow(property.getQuantity(), currency);
+                netFlow = propertyInfluxService.calculateNetFlow(property.getQuantity(), currency);
                 propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
 
                 recordTransaction(user, property, request.formatOperationTypeEnum());
@@ -391,7 +416,7 @@ public class PropertyService {
                 }
 
 
-                netFlow  = propertyInfluxService.calculateNetFlow(quantity, currency);
+                netFlow = propertyInfluxService.calculateNetFlow(quantity, currency);
                 if (quantity.subtract(property.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
                     propertyInfluxService.writeNetFlowToInflux(netFlow, user);
                     logger.debug("netFlow: " + netFlow);
@@ -416,7 +441,8 @@ public class PropertyService {
 
     /**
      * 修改加密貨幣持有數量，以及新增或刪除持有加密貨幣以及處理相關訂閱和事件
-     * @param user 用戶
+     *
+     * @param user    用戶
      * @param request 請求 PropertyDto 物件
      */
     @Transactional(rollbackOn = Exception.class)
@@ -575,8 +601,9 @@ public class PropertyService {
 
     /**
      * 當用戶資產變動時伺服器自動記錄交易
-     * @param user 用戶
-     * @param property 持有資產
+     *
+     * @param user          用戶
+     * @param property      持有資產
      * @param operationType 操作類型
      */
     @Async
@@ -627,8 +654,10 @@ public class PropertyService {
      * 取得用戶所有持有資產
      * 分成2個部分，一個是用戶持有的資產查詢以及相同類型資產合併
      * 另一個是將合併後的資產依照需求轉換貨幣價格
-     * @param user 用戶
+     *
+     * @param user                           用戶
      * @param isFormattedToPreferredCurrency 是否格式化為用戶偏好貨幣
+     *
      * @return 用戶所有持有資產
      */
     public List<PropertyListDto.getAllPropertiesDto> getUserAllProperties(User user, boolean isFormattedToPreferredCurrency) {
@@ -678,7 +707,9 @@ public class PropertyService {
 
     /**
      * 取得用戶所有持有資產並轉換為 InfluxDB 格式
+     *
      * @param getUserAllProperties 用戶所有持有資產
+     *
      * @return InfluxDB 格式的持有資產
      */
     public List<PropertyListDto.writeToInfluxPropertyDto> convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(List<PropertyListDto.getAllPropertiesDto> getUserAllProperties) {
@@ -697,7 +728,9 @@ public class PropertyService {
 
     /**
      * 將用戶資產轉換為 JSON 格式
+     *
      * @param getAllPropertiesDto 用戶所有持有資產
+     *
      * @return JSON 格式的持有資產
      */
     public String writeAllPropertiesToJson(List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDto) {
@@ -718,8 +751,9 @@ public class PropertyService {
 
     /**
      * 將用戶資產寫入 InfluxDB
+     *
      * @param writeToInfluxPropertyDto InfluxDB 格式的持有資產
-     * @param user 用戶
+     * @param user                     用戶
      */
     public void writeAllPropertiesToInflux(List<PropertyListDto.writeToInfluxPropertyDto> writeToInfluxPropertyDto, User user) {
         try {
@@ -782,26 +816,48 @@ public class PropertyService {
 
 
     /**
-     * 獲取用戶資產總和
+     * 獲取用戶資產總以及本周Roi歷史紀錄
+     *
      * @param user 用戶
+     *
      * @return 用戶資產總和
+     *
      * @throws RuntimeException 當取得資產總和失敗時拋出
      */
-    public String getPropertySummary(User user) {
-        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryByUser(propertySummaryBucket,
+    public String getPropertyOverview(User user) {
+        Map<String, Map<String, List<String>>> queryFilter = new HashMap<>();
+        Map<String, List<String>> filter = new HashMap<>();
+        filter.put("_field", List.of("day"));
+        queryFilter.put("and", filter);
+        Map<String, List<FluxTable>> weekRoi = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                 "roi",
+                                                                                 queryFilter,
+                                                                                 user,
+                                                                                 "7d",
+                                                                                 false,
+                                                                                 false,
+                                                                                 false,
+                                                                                 false);
+
+
+        Map<String, List<FluxTable>> userSummary = propertyInfluxService.queryInflux(propertySummaryBucket,
                                                                                      "summary_property",
+                                                                                     null,
                                                                                      user,
                                                                                      "7d",
+                                                                                     false,
+                                                                                     false,
+                                                                                     false,
                                                                                      false);
-        logger.debug("取得 InfluxDB 的資料: " + userSummary);
-        Map<String, List<Map<String, Object>>> formatToChartData = chartMethod.formatToChartData(userSummary, user.getPreferredCurrency());
 
+
+        List<Map<String, Object>> formatDailyRoiToChartData = chartMethod.formatDailyRoiToChartData(weekRoi);
+        Map<String, List<Map<String, Object>>> result = chartMethod.formatSummaryToChartData(userSummary, user.getPreferredCurrency());
+        result.put("daily_roi", formatDailyRoiToChartData);
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.registerModule(new JavaTimeModule());
-            String json = mapper.writeValueAsString(formatToChartData);
-            logger.debug("轉換成 JSON 的資料: " + json);
-            return json;
+            return mapper.writeValueAsString(result);
         } catch (JsonProcessingException e) {
             logger.error("轉換 JSON 時發生錯誤", e);
             throw new RuntimeException("轉換 JSON 時發生錯誤", e);
@@ -813,7 +869,9 @@ public class PropertyService {
      * 分成兩個部分:
      * 1.獲取個時間點的總財產、淨流量
      * 2.搓合時間點相近的數據，計算報酬率分成日報酬率、週報酬率、月報酬率、年報酬率
+     *
      * @param user 用戶
+     *
      * @return 計算處理後的報酬率列表
      */
     public List<String> prepareRoiDataAndCalculate(User user) {
@@ -916,7 +974,7 @@ public class PropertyService {
                     BigDecimal cashFlowDecrease = (todayDto.getNetCashFlow().subtract(historyDto.getNetCashFlow()));
                     if (historyDto.getTotalSum().compareTo(BigDecimal.ZERO) != 0) {
                         BigDecimal roi = (summaryIncrease.subtract(cashFlowDecrease)).divide(historyDto.getTotalSum(),
-                                                                                             4,
+                                                                                             6,
                                                                                              RoundingMode.HALF_UP)
                                                                                      .multiply(BigDecimal.valueOf(100));
                         logger.debug("Roi: {}%", roi);
@@ -941,17 +999,32 @@ public class PropertyService {
 
     /**
      * 取得用戶資產總覽
+     *
      * @param user 用戶
+     *
      * @return 用戶資產總覽
+     *
      * @throws JsonProcessingException 當轉換 JSON 失敗時拋出
      */
     public String getUserPropertyOverview(User user) throws JsonProcessingException {
-        Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryByUser(propertySummaryBucket, "roi", user, "12h", true);
-        Map<String, List<FluxTable>> cashFlowDataTable = propertyInfluxService.queryByUser(propertySummaryBucket,
+        Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                      "roi",
+                                                                                      null,
+                                                                                      user,
+                                                                                      "12h",
+                                                                                      true,
+                                                                                      false,
+                                                                                      false,
+                                                                                      false);
+        Map<String, List<FluxTable>> cashFlowDataTable = propertyInfluxService.queryInflux(propertySummaryBucket,
                                                                                            "net_cash_flow",
+                                                                                           null,
                                                                                            user,
                                                                                            "12h",
-                                                                                           true);
+                                                                                           true,
+                                                                                           false,
+                                                                                           false,
+                                                                                           false);
         logger.debug("取得 InfluxDB 的 ROI 資料: " + roiDataTable);
         logger.debug("取得 InfluxDB 的淨流量資料: " + cashFlowDataTable);
 
@@ -967,12 +1040,13 @@ public class PropertyService {
                 propertyOverviewResult.put(key, "數據不足");
             }
         } else {
-            roiDataTable.get("roi").getFirst().getRecords().forEach(record -> {
+            for (FluxTable table : roiDataTable.get("roi")) {
+                FluxRecord record = table.getRecords().getFirst();
                 logger.debug("取得 ROI 資料: " + record.getValues());
                 String field = record.getField();
                 String value = Optional.ofNullable(record.getValueByKey("_value")).map(Object::toString).orElse("數據不足");
                 propertyOverviewResult.put(field, value);
-            });
+            }
         }
 
 
@@ -985,11 +1059,10 @@ public class PropertyService {
             String dayNetCashFlow = Optional.ofNullable(record.getValueByKey("_value")).map(value -> {
                 BigDecimal bigDecimalValue = new BigDecimal(value.toString());
                 BigDecimal formatValue = bigDecimalValue.multiply(user.getPreferredCurrency().getExchangeRate());
-                return formatValue.setScale(3, RoundingMode.HALF_UP).toString();
+                return formatValue.setScale(6, RoundingMode.HALF_UP).toString();
             }).orElse("數據不足");
             propertyOverviewResult.put("cash_flow", dayNetCashFlow);
         }
-
 
         logger.debug("ROI 結果: " + propertyOverviewResult);
         ObjectMapper mapper = new ObjectMapper();
@@ -998,7 +1071,9 @@ public class PropertyService {
 
     /**
      * 將用戶資產總覽轉換為 JSON 格式
+     *
      * @param roiResult 用戶資產回報率列表
+     *
      * @return JSON 格式的用戶資產總覽
      */
     public ObjectNode formatToObjectNode(List<String> roiResult) {
@@ -1020,9 +1095,11 @@ public class PropertyService {
 
     /**
      * 尋找資料點之間最接近的時間
-     * @param times 時間點
-     * @param targetTime 目標時間
+     *
+     * @param times         時間點
+     * @param targetTime    目標時間
      * @param maxDifference 最大差異
+     *
      * @return 最接近的時間
      */
     public LocalDateTime findClosestTime(Set<LocalDateTime> times, LocalDateTime targetTime, Duration maxDifference) {
@@ -1042,6 +1119,7 @@ public class PropertyService {
 
     /**
      * 重置用戶資產總覽
+     *
      * @param user 用戶
      */
     public void resetUserPropertySummary(User user) {
@@ -1049,4 +1127,289 @@ public class PropertyService {
         propertyInfluxService.setZeroSummaryByUser(user);
     }
 
+
+    /**
+     * 計算用戶資產報酬率平均值和浮動值
+     *
+     * @param user 用戶
+     *
+     * @return
+     */
+    public Map<String, BigDecimal> roiStatisticCalculation(User user) {
+        BigDecimal average = BigDecimal.ZERO;
+        BigDecimal sigma = BigDecimal.ZERO;
+        Map<String, BigDecimal> result = new HashMap<>();
+
+        Map<String, Map<String, List<String>>> queryFilter = new HashMap<>();
+        Map<String, List<String>> filter = new HashMap<>();
+        filter.put("_field", List.of("day"));
+        queryFilter.put("and", filter);
+        Map<String, List<FluxTable>> roiDataTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                      "roi",
+                                                                                      queryFilter,
+                                                                                      user,
+                                                                                      "365d",
+                                                                                      false,
+                                                                                      false,
+                                                                                      false,
+                                                                                      false);
+        Map<String, List<FluxTable>> roiSumData = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                    "roi",
+                                                                                    queryFilter,
+                                                                                    user,
+                                                                                    "365d",
+                                                                                    false,
+                                                                                    false,
+                                                                                    false,
+                                                                                    true);
+        Map<String, List<FluxTable>> roiCountData = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                      "roi",
+                                                                                      queryFilter,
+                                                                                      user,
+                                                                                      "365d",
+                                                                                      false,
+                                                                                      false,
+                                                                                      true,
+                                                                                      false);
+
+        int count = Optional.ofNullable(roiCountData.get("roi").getFirst().getRecords().getFirst().getValue()).map(value -> {
+            Long stringValue = (Long) value;
+            return stringValue.intValue();
+        }).orElse(0);
+        BigDecimal sum = Optional.ofNullable(roiSumData.get("roi").getFirst().getRecords().getFirst().getValue()).map(value -> {
+            Double stringValue = (Double) value;
+            return new BigDecimal(stringValue).setScale(6, RoundingMode.HALF_UP);
+        }).orElse(BigDecimal.ZERO);
+
+        if (count != 0) {
+            average = sum.divide(BigDecimal.valueOf(count), 6, RoundingMode.HALF_UP);
+            BigDecimal totalSigmaSquare = BigDecimal.ZERO;
+            for (Map.Entry<String, List<FluxTable>> entry : roiDataTable.entrySet()) {
+                if (entry.getValue().isEmpty() || entry.getValue().getFirst().getRecords().isEmpty()) {
+                    logger.debug("取得 ROI 資料: " + null);
+                } else {
+                    for (FluxTable table : entry.getValue()) {
+                        for (FluxRecord record : table.getRecords()) {
+                            Double value = (Double) record.getValueByKey("_value");
+                            if (value == null) {
+                                logger.debug("ROI 資料為 null");
+                            } else {
+                                BigDecimal roi = BigDecimal.valueOf(value);
+                                BigDecimal difference = roi.subtract(average);
+                                totalSigmaSquare = totalSigmaSquare.add(difference.pow(2));
+                            }
+                        }
+                    }
+                }
+            }
+            BigDecimal sigmaSquare = totalSigmaSquare.divide((BigDecimal.valueOf(count).subtract(BigDecimal.valueOf(1))),
+                                                             6,
+                                                             RoundingMode.HALF_UP);
+            sigma = sigmaSquare.sqrt(new MathContext(6, RoundingMode.HALF_UP));
+        }
+
+        result.put("roiAverageRoi", average);
+        result.put("roiSigma", sigma);
+        result.put("roiCount", BigDecimal.valueOf(count));
+        return result;
+    }
+
+    public Map<String, Object> getRoiStatistic(User user) {
+        Map<String, Object> result = new HashMap<>();
+        Map<String, List<FluxTable>> roiStatisticTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                           "roi_statistics",
+                                                                                           null,
+                                                                                           user,
+                                                                                           "1d",
+                                                                                           true,
+                                                                                           false,
+                                                                                           false,
+                                                                                           false);
+
+        if (!roiStatisticTable.containsKey("roi_statistics") || roiStatisticTable.get("roi_statistics").isEmpty() || roiStatisticTable.get(
+                "roi_statistics").getFirst().getRecords().isEmpty() || roiStatisticTable.get("roi_statistics")
+                                                                                        .get(1)
+                                                                                        .getRecords()
+                                                                                        .isEmpty()) {
+            logger.debug("取得 ROI 統計資料: " + null);
+            result.put("sigma", "數據不足");
+            result.put("average", "數據不足");
+        } else {
+            for (FluxTable table : roiStatisticTable.get("roi_statistics")) {
+                FluxRecord record = table.getRecords().getFirst();
+                result.put(record.getField(), record.getValue());
+            }
+        }
+        return result;
+    }
+
+
+    public Map<String, String> calculateSharpeRatio(User user) {
+        Instant now = Instant.now();
+        Map<String, String> result = new HashMap<>(Map.of("month", "數據不足", "year", "數據不足"));
+        Map<String, Map<String, List<String>>> usBondQueryFilter = new HashMap<>();
+        Map<String, Map<String, List<String>>> userRoiQueryFilter = new HashMap<>();
+        Map<String, Map<String, List<String>>> userRoiSdQueryFilter = new HashMap<>();
+        Map<String, List<String>> usBondFilters = new HashMap<>();
+        Map<String, List<String>> userRoiFilters = new HashMap<>();
+        Map<String, List<String>> userRoiSdFilters = new HashMap<>();
+        usBondFilters.put("country", List.of(baseRateCountry));
+        usBondFilters.put("_field", List.of(monthBaseTime, yearBaseTime));
+        userRoiFilters.put("_field", List.of("month", "year"));
+        userRoiSdFilters.put("_field", List.of("sigma"));
+        usBondQueryFilter.put("or", usBondFilters);
+        userRoiQueryFilter.put("or", userRoiFilters);
+        userRoiSdQueryFilter.put("and", userRoiSdFilters);
+        Map<String, List<FluxTable>> usBondTable = propertyInfluxService.queryInflux(commonEconomyBucket,
+                                                                                     "government_bonds",
+                                                                                     usBondQueryFilter,
+                                                                                     null,
+                                                                                     "3d",
+                                                                                     true,
+                                                                                     false,
+                                                                                     false,
+                                                                                     false);
+        Map<String, List<FluxTable>> userRoiTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                      "roi",
+                                                                                      userRoiQueryFilter,
+                                                                                      user,
+                                                                                      "3d",
+                                                                                      true,
+                                                                                      false,
+                                                                                      false,
+                                                                                      false);
+        Map<String, List<FluxTable>> userRoiTimeTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                          "roi_statistics",
+                                                                                          userRoiSdQueryFilter,
+                                                                                          user,
+                                                                                          "365d",
+                                                                                          false,
+                                                                                          true,
+                                                                                          false,
+                                                                                          false);
+        Map<String, List<FluxTable>> userRoiStatisticTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                               "roi_statistics",
+                                                                                               userRoiSdQueryFilter,
+                                                                                               user,
+                                                                                               "365d",
+                                                                                               true,
+                                                                                               false,
+                                                                                               false,
+                                                                                               false);
+
+
+        if (usBondTable.get("government_bonds").isEmpty()) {
+            logger.warn("取得債券資料: null,請先更新公債資料庫");
+            return result;
+        } else if (userRoiTable.get("roi").isEmpty() || userRoiStatisticTable.get("roi_statistics").isEmpty() || userRoiTimeTable.get(
+                "roi_statistics").isEmpty()) {
+            logger.debug("取得用戶 ROI 資料: null，無法計算夏普比率");
+            return result;
+        }
+
+        Map<String, Object> usBondValue = getFluxTableValue(usBondTable.get("government_bonds"));
+        Map<String, Object> userRoiValue = getFluxTableValue(userRoiTable.get("roi"));
+        BigDecimal roiSd = BigDecimal.valueOf((Double) getFluxTableValue(userRoiStatisticTable.get("roi_statistics")).get("sigma"));
+
+        Instant userRoiStartTime = (Instant) getFluxTableValue(userRoiTimeTable.get("roi_statistics"), "_time").get("_time");
+        long days = Duration.between(userRoiStartTime, now).toDays() + 1;
+
+        BigDecimal userRoi, daysRatio, sharpRatio;
+        String key;
+        for (Map.Entry<String, Object> entry : usBondValue.entrySet()) {
+            BigDecimal timeRate = calculateFormatTimeRate(entry.getKey());
+            BigDecimal formatRate = calculateRateByYearInterestRate(BigDecimal.valueOf((Double) entry.getValue()), timeRate);
+            if (entry.getKey().contains("month") && userRoiValue.containsKey("month")) {
+                key = "month";
+                userRoi = BigDecimal.valueOf((Double) userRoiValue.get("month"));
+                daysRatio = (BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30), 6, RoundingMode.HALF_UP)).sqrt(new MathContext(6,
+                                                                                                                                    RoundingMode.HALF_UP));
+            } else if (entry.getKey().contains("year") && userRoiValue.containsKey("year")) {
+                key = "year";
+                userRoi = BigDecimal.valueOf((Double) userRoiValue.get("year"));
+                daysRatio = (BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP)).sqrt(new MathContext(6,
+                                                                                                                                     RoundingMode.HALF_UP));
+            } else {
+                continue;
+            }
+            BigDecimal formatRatio = roiSd.divide(daysRatio, 6, RoundingMode.HALF_UP);
+            sharpRatio = (userRoi.subtract(formatRate)).divide(formatRatio, 6, RoundingMode.HALF_UP);
+            result.put(key, sharpRatio.toString());
+        }
+        return result;
+    }
+
+    public Map<String, String> getSharpRatio(User user) {
+        Map<String, String> result = new HashMap<>(Map.of("month", "數據不足", "year", "數據不足"));
+        Map<String, Map<String, List<String>>> sharpRatioQueryFilter = new HashMap<>();
+        Map<String, List<String>> sharpRatioFilter = new HashMap<>();
+        sharpRatioFilter.put("_field", List.of("sharp_ratio"));
+        sharpRatioQueryFilter.put("and", sharpRatioFilter);
+        Map<String, List<FluxTable>> sharpRatioTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                         "roi_statistics",
+                                                                                         sharpRatioQueryFilter,
+                                                                                         user,
+                                                                                         "1d",
+                                                                                         true,
+                                                                                         false,
+                                                                                         false,
+                                                                                         false);
+        if (!sharpRatioTable.containsKey("sharp_ratio") || sharpRatioTable.get("sharp_ratio")
+                                                                          .isEmpty() || sharpRatioTable.get("sharp_ratio")
+                                                                                                       .getFirst()
+                                                                                                       .getRecords()
+                                                                                                       .isEmpty()) {
+            logger.debug("取得夏普比率: null");
+        } else {
+            Map<String, Object> sharp = getFluxTableValue(sharpRatioTable.get("sharp_ratio"));
+            for (Map.Entry<String, Object> entry : sharp.entrySet()) {
+                result.put(entry.getKey(), entry.getValue().toString());
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Object> getFluxTableValue(List<FluxTable> fluxTables) {
+        return getFluxTableValue(fluxTables, null);
+    }
+
+    private Map<String, Object> getFluxTableValue(List<FluxTable> fluxTables, String key) {
+        Map<String, Object> result = new HashMap<>();
+        for (FluxTable table : fluxTables) {
+            for (FluxRecord record : table.getRecords()) {
+                if (key == null) {
+                    result.put(record.getField(), record.getValue());
+                } else {
+                    result.put(key, record.getValueByKey(key));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @param yearInterestRate
+     * @param formatTimeRate
+     *
+     * @return
+     */
+    private BigDecimal calculateRateByYearInterestRate(BigDecimal yearInterestRate, BigDecimal formatTimeRate) {
+        double ratio = formatTimeRate.doubleValue();
+        BigDecimal formatRate = BigDecimal.valueOf(Math.pow(yearInterestRate.add(BigDecimal.ONE).doubleValue(), ratio));
+        return formatRate.subtract(BigDecimal.ONE);
+    }
+
+    private BigDecimal calculateFormatTimeRate(String timeRate) {
+        String[] split = timeRate.split("-");
+        BigDecimal formatTimeRate;
+        switch (split[1]) {
+            case "month" -> formatTimeRate = BigDecimal.valueOf(Integer.parseInt(split[0]) / 12);
+            case "year" -> formatTimeRate = BigDecimal.valueOf(Integer.parseInt(split[0]));
+            default -> {
+                logger.debug("不支援的時間區間");
+                throw new RuntimeException("不支援的時間區間");
+            }
+        }
+        return formatTimeRate;
+    }
 }

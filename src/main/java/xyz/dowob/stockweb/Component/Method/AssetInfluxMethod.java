@@ -2,6 +2,7 @@ package xyz.dowob.stockweb.Component.Method;
 
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
+import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
@@ -23,6 +24,7 @@ import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -48,6 +50,8 @@ public class AssetInfluxMethod {
     private final InfluxDBClient cryptoHistoryInfluxClient;
 
     private final InfluxDBClient propertySummaryInfluxClient;
+
+    private final InfluxDBClient commonEconomyInfluxClient;
 
     private final CurrencyRepository currencyRepository;
 
@@ -82,13 +86,14 @@ public class AssetInfluxMethod {
 
     @Autowired
     public AssetInfluxMethod(
-            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("commonEconomyInfluxClient") InfluxDBClient commonEconomyInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         this.stockTwInfluxClient = stockTwInfluxClient;
         this.cryptoInfluxClient = cryptoInfluxClient;
         this.currencyInfluxClient = currencyInfluxClient;
         this.stockTwHistoryInfluxClient = stockTwHistoryInfluxClient;
         this.cryptoHistoryInfluxClient = cryptoHistoryInfluxClient;
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
+        this.commonEconomyInfluxClient = commonEconomyInfluxClient;
         this.currencyRepository = currencyRepository;
         this.retryTemplate = retryTemplate;
     }
@@ -243,7 +248,7 @@ public class AssetInfluxMethod {
         try {
             retryTemplate.doWithRetry(() -> {
                 try {
-                    logger.debug("寫入InfluxDB: " + point);
+                    logger.debug("寫入InfluxDB: " + point.toLineProtocol());
                     try (WriteApi writeApi = influxClient.makeWriteApi()) {
                         writeApi.writePoint(point);
                         logger.debug("寫入InfluxDB成功");
@@ -417,9 +422,7 @@ public class AssetInfluxMethod {
                 List<FluxTable> result;
             };
             try {
-                retryTemplate.doWithRetry(() -> {
-                    ref.result = propertySummaryInfluxClient.getQueryApi().query(query, org);
-                });
+                retryTemplate.doWithRetry(() -> ref.result = propertySummaryInfluxClient.getQueryApi().query(query, org));
             } catch (RetryException e) {
                 logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
                 throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
@@ -443,5 +446,28 @@ public class AssetInfluxMethod {
         localDateTime.add(today.minusMonths(1));
         localDateTime.add(today.minusYears(1));
         return localDateTime;
+    }
+
+    public void formatGovernmentBondsToPoint(Map<String, Map<String, BigDecimal>> data) {
+        Instant now = Instant.now();
+        long utcMillis = now.toEpochMilli();
+
+        if (data == null || data.isEmpty()) {
+            logger.debug("無政府債券資料");
+            return;
+        }
+        for (Map.Entry<String, Map<String, BigDecimal>> entry : data.entrySet()) {
+            String country = entry.getKey();
+            Map<String, BigDecimal> value = entry.getValue();
+            for (Map.Entry<String, BigDecimal> valueEntry : value.entrySet()) {
+                String period = valueEntry.getKey();
+                BigDecimal interestRate = valueEntry.getValue();
+                Point point = Point.measurement("government_bonds")
+                                   .addTag("country", country)
+                                   .addField(period, interestRate.doubleValue())
+                                   .time(utcMillis, WritePrecision.MS);
+                writeToInflux(commonEconomyInfluxClient, point);
+            }
+        }
     }
 }

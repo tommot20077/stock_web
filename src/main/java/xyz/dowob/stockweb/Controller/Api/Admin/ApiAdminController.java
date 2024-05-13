@@ -507,5 +507,34 @@ public class ApiAdminController {
             return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
         }
     }
+
+    /**
+     * 更新用戶回報率相關數據資料
+     * @return ResponseEntity
+     */
+    @PostMapping("/common/updateRoiStatistics")
+    public ResponseEntity<?> updateRoiStatistics() {
+        try {
+            crontabMethod.updateUserRoiStatistic();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更新公債的利率資料
+     *
+     * @return ResponseEntity
+     */
+    @PostMapping("/common/updateGovernmentBondData")
+    public ResponseEntity<?> updateGovernmentBondData() {
+        try {
+            crontabMethod.updateGovernmentBondsData();
+            return ResponseEntity.ok().body("操作成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
+        }
+    }
 }
 

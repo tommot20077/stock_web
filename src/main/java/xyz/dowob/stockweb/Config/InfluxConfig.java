@@ -47,6 +47,9 @@ public class InfluxConfig {
     @Value("${db.influxdb.bucket.property_summary}")
     private String propertySummaryBucket;
 
+    @Value("${db.influxdb.bucket.common_economy}")
+    private String commonEconomyBucket;
+
     @Value("${db.influxdb.connect_timeout:60}")
     private int influxConnectTimeout;
 
@@ -115,6 +118,16 @@ public class InfluxConfig {
     }
 
     /**
+     * 創建InfluxDBClient, 連線至commonEconomyData
+     * @return InfluxDBClient
+     */
+    @Bean(name = "commonEconomyInfluxClient")
+    public InfluxDBClient governmentBondsInfluxClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, commonEconomyBucket);
+    }
+
+
+    /**
      * 創建InfluxDBClient, 連線至預設bucket
      *
      * @return InfluxDBClient
@@ -123,7 +136,6 @@ public class InfluxConfig {
     public InfluxDBClient influxClient() {
         return InfluxDBClientFactory.create(url, token.toCharArray(), org);
     }
-
 
     /**
      * 創建InfluxDBClient
@@ -148,5 +160,13 @@ public class InfluxConfig {
                                                              .build();
 
         return InfluxDBClientFactory.create(options);
+    }
+
+    /**
+     * 測試用bucket資料庫
+     */
+    @Bean(name = "testInfluxClient")
+    public InfluxDBClient testInfluxClient() {
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, "test_data");
     }
 }

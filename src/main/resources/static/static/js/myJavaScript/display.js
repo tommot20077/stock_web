@@ -122,7 +122,7 @@ async function displayStatisticsOverview() {
         const summaryData = await fetchUserPropertySummary();
         const propertyOverviewData = await fetchStatisticsOverview();
         const latestTotalSum = summaryData.latest.filter(dataPoint => dataPoint.field === "total_sum")[0].value;
-        const latestTotalSumFloat = parseFloat(latestTotalSum).toFixed(2);
+        const latestTotalSumFloat = parseFloat(latestTotalSum).toFixed(3);
         tableBody.innerHTML =
             `
             <div class="d-none d-md-block">
@@ -132,7 +132,7 @@ async function displayStatisticsOverview() {
             </div>
             <div class="d-none d-md-block">
                 <p class="statistics-title">資金淨流量</p>
-                <h3 class="rate-percentage">${thousands(propertyOverviewData.cash_flow)}</h3>
+                <h3 class="rate-percentage">${thousands(parseFloat(propertyOverviewData.cash_flow).toFixed(3))}</h3>
                 <p class="text-success d-flex"><i class="mdi mdi-menu-up"></i><span>0%</span></p>
             </div>
             ` +

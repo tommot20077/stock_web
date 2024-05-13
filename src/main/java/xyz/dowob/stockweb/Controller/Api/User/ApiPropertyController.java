@@ -254,7 +254,7 @@ public class ApiPropertyController {
                 return ResponseEntity.status(401).body("請先登入");
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
-            String json = propertyService.getPropertySummary(user);
+            String json = propertyService.getPropertyOverview(user);
             return ResponseEntity.ok().body(json);
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
@@ -279,6 +279,41 @@ public class ApiPropertyController {
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
             String json = propertyService.getUserPropertyOverview(user);
             return ResponseEntity.ok().body(json);
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
+        }
+    }
+
+    /**
+     * 取得用戶回報率相關狀況總覽
+     * @param session 用戶session
+     * @return ResponseEntity
+     */
+    @GetMapping("/getRoiStatistics")
+    public ResponseEntity<?> getRoiStatistics(HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user == null) {
+                return ResponseEntity.status(401).body("請先登入");
+            }
+            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            return ResponseEntity.ok().body(propertyService.getRoiStatistic(user));
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
+        }
+    }
+
+
+    //todo 測試端口
+    @GetMapping("/getSharp")
+    public ResponseEntity<?> getSharp(HttpSession session) {
+        try {
+            User user = userService.getUserFromJwtTokenOrSession(session);
+            if (user == null) {
+                return ResponseEntity.status(401).body("請先登入");
+            }
+            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            return ResponseEntity.ok().body(propertyService.getSharpRatio(user));
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }

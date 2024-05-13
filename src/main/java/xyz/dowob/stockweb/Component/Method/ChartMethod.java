@@ -29,15 +29,15 @@ public class ChartMethod {
     }
 
     /**
-     * 格式化資料為圖表資料
+     * 格式化總資產為圖表資料格式
      *
-     * @param userSummary    使用者資料
+     * @param userSummary    使用者總資產
      * @param preferCurrency 使用者偏好幣別
      *
      * @return 圖表資料 Map<String, List<Map<String, Object>>>
      * key: 圖表類型, value: 圖表資料 List<Map<String, Object>> (field, date_instant, date_Format, value)
      */
-    public Map<String, List<Map<String, Object>>> formatToChartData(Map<String, List<FluxTable>> userSummary, Currency preferCurrency) {
+    public Map<String, List<Map<String, Object>>> formatSummaryToChartData(Map<String, List<FluxTable>> userSummary, Currency preferCurrency) {
         Map<String, List<Map<String, Object>>> chartData = new HashMap<>();
         Map<String, Map<String, Object>> latestRecord = new HashMap<>();
         chartData.put("total_sum", new ArrayList<>());
@@ -62,7 +62,7 @@ public class ChartMethod {
 
                         Double value = (Double) record.getValueByKey("_value");
                         if (value != null) {
-                            BigDecimal exchangeValue = new BigDecimal(value).multiply(exchangeRate).setScale(3, RoundingMode.HALF_UP);
+                            BigDecimal exchangeValue = new BigDecimal(value).multiply(exchangeRate).setScale(6, RoundingMode.HALF_UP);
                             dataPoint.put("value", exchangeValue);
                         } else {
                             dataPoint.put("value", record.getValueByKey("_value"));
@@ -81,6 +81,23 @@ public class ChartMethod {
         });
         latestRecord.forEach((field, dataPoint) -> {
             chartData.get("latest").add(dataPoint);
+        });
+        return chartData;
+    }
+
+    public List<Map<String, Object>> formatDailyRoiToChartData(Map<String, List<FluxTable>> dailyRoiData){
+        List<Map<String, Object>> chartData = new ArrayList<>();
+        dailyRoiData.forEach((key, tables) -> {
+            tables.forEach(table -> {
+                table.getRecords().forEach(record -> {
+                    Map<String, Object> dataPoint = new HashMap<>();
+                    Instant time = (Instant) record.getValueByKey("_time");
+                    dataPoint.put("date_instant", time);
+                    dataPoint.put("date_Format", formatDate(time));
+                    dataPoint.put("value", record.getValueByKey("_value"));
+                    chartData.add(dataPoint);
+                });
+            });
         });
         return chartData;
     }

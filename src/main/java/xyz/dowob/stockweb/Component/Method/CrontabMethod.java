@@ -301,6 +301,26 @@ public class CrontabMethod {
     }
 
     /**
+     * 更新使用者的 ROI 統計
+     * 每4小時
+     */
+    @Scheduled(cron = "0 45 */4 * * ? ",
+               zone = "UTC")
+    public void updateUserRoiStatistic() {
+        logger.info("開始更新使用者的 ROI 統計");
+        List<User> users = userService.getAllUsers();
+        for (User user : users) {
+            Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
+            propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
+
+            Map<String, String> SharpeRatioResult = propertyService.calculateSharpeRatio(user);
+            propertyInfluxService.writeUserSharpRatioToInflux(SharpeRatioResult, user);
+
+        }
+        logger.debug("更新完成");
+    }
+
+    /**
      * 檢查並重新連接WebSocket
      * 每分鐘
      */
@@ -371,6 +391,15 @@ public class CrontabMethod {
             logger.error("更新資產列表緩存失敗", e);
             throw new RuntimeException("更新資產列表緩存失敗", e);
         }
+    }
+
+    /**
+     * 更新政府公債資料
+     * 每天凌晨2點
+     */
+    @Scheduled(cron = "0 0 2 * * ?")
+    public void updateGovernmentBondsData() {
+        assetService.GovernmentBondsDataFetcherAndSaveToInflux();
     }
 
     /**

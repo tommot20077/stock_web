@@ -44,6 +44,9 @@ public class InfluxInitial {
     @Value("${db.influxdb.bucket.property_summary}")
     private String propertySummaryBucket;
 
+    @Value("${db.influxdb.bucket.common_economy}")
+    private String commonEconomyBucket;
+
     private final InfluxDBClient influxClient;
 
     Logger logger = LoggerFactory.getLogger(InfluxInitial.class);
@@ -67,7 +70,8 @@ public class InfluxInitial {
                                        stockTwBucket,
                                        stockTwHistoryBucket,
                                        currencyBucket,
-                                       propertySummaryBucket);
+                                       propertySummaryBucket,
+                                       commonEconomyBucket);
 
         List<String> keys = List.of(org, url, token);
 

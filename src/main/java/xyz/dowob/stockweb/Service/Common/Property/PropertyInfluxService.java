@@ -23,9 +23,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author yuan
@@ -35,6 +33,8 @@ import java.util.Map;
 @Service
 public class PropertyInfluxService {
     private final InfluxDBClient propertySummaryInfluxClient;
+
+    private final InfluxDBClient testBucket;// todo delete
 
     private final AssetInfluxMethod assetInfluxMethod;
 
@@ -49,8 +49,9 @@ public class PropertyInfluxService {
 
     @Autowired
     public PropertyInfluxService(
-            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("testInfluxClient") InfluxDBClient testBucket, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
+        this.testBucket = testBucket;
         this.assetInfluxMethod = assetInfluxMethod;
         this.retryTemplate = retryTemplate;
     }
@@ -159,7 +160,15 @@ public class PropertyInfluxService {
      */
     public void writeNetFlowToInflux(BigDecimal newNetFlow, User user) {
 
-        Map<String, List<FluxTable>> netCashFlowTablesMap = queryByUser(propertySummaryBucket, "net_cash_flow", user, "3d", true);
+        Map<String, List<FluxTable>> netCashFlowTablesMap = queryInflux(propertySummaryBucket,
+                                                                        "net_cash_flow",
+                                                                        null,
+                                                                        user,
+                                                                        "3d",
+                                                                        true,
+                                                                        false,
+                                                                        false,
+                                                                        false);
         BigDecimal originNetCashFlow;
         if (!netCashFlowTablesMap.containsKey("net_cash_flow") || netCashFlowTablesMap.get("net_cash_flow")
                                                                                       .isEmpty() || netCashFlowTablesMap.get("net_cash_flow")
@@ -202,22 +211,33 @@ public class PropertyInfluxService {
      *
      * @param bucket         bucket
      * @param measurement    查詢表
+     * @param filter         查詢條件
      * @param user           用戶
      * @param queryTimeRange 查詢時間範圍
      * @param isLast         是否取最後一筆
+     * @param isFirst        是否取第一筆
+     * @param isCount        是否計算總數
+     * @param isSum          是否計算總和
      *
      * @return 用戶資產列表
      */
-    public Map<String, List<FluxTable>> queryByUser(String bucket, String measurement, User user, String queryTimeRange, boolean isLast) {
+    public Map<String, List<FluxTable>> queryInflux(String bucket, String measurement, Map<String, Map<String, List<String>>> filter, User user, String queryTimeRange, boolean isLast, boolean isFirst, boolean isCount, boolean isSum) {
         Map<String, List<FluxTable>> userPropertyTablesMap = new HashMap<>();
-        String summaryPredicate = createInquiryPredicateWithUserAndTimeInRange(bucket, measurement, user, queryTimeRange, isLast);
+        String summaryPredicate = createInquiryPredicate(bucket,
+                                                         measurement,
+                                                         filter,
+                                                         user,
+                                                         queryTimeRange,
+                                                         isLast,
+                                                         isFirst,
+                                                         isCount,
+                                                         isSum);
         var ref = new Object() {
             List<FluxTable> userPropertyTables;
         };
         try {
-            retryTemplate.doWithRetry(() -> {
-                ref.userPropertyTables = propertySummaryInfluxClient.getQueryApi().query(summaryPredicate, org);
-            });
+            retryTemplate.doWithRetry(() -> ref.userPropertyTables = propertySummaryInfluxClient.getQueryApi()
+                                                                                                .query(summaryPredicate, org));
         } catch (RetryException e) {
             logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
@@ -232,23 +252,56 @@ public class PropertyInfluxService {
      *
      * @param propertySummaryBucket bucket
      * @param measurement           查詢表
+     * @param filter                查詢過濾條件
      * @param user                  用戶
      * @param dateRange             查詢時間範圍
      * @param isLast                是否取最後一筆
+     * @param isFirst               是否取第一筆
+     * @param isCount               是否計算總數
+     * @param isSum                 是否計算總和
      *
      * @return 查詢條件
      */
-    private String createInquiryPredicateWithUserAndTimeInRange(String propertySummaryBucket, String measurement, User user, String dateRange, boolean isLast) {
-        String baseQuery = String.format("from(bucket: \"%s\")" + " |> range(start: -%s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"user_id\"] == \"%s\")",
-                                         propertySummaryBucket,
-                                         dateRange,
-                                         measurement,
-                                         user.getId());
+    private String createInquiryPredicate(String propertySummaryBucket, String measurement, Map<String, Map<String, List<String>>> filter, User user, String dateRange, boolean isLast, boolean isFirst, boolean isCount, boolean isSum) {
+        StringBuilder baseQuery = new StringBuilder(String.format("from(bucket: \"%s\")" + " |> range(start: -%s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")",
+                                                                  propertySummaryBucket,
+                                                                  dateRange,
+                                                                  measurement));
         if (isLast) {
-            baseQuery += " |> last()";
+            baseQuery.append(" |> last()");
+        } else if (isFirst) {
+            baseQuery.append(" |> first()");
+        } else if (isCount) {
+            baseQuery.append(" |> count()");
+        } else if (isSum) {
+            baseQuery.append(" |> sum(column: \"_value\")");
         }
+
+        if (user != null) {
+            baseQuery.append(String.format(" |> filter(fn: (r) => r[\"user_id\"] == \"%s\")", user.getId()));
+        }
+
+        if (filter != null) {
+            int filterSize = filter.size();
+            for (Map.Entry<String, Map<String, List<String>>> entry : filter.entrySet()) {
+                String logic = "or".equals(entry.getKey()) ? " or " : " and ";
+                for (Map.Entry<String, List<String>> subEntry : entry.getValue().entrySet()) {
+                    StringBuilder subFilter = new StringBuilder();
+                    for (int i = 0; i < subEntry.getValue().size(); i++) {
+                        if (!subFilter.isEmpty()) {
+                            subFilter.append(logic);
+                        }
+                        subFilter.append(String.format("r[\"%s\"] == \"%s\"", subEntry.getKey(), subEntry.getValue().get(i)));
+                    }
+                    if (filterSize == 1) {
+                        baseQuery.append(" |> filter(fn: (r) => ").append(subFilter).append(")");
+                    }
+                }
+            }
+        }
+
         logger.debug("baseQuery: " + baseQuery);
-        return baseQuery;
+        return baseQuery.toString();
     }
 
 
@@ -271,6 +324,29 @@ public class PropertyInfluxService {
                               .time(time, WritePrecision.MS);
 
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, roiPoint);
+
+    }
+
+    public void writeUserRoiStatisticsToInflux(Map<String, BigDecimal> dataMap, User user) {
+        Point roiStatisticsPoint = Point.measurement("roi_statistics")
+                                        .addTag("user_id", user.getId().toString())
+                                        .addField("average", dataMap.get("roiAverageRoi").doubleValue())
+                                        .addField("sigma", dataMap.get("roiSigma").doubleValue())
+                                        .time(Instant.now().toEpochMilli(), WritePrecision.MS);
+        assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, roiStatisticsPoint);
+    }
+
+    public void writeUserSharpRatioToInflux(Map<String, String> dataMap, User user) {
+        for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+            Double sharpRatio = "數據不足".equals(entry.getValue()) ? null : Double.parseDouble(entry.getValue());
+            logger.debug("key: " + entry.getKey() + " value: " + entry.getValue());
+            Point sharpRatioPoint = Point.measurement("roi_statistics")
+                                         .addTag("user_id", user.getId().toString())
+                                         .addTag(entry.getKey(), entry.getKey())
+                                         .addField("sharp_ratio", sharpRatio)
+                                         .time(Instant.now().toEpochMilli(), WritePrecision.MS);
+            assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, sharpRatioPoint);
+        }
 
     }
 
@@ -323,4 +399,5 @@ public class PropertyInfluxService {
         logger.debug("建立InfluxDB netFlowPoint");
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, netFlowPoint);
     }
+
 }

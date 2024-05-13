@@ -25,8 +25,7 @@ function generatePriceLabels(maxValue) {
     return step
 }
 
-function fillData(datasets, labels, summaryData, numPerDay) {
-    const dataGroups = [summaryData.total_sum, summaryData.currency_sum, summaryData.crypto_sum, summaryData.stock_tw_sum];
+function fillData(datasets, labels, summaryData, numPerDay, dataGroups) {
     let maxValue = 0;
 
     datasets.forEach((set, index) => {
@@ -55,10 +54,10 @@ function fillData(datasets, labels, summaryData, numPerDay) {
     return maxValue;
 }
 
-async function userPropertySummaryLineChart() {
+async function userLineChart() {
     try {
         const summaryData = await fetchUserPropertySummary();
-        const datasets = [
+        const summaryDatasets = [
             {
                 label: '總資產',
                 data: summaryData.total_sum.map(dataPoint => dataPoint.value),
@@ -92,67 +91,33 @@ async function userPropertySummaryLineChart() {
                 spanGaps: true
             }
         ];
-        let labelDays = 7;
-        let numPerDay = 4;
-        const labels = generateTimeLabels(labelDays, numPerDay);
-        const maxValue = fillData(datasets, labels, summaryData, numPerDay);
-        const ctx = document.getElementById('userPropertySummaryLineChart');
-        if (ctx && ctx.getContext('2d')) {
 
-            const config = {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
+        let roiDatasets = [
+            {
+                label: 'ROI',
+                data: summaryData.daily_roi.map(dataPoint => dataPoint.value),
+                fill: false,
+                borderColor: 'rgb(154,51,233)',
+                tension: 0.1,
+                spanGaps: true
+            }
+        ];
+        let summaryDataGroups = [summaryData.total_sum, summaryData.currency_sum, summaryData.crypto_sum, summaryData.stock_tw_sum];
+        let roiDataGroups = [summaryData.daily_roi];
 
-                options: {
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                            },
-                            ticks: {
-                                callback: function (value, index, values) {
-                                    try {
-                                        const timestamp = Number(value);
-                                        return dateFns.format(new Date(timestamp), "yyyy-MM-dd");
-                                    } catch (e) {
-                                        console.error('日期解析錯誤:', e);
-                                        return "";
-                                    }
-                                }
-                            },
-                            display: true,
-                            title: {
-                                display: true,
-                                text: '日期'
-                            }
-                        },
-                        y: {
-                            display: true,
-                            title: {
-                                display: true,
-                                text: '金額'
-                            },
-                            ticks: {
-                                stepSize: generatePriceLabels(maxValue),
-                            },
-                            beginAtZero: true
-                        }
-                    },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
-                        }
-                    }
-                }
-            };
-            new Chart(ctx, config);
+        const summaryLabels = generateTimeLabels(7, 4);
+        const roiLabels = generateTimeLabels(7, 6);
+        const summaryMaxValue = fillData(summaryDatasets, summaryLabels, summaryData, 4, summaryDataGroups);
+        const roiMaxValue = fillData(roiDatasets, roiLabels, summaryData, 6, roiDataGroups);
+        const summaryLineChart = document.getElementById('userPropertySummaryLineChart');
+        const roiLineChart = document.getElementById('userROILineChart');
+
+        if (summaryLineChart && summaryLineChart.getContext('2d') && roiLineChart && roiLineChart.getContext('2d')) {
+            const summaryConfig= getLineConfig(summaryDatasets, summaryLabels, '金額', summaryMaxValue);
+            const roiConfig= getLineConfig(roiDatasets, roiLabels, '百分比', roiMaxValue);
+
+            new Chart(summaryLineChart, summaryConfig);
+            new Chart(roiLineChart, roiConfig);
         }
     } catch (error) {
         console.error("在生成圖表時出現錯誤", error);
@@ -186,3 +151,59 @@ async function userPropertySummaryPieChart() {
     }
 }
 
+function getLineConfig(datasets, labels, yLabel, maxValue){
+    return {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+
+        options: {
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                    },
+                    ticks: {
+                        callback: function (value, index, values) {
+                            try {
+                                const timestamp = Number(value);
+                                return dateFns.format(new Date(timestamp), "yyyy-MM-dd");
+                            } catch (e) {
+                                console.error('日期解析錯誤:', e);
+                                return "";
+                            }
+                        }
+                    },
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '日期'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: yLabel
+                    },
+                    ticks: {
+                        stepSize: generatePriceLabels(maxValue),
+                    },
+                    beginAtZero: true
+                }
+            },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    }
+
+}

@@ -7,13 +7,22 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
@@ -35,6 +44,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author yuan
@@ -493,6 +504,76 @@ public class AssetService {
             default -> throw new RuntimeException("找不到資產類型: " + category);
         };
 
+    }
+
+    /**
+     * 獲取政府債券數據並存儲到InfluxDB中。
+     */
+    public void GovernmentBondsDataFetcherAndSaveToInflux() {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("User-Agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36");
+        HttpEntity<String> entity = new HttpEntity<>("parameters", headers);
+        String url = "https://hk.investing.com/rates-bonds/world-government-bonds";
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+        String result = response.getBody();
+
+
+        Map<String, Map<String, BigDecimal>> governmentBondsMap = new HashMap<>();
+        if (result != null) {
+            Document document = Jsoup.parse(result);
+            Elements tables = document.select("#leftColumn table");
+
+            for (Element table : tables) {
+                StringBuilder countryName = null;
+                Map<String, BigDecimal> bondMap = new HashMap<>();
+                Elements rows = table.select("tbody>tr");
+                String period = "";
+
+                for (Element row : rows) {
+                    Element nameElement = row.select("td.plusIconTd a").first();
+                    if (nameElement == null) {
+                        continue;
+                    }
+                    String href = nameElement.attr("href");
+                    String[] parts = href.split("/");
+                    String[] lastPartSplit = parts[parts.length - 1].replace("-bond-yield", "").split("-");
+                    Pattern pattern = Pattern.compile("\\d+");
+                    Matcher matcher;
+
+
+                    for (int i = lastPartSplit.length - 1; i >= 0; i--) {
+                        matcher = pattern.matcher(lastPartSplit[i]);
+                        if (matcher.find()) {
+                            period = lastPartSplit[i] + (i + 1 < lastPartSplit.length ? "-" + lastPartSplit[i + 1] : "");
+                            period = period.replace("years", "year");
+                            period = period.replace("months", "month");
+                            period = period.replace("weeks", "week");
+                            if (countryName == null) {
+                                countryName = new StringBuilder();
+                                countryName.append(String.join("-", Arrays.copyOfRange(lastPartSplit, 0, i)));
+                            }
+                            break;
+                        }
+                    }
+                    if (Objects.equals(lastPartSplit[lastPartSplit.length - 1], "overnight")) {
+                        period = "overnight";
+                    }
+                    String yield = row.select("td").get(2).text();
+                    if (countryName != null) {
+                        bondMap.put(period, new BigDecimal(yield));
+                        logger.debug("政府債券數據: " + countryName + " " + period + " " + yield);
+                    }
+                }
+                if (countryName != null) {
+                    governmentBondsMap.put(countryName.toString().replace(".", ""), bondMap);
+                } else {
+                    logger.error("政府債券數據解析錯誤: " + table);
+                }
+            }
+        }
+        assetInfluxMethod.formatGovernmentBondsToPoint(governmentBondsMap);
     }
 }
 
