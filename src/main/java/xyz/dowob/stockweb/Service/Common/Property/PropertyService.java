@@ -1366,6 +1366,129 @@ public class PropertyService {
                 result.put(entry.getKey(), entry.getValue().toString());
             }
         }
+        result.put("base_country", baseRateCountry);
+        return result;
+    }
+
+    public Map<String, Map<String, List<BigDecimal>>> calculateUserDrawDown(User user) {
+        Map<String, Map<String, List<BigDecimal>>> result = new HashMap<>();
+        List<Map<String, String>> queryTime = List.of(Map.of("week", "7d"), Map.of("month", "30d"), Map.of("year", "365d"));
+        for (Map<String, String> timeMap : queryTime) {
+            Map<String, List<BigDecimal>> currentTimeMap = new HashMap<>(Map.of("crypto",
+                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
+                                                                   "stock_tw",
+                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
+                                                                   "currency",
+                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
+                                                                   "total",
+                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO)));
+
+            Map<String, List<FluxTable>> drawDownTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                           "summary_property",
+                                                                                           null,
+                                                                                           user,
+                                                                                           timeMap.get(timeMap.keySet().iterator().next()),
+                                                                                           false,
+                                                                                           false,
+                                                                                           false,
+                                                                                           false);
+
+            BigDecimal maxDrawDown = BigDecimal.ZERO;
+            BigDecimal peak = BigDecimal.ZERO;
+            String type = "";
+            for (FluxTable table : drawDownTable.get("summary_property")) {
+                if (table.getRecords().isEmpty()) {
+                    continue;
+                }
+                for (FluxRecord record : table.getRecords()) {
+                    Double value = (Double) record.getValueByKey("_value");
+                    if (value != null) {
+                        BigDecimal propertySum = BigDecimal.valueOf(value);
+                        if (propertySum.compareTo(peak) > 0) {
+                            peak = propertySum;
+                        }
+                        if (peak.compareTo(BigDecimal.ZERO) != 0) {
+                            BigDecimal drawDown = peak.subtract(propertySum).divide(peak, 6, RoundingMode.HALF_UP);
+                            if (drawDown.compareTo(maxDrawDown) > 0) {
+                                maxDrawDown = drawDown;
+                            }
+                        }
+                    }
+                    type = Objects.requireNonNull(record.getField()).replace("_sum", "");
+                }
+                currentTimeMap.put(type.replace("_sum", ""), List.of(peak, maxDrawDown));
+            }
+            result.put(timeMap.keySet().iterator().next(), currentTimeMap);
+        }
+        return result;
+    }
+
+    private Map<String, Map<String, Map<String, Object>>> initializeDrawDownData() {
+        Map<String, Map<String, Map<String, Object>>> dataMap = new HashMap<>();
+
+        String[] periods = {"week", "month", "year"};
+        String[] types = {"total", "stock_tw", "currency", "crypto"};
+
+        for (String period : periods) {
+            Map<String, Map<String, Object>> typeMap = new HashMap<>();
+            for (String type : types) {
+                Map<String, Object> valueMap = new HashMap<>();
+
+                valueMap.put("rate", "數據不足");
+                valueMap.put("value", "數據不足");
+                typeMap.put(type, valueMap);
+            }
+            dataMap.put(period, typeMap);
+        }
+        return dataMap;
+    }
+
+    public Map<String, Map<String, Map<String, Object>>> getDrawDown(User user) {
+        Map<String, Map<String, Map<String, Object>>> result = initializeDrawDownData();
+
+        Map<String, Map<String, List<String>>> queryFilter = new HashMap<>();
+        Map<String, List<String>> filter = new HashMap<>();
+        filter.put("_field", List.of("max_draw_down_rate", "max_draw_down_value"));
+        queryFilter.put("or", filter);
+
+        Map<String, List<FluxTable>> drawDownTable = propertyInfluxService.queryInflux(propertySummaryBucket,
+                                                                                       "roi_statistics",
+                                                                                       queryFilter,
+                                                                                       user,
+                                                                                       "1d",
+                                                                                       true,
+                                                                                       false,
+                                                                                       false,
+                                                                                       false);
+        if (!drawDownTable.containsKey("roi_statistics") || drawDownTable.get("roi_statistics").isEmpty() || drawDownTable.get("roi_statistics")
+                                                                                                                .getFirst()
+                                                                                                                .getRecords()
+                                                                                                                .isEmpty()) {
+            logger.debug("取得 Draw Down 資料: null");
+        } else {
+            List<FluxTable> tables = drawDownTable.get("roi_statistics");
+            for (FluxTable table : tables) {
+                for (FluxRecord record : table.getRecords()) {
+                    String timeRange = (String) record.getValueByKey("time_range");
+                    String type = (String) record.getValueByKey("type");
+                    String field = record.getField();
+                    Object value = "數據不足";
+                    if (record.getValueByKey("_value") != null) {
+                        Double doubleValue = (Double) record.getValueByKey("_value");
+                        value = doubleValue != null ? BigDecimal.valueOf(doubleValue) : "數據不足";
+                    }
+
+                    Map<String, Map<String, Object>> typeMap = result.computeIfAbsent(timeRange, t -> new HashMap<>());
+                    Map<String, Object> valueMap = typeMap.computeIfAbsent(type, t -> new HashMap<>());
+                    if ("max_draw_down_value".equals(field)) {
+                        valueMap.put("value", value);
+                    } else if ("max_draw_down_rate".equals(field)) {
+                        valueMap.put("rate", value);
+                    }
+                    typeMap.put(type, valueMap);
+                }
+            }
+        }
         return result;
     }
 

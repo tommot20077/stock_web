@@ -34,7 +34,7 @@ import java.util.*;
 public class PropertyInfluxService {
     private final InfluxDBClient propertySummaryInfluxClient;
 
-    private final InfluxDBClient testBucket;// todo delete
+    private final InfluxDBClient testInfluxClient;// todo delete
 
     private final AssetInfluxMethod assetInfluxMethod;
 
@@ -49,9 +49,9 @@ public class PropertyInfluxService {
 
     @Autowired
     public PropertyInfluxService(
-            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("testInfluxClient") InfluxDBClient testBucket, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("testInfluxClient") InfluxDBClient testInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
-        this.testBucket = testBucket;
+        this.testInfluxClient = testInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
         this.retryTemplate = retryTemplate;
     }
@@ -347,7 +347,24 @@ public class PropertyInfluxService {
                                          .time(Instant.now().toEpochMilli(), WritePrecision.MS);
             assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, sharpRatioPoint);
         }
+    }
 
+    public void writeUserDrawDownToInflux(Map<String, Map<String, List<BigDecimal>>> dataMap, User user) {
+        List<String> key = List.of("week", "month", "year");
+        Long time = Instant.now().toEpochMilli();
+        for (String k : key) {
+            Map<String, List<BigDecimal>> drawDownMap = dataMap.get(k);
+            for (Map.Entry<String, List<BigDecimal>> entry : drawDownMap.entrySet()) {
+                Point drawDownPoint = Point.measurement("roi_statistics")
+                                           .addTag("user_id", user.getId().toString())
+                                           .addTag("time_range", k)
+                                           .addTag("type", entry.getKey())
+                                           .addField("max_draw_down_value", entry.getValue().getFirst().doubleValue())
+                                           .addField("max_draw_down_rate", entry.getValue().get(1).doubleValue())
+                                           .time(time, WritePrecision.MS);
+                assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, drawDownPoint);
+            }
+        }
     }
 
     /**

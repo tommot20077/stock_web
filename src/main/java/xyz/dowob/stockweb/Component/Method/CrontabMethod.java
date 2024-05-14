@@ -313,8 +313,12 @@ public class CrontabMethod {
             Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
             propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
 
-            Map<String, String> SharpeRatioResult = propertyService.calculateSharpeRatio(user);
-            propertyInfluxService.writeUserSharpRatioToInflux(SharpeRatioResult, user);
+            Map<String, String> sharpeRatioResult = propertyService.calculateSharpeRatio(user);
+            propertyInfluxService.writeUserSharpRatioToInflux(sharpeRatioResult, user);
+
+            Map<String, Map<String, List<BigDecimal>>> drawDownResult = propertyService.calculateUserDrawDown(user);
+            propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
+
 
         }
         logger.debug("更新完成");
