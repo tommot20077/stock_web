@@ -113,6 +113,7 @@ public class CryptoService {
      */
     @PostConstruct
     public void init() {
+        logger.info("啟動自動連線WebSocket: " + enableAutoStart);
         if (enableAutoStart) {
             openConnection();
         }

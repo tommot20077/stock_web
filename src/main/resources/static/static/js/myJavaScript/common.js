@@ -52,6 +52,26 @@ function generateAssetListTable(asset) {
     return row;
 }
 
+function generateRoiStatisticListTable(count, name, value) {
+    let row = document.createElement("tr");
+    row.innerHTML =
+        `
+            <td>${count}</td>
+            <td>${name}</td>
+            <td>${value}</td>
+        `;
+    count++;
+    return row;
+
+}
+
+function formatValue(value) {
+    if (typeof value === "number") {
+        return parseFloat(value).toFixed(3);
+    } else {
+        return value;
+    }
+}
 function getAssetParamFromUrl() {
     const pathArray = window.location.pathname.split('/');
     return pathArray[pathArray.length - 1];

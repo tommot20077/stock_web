@@ -146,6 +146,35 @@ async function displayStatisticsOverview() {
     }
 }
 
+async function displayRoiStatistics() {
+    let tableBody = document.getElementById('roiStatisticTableBody');
+    let data = await fetchRoiStatistics();
+    let count = 1;
+    if (data) {
+        tableBody.innerHTML = "";
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "收益波動率", formatValue(data.sigma)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "平均收益率", formatValue(data.average)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "計算基準國家", formatValue(data.sharp_ratio.base_country)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "本月夏普比率", formatValue(data.sharp_ratio.month)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "本年夏普比率", formatValue(data.sharp_ratio.year)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本周最大回撤", formatValue(data.draw_down.week.total.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本月最大回撤", formatValue(data.draw_down.month.total.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本年最大回撤", formatValue(data.draw_down.year.total.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本周最大回撤", formatValue(data.draw_down.week.crypto.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本月最大回撤", formatValue(data.draw_down.month.crypto.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本年最大回撤", formatValue(data.draw_down.year.crypto.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本周最大回撤", formatValue(data.draw_down.week.currency.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本月最大回撤", formatValue(data.draw_down.month.currency.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本年最大回撤", formatValue(data.draw_down.year.currency.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本周最大回撤", formatValue(data.draw_down.week.stock_tw.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本月最大回撤", formatValue(data.draw_down.month.stock_tw.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本年最大回撤", formatValue(data.draw_down.year.stock_tw.rate)));
+
+    } else {
+        console.log("資料格式錯誤");
+    }
+}
+
 async function displayNewsTable(pageNumber, category, asset) {
     let tableBody = document.getElementById("newsTableBody");
     let newsData = await fetchIndexNewsData(pageNumber, category, asset);

@@ -763,6 +763,24 @@ async function fetchStatisticsOverview() {
     }
 }
 
+async function fetchRoiStatistics() {
+    try {
+        const response = await fetch("/api/user/property/getRoiStatistics", {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error("無法獲取ROI統計資訊：" + errorText);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 async function fetchIndexNewsData(pageNumber, category, asset) {
     let queryParams = new URLSearchParams({
         asset: asset,

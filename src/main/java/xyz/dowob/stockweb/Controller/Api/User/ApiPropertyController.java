@@ -15,6 +15,7 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -297,23 +298,12 @@ public class ApiPropertyController {
                 return ResponseEntity.status(401).body("請先登入");
             }
             logger.debug("獲取: " + user.getUsername() + " 的使用者");
-            return ResponseEntity.ok().body(propertyService.getRoiStatistic(user));
-        } catch (Exception ex) {
-            return ResponseEntity.status(500).body(ex.getMessage());
-        }
-    }
-
-
-    //todo 測試端口
-    @GetMapping("/getSharp")
-    public ResponseEntity<?> getSharp(HttpSession session) {
-        try {
-            User user = userService.getUserFromJwtTokenOrSession(session);
-            if (user == null) {
-                return ResponseEntity.status(401).body("請先登入");
-            }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
-            return ResponseEntity.ok().body(propertyService.getSharpRatio(user));
+            Map<String, Object> result = propertyService.getRoiStatistic(user);
+            Map<String, Map<String, String>> sharpRatio = Map.of("sharp_ratio", propertyService.getSharpRatio(user));
+            Map<String, Map<String, Map<String, Map<String, Object>>>> drawDown = Map.of("draw_down", propertyService.getDrawDown(user));
+            result.putAll(sharpRatio);
+            result.putAll(drawDown);
+            return ResponseEntity.ok().body(result);
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }

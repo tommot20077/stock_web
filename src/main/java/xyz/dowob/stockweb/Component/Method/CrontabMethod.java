@@ -106,8 +106,8 @@ public class CrontabMethod {
      */
     @PostConstruct
     public void init() {
+        logger.info("自動連線台股即時更新: " + isStockTwAutoStart);
         if (isStockTwAutoStart) {
-            logger.info("已開啟股票台灣自動更新");
             immediatelyUpdateStockTw = true;
         }
     }
@@ -310,11 +310,15 @@ public class CrontabMethod {
         logger.info("開始更新使用者的 ROI 統計");
         List<User> users = userService.getAllUsers();
         for (User user : users) {
-            Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
-            propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
+            //Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
+            //propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
 
-            Map<String, String> SharpeRatioResult = propertyService.calculateSharpeRatio(user);
-            propertyInfluxService.writeUserSharpRatioToInflux(SharpeRatioResult, user);
+            //Map<String, String> sharpeRatioResult = propertyService.calculateSharpeRatio(user);
+            //propertyInfluxService.writeUserSharpRatioToInflux(sharpeRatioResult, user);
+
+            Map<String, Map<String, List<BigDecimal>>> drawDownResult = propertyService.calculateUserDrawDown(user);
+            //propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
+
 
         }
         logger.debug("更新完成");
