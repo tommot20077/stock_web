@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Exception.RetryException;
 
 /**
+ * 這是一個重試模板，用於執行重試操作。
+ *
  * @author yuan
  */
 @Component
@@ -20,7 +22,7 @@ public class RetryTemplate {
 
     /**
      * 定義RetryableOperation的函數式接口，該接口有一個名為execute的方法
-     * 該方法可能會拋出異常。
+     * FunctionalInterface  這是一個函數式接口，它只有一個抽象方法
      */
     @FunctionalInterface
     public interface RetryableOperation {

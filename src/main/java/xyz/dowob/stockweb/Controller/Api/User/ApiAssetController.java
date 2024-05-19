@@ -14,6 +14,7 @@ import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -23,6 +24,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
+ * 這是一個用於處理資產相關請求的控制器
+ *
  * @author yuan
  */
 @RestController
@@ -36,6 +39,14 @@ public class ApiAssetController {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * 這是一個構造函數，用於注入AssetService, RedisService, UserService, ObjectMapper
+     *
+     * @param assetService 資產相關服務
+     * @param redisService 緩存服務
+     * @param userService  用戶服務
+     * @param objectMapper 序列化工具
+     */
     @Autowired
     public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService, ObjectMapper objectMapper) {
         this.assetService = assetService;
@@ -201,6 +212,39 @@ public class ApiAssetController {
                 }
             }
         } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 取得政府債券資料
+     *
+     * @param isFormatByTime 是否轉換成時間格式
+     *
+     * @return ResponseEntity
+     */
+    @GetMapping("/getGovernmentBond")
+    public ResponseEntity<?> getGovernmentBond(
+            @RequestParam(name = "formatByTime",
+                          required = false,
+                          defaultValue = "false") boolean isFormatByTime) {
+        try {
+            String cacheValue = redisService.getCacheValueFromKey("governmentBond");
+            if (cacheValue != null) {
+                if (isFormatByTime) {
+                    return ResponseEntity.ok().body(assetService.formatGovernmentBondDataByTime(cacheValue));
+                }
+                return ResponseEntity.ok().body(cacheValue);
+            }
+            Map<String, Map<String, BigDecimal>> result = assetService.getGovernmentBondData();
+            String json = assetService.cacheValueDataToRedis("governmentBond", result, 4);
+            if (isFormatByTime) {
+                return ResponseEntity.ok().body(assetService.formatGovernmentBondDataByTime(json));
+            }
+            System.out.println("成功");
+            return ResponseEntity.ok().body(json);
+        } catch (Exception e) {
+            System.out.println("失敗");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }

@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 這是一個用於處理用戶與加密貨幣相關的控制器
+ *
  * @author yuan
  */
 @Controller
@@ -28,6 +30,12 @@ public class ApiCryptoController {
 
     private final UserService userService;
 
+    /**
+     * 這是一個構造函數，用於注入CryptoService和UserService
+     *
+     * @param cryptoService 虛擬貨幣服務
+     * @param userService   用戶服務
+     */
     @Autowired
     public ApiCryptoController(CryptoService cryptoService, UserService userService) {
         this.cryptoService = cryptoService;

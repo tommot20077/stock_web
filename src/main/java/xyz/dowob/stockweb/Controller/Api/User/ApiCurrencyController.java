@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 這是一個用於處理用戶與貨幣相關的控制器
+ *
  * @author yuan
  */
 @Controller
@@ -26,6 +28,12 @@ public class ApiCurrencyController {
 
     private final UserService userService;
 
+    /**
+     * 這是一個構造函數，用於注入CurrencyService和UserService
+     *
+     * @param currencyService 貨幣服務
+     * @param userService     用戶服務
+     */
     @Autowired
     public ApiCurrencyController(CurrencyService currencyService, UserService userService) {
         this.currencyService = currencyService;

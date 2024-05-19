@@ -27,8 +27,6 @@
 	<link rel="stylesheet" href="/static/loading.css">
 	<!-- endinject -->
 	<link rel="shortcut icon" href=/static/favicon.ico/>
-
-
 	<meta name="_csrf" th:content="${_csrf.token}"/>
 	<meta name="_csrf_header" th:content="${_csrf.headerName}"/>
 
@@ -243,147 +241,20 @@
 						<div class="card">
 							<ul class="nav nav-tabs">
 								<li class="nav-item">
-									<a class="nav-link active" id="view_property" data-toggle="tab"
-											href="#userTransactionList">交易紀錄</a>
+									<a class="nav-link active" id="view_chart" data-toggle="tab"
+											href="#debt_chart">圖表</a>
 								</li>
 								<li class="nav-item">
-									<a class="nav-link" id="add_property" data-toggle="tab"
-											href="#add_transaction_tab">新增交易</a>
+									<a class="nav-link" id="view_detail" data-toggle="tab"
+											href="#debt_sheet">表格</a>
 								</li>
 							</ul>
 
 							<div class="tab-content">
-								<div class="tab-pane fade show active" id="userTransactionList">
-									<div class="table-responsive pt-3">
-										<table class="table table-hover">
-											<thead>
-											<tr>
-												<th>
-													交易紀錄ID
-												</th>
-												<th>
-													資產類型
-												</th>
-												<th>
-													資產名稱
-												</th>
-												<th>
-													交易數量
-												</th>
-												<th>
-													交易金額
-												</th>
-												<th>
-													使用貨幣
-												</th>
-												<th>
-													交易時間
-												</th>
-												<th>
-													備註
-												</th>
-											</tr>
-											</thead>
-											<tbody id="TransactionTableBody"></tbody>
-										</table>
-									</div>
+								<div class="tab-pane fade show active" id="debt_chart">
 								</div>
-								<nav aria-label="Page navigation example">
-									<ul class="pagination justify-content-center">
-										<li class="page-item">
-											<a class="page-link" href="#"
-													aria-label="Previous" id="previousPage">
-												<span aria-hidden="true">&laquo;</span>
-											</a>
-										</li>
-										<li class="page-item active"><a class="page-link"
-												href="#" id="currentPage">1</a></li>
-										<li class="page-item">
-											<a class="page-link" href="#" aria-label="Next"
-													id="nextPage">
-												<span aria-hidden="true">&raquo;</span>
-											</a>
-										</li>
-									</ul>
-								</nav>
 
-
-								<div class="tab-pane fade" id="add_transaction_tab">
-									<form class="forms-sample" id="add_transaction_form">
-										<div class="form-group row">
-											<label for="operation_type" class="col-sm-3 col-form-label">操作類型</label>
-											<div class="col-sm-9">
-												<select type="text" class="form-control" id="operation_type"
-														placeholder="類型" name="operation_type">
-													<option value="BUY">買入</option>
-													<option value="SELL">賣出</option>
-													<option value="DEPOSIT">存款</option>
-													<option value="WITHDRAW">提款</option>
-												</select>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_type"
-													class="col-sm-3 col-form-label">資產類型</label>
-											<div class="col-sm-9">
-												<select class="form-control" id="transaction_type" placeholder="類型"
-														name="transaction_type"></select>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_name"
-													class="col-sm-3 col-form-label">交易資產名稱</label>
-											<div class="col-sm-9">
-												<select class="form-control" id="transaction_name"
-														placeholder="交易資產名稱" name="transaction_name"></select>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_quantity"
-													class="col-sm-3 col-form-label">交易數量</label>
-											<div class="col-sm-9">
-												<input type="text" class="form-control" id="transaction_quantity"
-														placeholder="資產交易數量" name="transaction_quantity" required>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_unit"
-													class="col-sm-3 col-form-label">使用貨幣</label>
-											<div class="col-sm-9">
-												<select type="text" class="form-control" id="transaction_unit"
-														placeholder="交易使用的貨幣" name="transaction_unit"></select>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_amount"
-													class="col-sm-3 col-form-label">交易金額</label>
-											<div class="col-sm-9">
-												<input type="text" class="form-control" id="transaction_amount"
-														placeholder="交易金額(若無則填寫0)" name="transaction_amount"
-														required>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_time"
-													class="col-sm-3 col-form-label">交易時間</label>
-											<div class="col-sm-9">
-												<input type="datetime-local" class="form-control" id="transaction_time"
-														placeholder="交易進行時間" name="transaction_time" required>
-											</div>
-										</div>
-										<div class="form-group row">
-											<label for="transaction_description"
-													class="col-sm-3 col-form-label">備註</label>
-											<div class="col-sm-9">
-												<input type="text" class="form-control" id="transaction_description"
-														placeholder="資產的備註" name="transaction_description">
-											</div>
-										</div>
-										<div id="success_message" style="display: none; color: green">新增成功</div>
-										<div id="fail_message" style="display: none ; color: red"></div>
-										<button type="submit" class="btn btn-primary me-2" id="addButton">新增</button>
-										<a href="/transaction_info" class="btn btn-light">取消</a>
-									</form>
+								<div class="tab-pane fade" id="debt_sheet">
 								</div>
 							</div>
 						</div>
@@ -406,15 +277,6 @@
 	<!-- page-body-wrapper ends -->
 </div>
 
-<div id="loading-spinner" class="loading-spinner-container">
-	<div id="lds-ring" class="lds-ring">
-		<div></div>
-		<div></div>
-		<div></div>
-		<div></div>
-	</div>
-</div>
-
 <!-- container-scroller -->
 <!-- plugins:js -->
 <script src="/static/vendors/js/vendor.bundle.base.js"></script>
@@ -429,40 +291,26 @@
 <script src="/static/js/hoverable-collapse.js"></script>
 <script src="/static/js/template.js"></script>
 <script src="/static/js/settings.js"></script>
-<script src="/static/js/todolist.js"></script>
 <!-- endinject -->
 <!-- Custom js for this page-->
 <script src="/static/js/file-upload.js"></script>
 <script src="/static/js/typeahead.js"></script>
 <script src="/static/js/select2.js"></script>
+<script src="/static/vendors/chart.js/Chart.min.js"></script>
 <script src="/static/js/myJavaScript/map.js"></script>
-<script src="/static/js/myJavaScript/common.js"></script>
 <script src="/static/js/myJavaScript/fetch.js"></script>
 <script src="/static/js/myJavaScript/display.js"></script>
+<script src="/static/js/myJavaScript/common.js"></script>
 
 <!-- End custom js for this page-->
 
 <script>
 	document.addEventListener('DOMContentLoaded', function () {
 
-		displayTransactionTable();
-		const prevPageButton = document.getElementById('previousPage');
-		const nextPageButton = document.getElementById('nextPage');
-		const currentPageElement = document.getElementById('currentPage');
-		updateTransactionTable(prevPageButton, nextPageButton, currentPageElement, 1);
-
-
-		getPropertyType("transaction_type");
-		if (document.getElementById('add_transaction_form')) {
-			document.getElementById('add_transaction_form').addEventListener('submit', addTransaction);
-		}
 	});
+	displayDebtChart();
+	displayDebtTable();
 	getUserDetails();
-	detectionPropertyTypeChange("transaction_name", "transaction_type");
-
-
-
-
 </script>
 
 

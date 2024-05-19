@@ -40,6 +40,14 @@ public class CryptoInfluxService {
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
 
+    /**
+     * CryptoInfluxService構造函數
+     *
+     * @param cryptoInfluxClient        加密貨幣InfluxDB客戶端
+     * @param cryptoHistoryInfluxClient 加密貨幣歷史InfluxDB客戶端
+     * @param assetInfluxMethod         資產InfluxDB方法
+     * @param retryTemplate             重試模板
+     */
     @Autowired
     public CryptoInfluxService(
             @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {

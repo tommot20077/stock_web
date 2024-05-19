@@ -23,6 +23,8 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import java.util.Set;
 
 /**
+ * 這是一個訂閱方法，用於處理用戶訂閱資產。
+ *
  * @author yuan
  */
 @Component
@@ -37,6 +39,14 @@ public class SubscribeMethod {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * 這是一個構造函數，用於注入用戶訂閱資產資料庫、股票資料庫、加密貨幣資料庫和應用程序事件發布者。
+     *
+     * @param subscribeRepository 用戶訂閱資產資料庫
+     * @param stockTwRepository   股票資料庫
+     * @param cryptoRepository    加密貨幣資料庫
+     * @param eventPublisher      應用程序事件發布者
+     */
     @Autowired
     public SubscribeMethod(SubscribeRepository subscribeRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher) {
         this.subscribeRepository = subscribeRepository;

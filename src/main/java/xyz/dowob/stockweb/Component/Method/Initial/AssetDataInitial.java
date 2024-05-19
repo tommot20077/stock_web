@@ -15,6 +15,8 @@ import xyz.dowob.stockweb.Service.Currency.CurrencyService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 
 /**
+ * 這是一個初始化類，用於在應用程序啟動時加載資產資料。
+ *
  * @author yuan
  */
 @Component
@@ -44,7 +46,7 @@ public class AssetDataInitial {
 
     /**
      * init：這是一個初始化方法，會在類別實例化後自動執行。
-     * 首先，它會創建一個分頁請求，用於從各個資源庫中獲取資料。它會檢查吃產資料是否存在。
+     * 首先，它會創建一個分頁請求，用於從各個MySQL資料庫中獲取資料。它會檢查資產資料是否存在。
      * 如果不存在，則會調用服務來更新這些資料
      */
     @PostConstruct

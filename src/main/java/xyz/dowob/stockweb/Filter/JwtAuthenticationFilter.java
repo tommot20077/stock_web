@@ -25,14 +25,21 @@ import java.io.IOException;
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    /**
+     * 注入Jwt令牌相關的方法
+     */
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    /**
+     * 注入自定義用戶詳情服務
+     */
     @Autowired
     private CustomUserDetailsService customUserDetailsService;
 
     /**
      * 驗證JWT
+     * 收到請求時，檢查是否有JWT，如果有，則驗證JWT，並將用戶設置為已驗證
      *
      * @param request     請求
      * @param response    響應

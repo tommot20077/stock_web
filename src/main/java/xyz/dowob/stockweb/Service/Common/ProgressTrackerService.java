@@ -1,6 +1,7 @@
 package xyz.dowob.stockweb.Service.Common;
 
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Dto.Common.Progress;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
@@ -26,6 +27,13 @@ public class ProgressTrackerService implements DisposableBean {
 
     private final ConcurrentHashMap<String, Progress> progressMap = new ConcurrentHashMap<>();
 
+    /**
+     * 進度追踪器服務構造函數
+     *
+     * @param taskRepository           任務數據庫
+     * @param dynamicThreadPoolService 動態線程池服務
+     */
+    @Autowired
     public ProgressTrackerService(TaskRepository taskRepository, DynamicThreadPoolService dynamicThreadPoolService) {
         this.taskRepository = taskRepository;
         this.dynamicThreadPoolService = dynamicThreadPoolService;

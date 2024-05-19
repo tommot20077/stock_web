@@ -66,6 +66,17 @@ public class StockTwService {
 
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
 
+    /**
+     * StockTwService構造函數
+     *
+     * @param stockTwRepository         股票資料庫
+     * @param subscribeRepository       訂閱資料庫
+     * @param stockTwInfluxService      股票Influx服務
+     * @param taskRepository            任務資料庫
+     * @param objectMapper              Json轉換
+     * @param applicationEventPublisher 事件發布
+     * @param subscribeMethod           訂閱方法
+     */
     @Autowired
     public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
         this.stockTwRepository = stockTwRepository;

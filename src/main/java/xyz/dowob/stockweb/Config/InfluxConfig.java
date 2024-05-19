@@ -119,6 +119,7 @@ public class InfluxConfig {
 
     /**
      * 創建InfluxDBClient, 連線至commonEconomyData
+     *
      * @return InfluxDBClient
      */
     @Bean(name = "commonEconomyInfluxClient")

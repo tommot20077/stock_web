@@ -19,6 +19,8 @@ import java.util.Base64;
 import java.util.UUID;
 
 /**
+ * 這是一個用於生成和發送電子郵件驗證token的方法。
+ *
  * @author yuan
  */
 @Component
@@ -29,13 +31,19 @@ public class MailTokenProvider {
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    /**
+     * 這是一個構造函數，用於注入TokenRepository和JavaMailSender。
+     *
+     * @param tokenRepository 用戶token數據庫
+     * @param javaMailSender  郵件發送器
+     */
     @Autowired
     public MailTokenProvider(TokenRepository tokenRepository, JavaMailSender javaMailSender) {
         this.tokenRepository = tokenRepository;
         this.javaMailSender = javaMailSender;
     }
 
-    @Value(value = "${security.email.receive.url}")
+    @Value(value = "${security.email.receive.url:http://localhost:8080}")
     private String emailReceiveUrl;
 
     @Value(value = "${spring.mail.username}")
@@ -49,10 +57,11 @@ public class MailTokenProvider {
 
     /**
      * 發送驗證電子郵件，並將token存入數據庫
+     * 其中emailReceiveUrl是用於接收token的url，由application.properties中的security.email.receive.url設置
      *
      * @param user 用戶
      *
-     * @throws RuntimeException 發送郵件失敗
+     * @throws RuntimeException 發送郵件失敗，或者已達到每小時發送限制
      */
     public void sendVerificationEmail(User user) throws RuntimeException {
         if (canSendEmail(user)) {
@@ -64,7 +73,7 @@ public class MailTokenProvider {
             usertoken.setEmailApiTokenExpiryTime(OffsetDateTime.now().plusMinutes(expirationMinute));
             tokenRepository.save(usertoken);
 
-            String verificationLink = emailReceiveUrl + base128Token;
+            String verificationLink = emailReceiveUrl + "/api/user/common/verifyEmail?token=" + base128Token;
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(emailSender);
             message.setTo(user.getEmail());
@@ -134,6 +143,8 @@ public class MailTokenProvider {
      * @param base128Token token
      *
      * @return 用戶
+     *
+     * @throws RuntimeException 無效的token
      */
     public User validateTokenAndReturnUser(String base128Token) {
         byte[] decodedBytes = Base64.getDecoder().decode(base128Token);

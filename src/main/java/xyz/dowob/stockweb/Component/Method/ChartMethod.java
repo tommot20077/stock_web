@@ -12,13 +12,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
+ * 這是一個呈現前端圖表方法，用於格式化資料為圖表資料。
+ *
  * @author yuan
  */
 @Component
 public class ChartMethod {
 
     /**
-     * 格式化時間
+     * 格式化時間成UTC時間字串
      *
      * @param instant 時間
      *
@@ -29,13 +31,21 @@ public class ChartMethod {
     }
 
     /**
-     * 格式化總資產為圖表資料格式
+     * 格式化總資產為圖表資料格式，並轉換為使用者偏好幣別
+     * 分成總資產、貨幣資產、加密資產、台股資產、最新資產
+     * 最新資產為各類型資產最新資料
      *
      * @param userSummary    使用者總資產
      * @param preferCurrency 使用者偏好幣別
      *
      * @return 圖表資料 Map<String, List<Map<String, Object>>>
-     * key: 圖表類型, value: 圖表資料 List<Map<String, Object>> (field, date_instant, date_Format, value)
+     * key: 圖表類型
+     * value: 圖表資料
+     * List<Map<String, Object>> (field, date_instant, date_Format, value)
+     * field: 圖表類型
+     * date_instant: 時間
+     * date_Format: 格式化時間
+     * value: 資產價值
      */
     public Map<String, List<Map<String, Object>>> formatSummaryToChartData(Map<String, List<FluxTable>> userSummary, Currency preferCurrency) {
         Map<String, List<Map<String, Object>>> chartData = new HashMap<>();
@@ -85,21 +95,27 @@ public class ChartMethod {
         return chartData;
     }
 
-    public List<Map<String, Object>> formatDailyRoiToChartData(Map<String, List<FluxTable>> dailyRoiData){
+    /**
+     * 格式化每日ROI資料為圖表資料格式
+     *
+     * @param dailyRoiDataTables 每日ROI資料，包含日期和ROI
+     *
+     * @return 圖表資料 List<Map<String, Object>>
+     * key: 資料類型
+     * value: 圖表資料
+     */
+    public List<Map<String, Object>> formatDailyRoiToChartData(List<FluxTable> dailyRoiDataTables) {
         List<Map<String, Object>> chartData = new ArrayList<>();
-        dailyRoiData.forEach((key, tables) -> {
-            tables.forEach(table -> {
-                table.getRecords().forEach(record -> {
-                    Map<String, Object> dataPoint = new HashMap<>();
-                    Instant time = (Instant) record.getValueByKey("_time");
-                    dataPoint.put("date_instant", time);
-                    dataPoint.put("date_Format", formatDate(time));
-                    dataPoint.put("value", record.getValueByKey("_value"));
-                    chartData.add(dataPoint);
-                });
+        dailyRoiDataTables.forEach(table -> {
+            table.getRecords().forEach(record -> {
+                Map<String, Object> dataPoint = new HashMap<>();
+                Instant time = (Instant) record.getValueByKey("_time");
+                dataPoint.put("date_instant", time);
+                dataPoint.put("date_Format", formatDate(time));
+                dataPoint.put("value", record.getValueByKey("_value"));
+                chartData.add(dataPoint);
             });
         });
         return chartData;
     }
-
 }

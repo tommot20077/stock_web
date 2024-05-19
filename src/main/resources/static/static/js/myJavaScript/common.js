@@ -62,22 +62,22 @@ function generateRoiStatisticListTable(count, name, value) {
         `;
     count++;
     return row;
-
 }
 
-function formatValue(value) {
+function formatValue(value, isPercentage = true) {
     if (typeof value === "number") {
-        return parseFloat(value).toFixed(3);
+        return isPercentage === true ? parseFloat(value).toFixed(3) + " %" : parseFloat(value).toFixed(3);
     } else {
         return value;
     }
 }
+
 function getAssetParamFromUrl() {
     const pathArray = window.location.pathname.split('/');
     return pathArray[pathArray.length - 1];
 }
 
-function thousands (value) {
+function thousands(value) {
     if (value) {
         value += "";
         let arr = value.split(".");
@@ -88,6 +88,7 @@ function thousands (value) {
         return ''
     }
 }
+
 function createAssetListPage(newPage, prevPageButton, nextPageButton, currentPageElement, category) {
     return function (e) {
         e.preventDefault();
@@ -104,9 +105,35 @@ function createNewsListPage(newPage, prevPageButton, nextPageButton, currentPage
     };
 }
 
+function createTransactionListPage(newPage, prevPageButton, nextPageButton, currentPageElement) {
+    return function (e) {
+        e.preventDefault();
+        updateTransactionTable(prevPageButton, nextPageButton, currentPageElement, newPage);
+        scrollToElement('userTransactionList');
+    };
+}
+
 function scrollToElement(elementId) {
     const element = document.getElementById(elementId);
     if (element) {
         element.scrollIntoView({behavior: 'smooth', block: 'start'});
     }
+}
+
+function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function getColorsArray(dataLength) {
+    var colors= [
+        '#FF6384',
+        '#36A2EB',
+        '#FFCE56',
+        '#4BC0C0',
+        '#9966FF'
+    ];
+    for (var i = 0; i < dataLength; i++) {
+        colors.push(colors[i % colors.length]);
+    }
+    return colors;
 }

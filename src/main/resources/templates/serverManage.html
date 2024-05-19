@@ -359,6 +359,8 @@
 	generateAdminCommandTable("commandListTableBody", "清理過期憑證", "無", "/api/admin/common/cleanExpiredTokens", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "確認訂閱資產歷史資料完整性", "無", "/api/admin/common/checkHistoryData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "Redis緩存資產列表", "無", "/api/admin/common/updateAssetListCache", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "更新用戶回報率相關數據資料", "無", "/api/admin/common/updateRoiStatistics", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "更新公債的利率資料", "無", "/api/admin/common/updateGovernmentBondData", "POST", csrfToken);
 
 	generateAdminCommandTable("commandListTableBody", "更新虛擬貨幣清單", "無", "/api/admin/crypto/updateCryptoList", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "取得虛擬貨幣列表", "無", "/api/admin/crypto/getTradingPairsDetail", "GET", csrfToken);
@@ -380,7 +382,6 @@
 	generateAdminCommandTable("commandListTableBody", "關閉台灣股票即時價格功能", "無", "/api/admin/stock/tw/unTrackImmediatePrice", "POST", csrfToken);
 
 	generateAdminCommandTable("commandListTableBody", "更新貨幣清單", "無", "/api/admin/currency/updateCurrencyData", "POST", csrfToken);
-
 	generateAdminCommandTable("commandListTableBody", "取得指定資產資料", "id: 資產ID，預設: 無，必填: true", "/api/user/asset/getAssetInfo", "GET", csrfToken);
 
 </script>

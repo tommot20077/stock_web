@@ -1,6 +1,6 @@
 package xyz.dowob.stockweb.Component.EventListener.Crypto;
 
-import org.jetbrains.annotations.NotNull;
+import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +15,10 @@ import xyz.dowob.stockweb.Service.Common.ProgressTrackerService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 
 /**
+ * 當CryptoHistoryDataChangeEvent事件發生時，此類別將被調用。
+ * 實現ApplicationListener接口。並以CryptoHistoryDataChangeEvent作為參數。
+ * 此類別用於監聽CryptoHistoryDataChangeEvent事件，並根據事件的addOrRemove屬性執行相應操作。
+ *
  * @author yuan
  */
 @Component
@@ -29,6 +33,14 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
 
     private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * CryptoHistoryDataChangeListener類別的構造函數。
+     *
+     * @param cryptoService          加密貨幣相關服務方法
+     * @param progressTrackerService 進度追蹤相關服務方法
+     * @param retryTemplate          重試模板
+     * @param eventPublisher         事件發布者
+     */
     @Autowired
     public CryptoHistoryDataChangeListener(CryptoService cryptoService, ProgressTrackerService progressTrackerService, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {
         this.cryptoService = cryptoService;
@@ -41,12 +53,12 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
     /**
      * 當CryptoHistoryDataChangeEvent事件發生時，此方法將被調用。
      * 如果事件的addOrRemove屬性為"add"，則進行以下操作：
-     * 檢查該虛擬貨幣是否已在進行中，如果是，則不處理。
-     * 追蹤該虛擬貨幣的歷史價格。
-     * 發布PropertyUpdateEvent事件。
-     * 如果事件的addOrRemove屬性為"remove"，則進行以下操作：
-     * 移除該虛擬貨幣的歷史資料。
-     * 發布PropertyUpdateEvent事件。
+     * 1.檢查該虛擬貨幣是否已在進行中，如果是，則不處理。
+     * 2.追蹤該虛擬貨幣的歷史價格。
+     * 3.發布PropertyUpdateEvent事件。
+     * 4.如果事件的addOrRemove屬性為"remove"，則進行以下操作：
+     * 5.移除該虛擬貨幣的歷史資料。
+     * 6.發布PropertyUpdateEvent事件。
      * 如果事件的addOrRemove屬性既不是"add"也不是"remove"，則不處理。
      *
      * @param event CryptoHistoryDataChangeEvent事件對象
@@ -55,7 +67,7 @@ public class CryptoHistoryDataChangeListener implements ApplicationListener<Cryp
      */
     @Override
     public void onApplicationEvent(
-            @NotNull CryptoHistoryDataChangeEvent event) {
+            @NonNull CryptoHistoryDataChangeEvent event) {
         logger.info("收到虛擬貨幣資料變更通知");
         if ("add".equals(event.getAddOrRemove())) {
             if (progressTrackerService.getAllProgressInfo()

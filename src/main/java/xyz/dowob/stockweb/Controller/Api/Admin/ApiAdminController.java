@@ -23,8 +23,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
+ * 身分組須為Admin，用於管理員對於伺服器的操作
+ *
  * @author yuan
- * 管理員操作API
  */
 @Controller
 @RequestMapping("/api/admin")
@@ -44,6 +45,17 @@ public class ApiAdminController {
 
     private final AssetService assetService;
 
+    /**
+     * 構造函數
+     *
+     * @param currencyService        貨幣相關服務
+     * @param cryptoService          加密貨幣相關服務
+     * @param stockTwService         股票相關服務
+     * @param newsService            新聞相關服務
+     * @param progressTrackerService 進度追蹤相關服務
+     * @param crontabMethod          定時任務相關方法
+     * @param assetService           資產相關服務
+     */
     @Autowired
     public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTrackerService progressTrackerService, CrontabMethod crontabMethod, AssetService assetService) {
         this.currencyService = currencyService;
@@ -510,6 +522,7 @@ public class ApiAdminController {
 
     /**
      * 更新用戶回報率相關數據資料
+     *
      * @return ResponseEntity
      */
     @PostMapping("/common/updateRoiStatistics")

@@ -48,6 +48,116 @@ async function displaySubscribeTable() {
     }
 }
 
+async function displayDebtTable() {
+    let table = document.getElementById("debt_sheet")
+    let jsonData = await fetchDebtsData();
+    let htmlContent = '';
+    for (let country in jsonData) {
+        let tableHtml =
+            `
+                <h2>${capitalizeFirstLetter(country)}</h2>
+                <div class="table-responsive pt-3">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>債券期限</th>
+                                <th>當前利率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+        let bonds = jsonData[country];
+
+        for (let term in bonds) {
+            let rate = bonds[term];
+            let formatTerm = term.replace("year", "年").replace("month", "個月").replace("week", "週").replace("-", "");
+            tableHtml += `<tr><td>${formatTerm}</td><td>${rate} %</td></tr>\n`;
+        }
+
+        tableHtml += `</tbody></table></div><br><br>`;
+        htmlContent += tableHtml;
+    }
+    table.innerHTML = htmlContent;
+}
+
+async function displayDebtChart() {
+    let jsonData = await fetchDebtsData(true);
+    let table = document.getElementById("debt_chart");
+    let htmlContent = '<div class="row">';
+    let count = 0
+    for (let period in jsonData) {
+        const periodDataSize = Object.keys(jsonData[period]).length;
+        let canvasId = `debt-${period}`;
+        let classWidth = periodDataSize >= 10 ? 'col-lg-12' : 'col-lg-6';
+        let name = period.replace("year", "年").replace("month", "個月").replace("week", "週").replace("-", "");
+        let chartTable =
+            `
+                <div class="${classWidth} grid-margin stretch-card">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="card-title">${name}</h4>
+                            <canvas id="${canvasId}"></canvas>
+                        </div>
+                    </div>
+                </div>`;
+
+        if (periodDataSize >= 10) {
+            if (count % 2 !== 0) {
+                htmlContent += '</div><div class="row">';
+            }
+            htmlContent += chartTable;
+            htmlContent += '</div><div class="row">';
+            count=0
+        } else {
+            htmlContent += chartTable;
+            count++;
+            if (count % 2 === 0) {
+                htmlContent += '</div><div class="row">';
+            }
+        }
+        if (count % 2 === 0) {
+            htmlContent += '</div><div class="row">';
+        }
+    }
+    if (count % 2 !== 0) {
+        htmlContent += '</div>';
+    }
+    table.innerHTML = htmlContent;
+    generationDebtChart(jsonData);
+}
+
+function generationDebtChart(jsonData) {
+
+    for (let period in jsonData) {
+        let canvasId = `debt-${period}`;
+        let data = jsonData[period];
+        let labels = Object.keys(data);
+        let values = Object.values(data);
+        let ctx = document.getElementById(canvasId).getContext('2d');
+        let colors = getColorsArray(values.length);
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '利率 (%)',
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+}
+
 
 function displayEditProperty(editButton) {
     var currentRow = editButton.closest('tr');
@@ -91,12 +201,12 @@ function displayProfileForm() {
     }
 }
 
-async function displayTransactionTable() {
-    let data = await getUserAllTransactions();
-    if (data && Array.isArray(data)) {
+async function displayTransactionTable(page) {
+    let data = await getUserTransactions(page);
+    if (data && Array.isArray(data.transactions)) {
         let tableBody = document.getElementById("TransactionTableBody");
         tableBody.innerHTML = "";
-        data.forEach(function (item) {
+        data.transactions.forEach(function (item) {
             item.date = item.date.replace(" ", "\u00A0\u00A0\u00A0");
             let row = `
             <tr>
@@ -111,11 +221,13 @@ async function displayTransactionTable() {
             </tr>`;
             tableBody.innerHTML += row;
         });
+        return await data.totalPages;
     } else {
         console.log("資料格式錯誤");
     }
 }
 
+let statisticsOverviewData = null
 async function displayStatisticsOverview() {
     let tableBody = document.getElementById('statistics_overview');
     try {
@@ -141,34 +253,61 @@ async function displayStatisticsOverview() {
             generateStatisticsTable("月收益", thousands((parseFloat(propertyOverviewData.month) * latestTotalSumFloat / 100).toFixed(3)), propertyOverviewData.month) +
             generateStatisticsTable("年收益", thousands((parseFloat(propertyOverviewData.year) * latestTotalSumFloat / 100).toFixed(3)), propertyOverviewData.year);
 
+        statisticsOverviewData =  await propertyOverviewData;
+        return statisticsOverviewData;
     } catch (error) {
         console.error(error);
     }
 }
 
-async function displayRoiStatistics() {
+async function displayRoiStatistics(roiData) {
+
+    let monthRoi = statisticsOverviewData.month;
+    let yearRoi = statisticsOverviewData.year;
+    let monthCalmarRatio= "數據不足"
+    let yearCalmarRatio = "數據不足"
+
+    if (monthRoi && monthRoi !== "數據不足" && roiData.draw_down.month.total.rate !== "數據不足"){
+        let formatDrawRate = parseFloat(roiData.draw_down.month.total.rate)
+        if (formatDrawRate !== 0) {
+            yearCalmarRatio = parseFloat(monthRoi) / formatDrawRate;
+        } else {
+            yearCalmarRatio = "無限大"
+        }
+    }
+    if (yearRoi && yearRoi !== "數據不足" && roiData.draw_down.year.total.rate !== "數據不足"){
+        let formatDrawRate = parseFloat(roiData.draw_down.year.total.rate)
+        if (formatDrawRate !== 0) {
+            yearCalmarRatio = parseFloat(yearRoi) / formatDrawRate;
+        } else {
+            yearCalmarRatio = "無限大"
+        }
+    }
+
+
     let tableBody = document.getElementById('roiStatisticTableBody');
-    let data = await fetchRoiStatistics();
     let count = 1;
-    if (data) {
+    if (roiData) {
         tableBody.innerHTML = "";
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "收益波動率", formatValue(data.sigma)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "平均收益率", formatValue(data.average)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "計算基準國家", formatValue(data.sharp_ratio.base_country)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "本月夏普比率", formatValue(data.sharp_ratio.month)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "本年夏普比率", formatValue(data.sharp_ratio.year)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本周最大回撤", formatValue(data.draw_down.week.total.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本月最大回撤", formatValue(data.draw_down.month.total.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本年最大回撤", formatValue(data.draw_down.year.total.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本周最大回撤", formatValue(data.draw_down.week.crypto.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本月最大回撤", formatValue(data.draw_down.month.crypto.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本年最大回撤", formatValue(data.draw_down.year.crypto.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本周最大回撤", formatValue(data.draw_down.week.currency.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本月最大回撤", formatValue(data.draw_down.month.currency.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本年最大回撤", formatValue(data.draw_down.year.currency.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本周最大回撤", formatValue(data.draw_down.week.stock_tw.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本月最大回撤", formatValue(data.draw_down.month.stock_tw.rate)));
-        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本年最大回撤", formatValue(data.draw_down.year.stock_tw.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "收益波動率", formatValue(roiData.sigma)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "平均收益率", formatValue(roiData.average)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "計算基準國家", formatValue(roiData.sharp_ratio.base_country, false)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "本月夏普比率", formatValue(roiData.sharp_ratio.month, false)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "本年夏普比率", formatValue(roiData.sharp_ratio.year, false)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "本月卡瑪比率", formatValue(monthCalmarRatio, false)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "本年卡瑪比率", formatValue(yearCalmarRatio, false)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本周最大回撤", formatValue(roiData.draw_down.week.total.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本月最大回撤", formatValue(roiData.draw_down.month.total.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "資產本年最大回撤", formatValue(roiData.draw_down.year.total.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本周最大回撤", formatValue(roiData.draw_down.week.crypto.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本月最大回撤", formatValue(roiData.draw_down.month.crypto.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "虛擬貨幣本年最大回撤", formatValue(roiData.draw_down.year.crypto.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本周最大回撤", formatValue(roiData.draw_down.week.currency.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本月最大回撤", formatValue(roiData.draw_down.month.currency.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "貨幣本年最大回撤", formatValue(roiData.draw_down.year.currency.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本周最大回撤", formatValue(roiData.draw_down.week.stock_tw.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本月最大回撤", formatValue(roiData.draw_down.month.stock_tw.rate)));
+        tableBody.appendChild(generateRoiStatisticListTable(count++, "台灣股市本年最大回撤", formatValue(roiData.draw_down.year.stock_tw.rate)));
 
     } else {
         console.log("資料格式錯誤");
@@ -235,6 +374,32 @@ async function updateNewsTable(prevPageButton, nextPageButton, currentPageElemen
 
     if (currentPage > 1) {
         prevPageButton.prevHandler = createNewsListPage(currentPage - 1, prevPageButton, nextPageButton, currentPageElement, category, asset);
+        prevPageButton.addEventListener('click', prevPageButton.prevHandler);
+    }
+}
+
+async function updateTransactionTable(prevPageButton, nextPageButton, currentPageElement, page) {
+    let currentPage = page;
+    currentPageElement.textContent = currentPage;
+    let totalPage = await displayTransactionTable(currentPage);
+    let isLastPage = currentPage >= totalPage;
+    nextPageButton.classList.toggle('disabled', isLastPage);
+    nextPageButton.style.display = isLastPage ? 'none' : '';
+    nextPageButton.href = `#userTransactionList`;
+    prevPageButton.classList.toggle('disabled', currentPage <= 1);
+    prevPageButton.style.display = currentPage <= 1 ? 'none' : '';
+    prevPageButton.href = currentPage > 1 ? `#userTransactionList` : '#';
+
+    prevPageButton.removeEventListener('click', prevPageButton.prevHandler);
+    nextPageButton.removeEventListener('click', nextPageButton.nextHandler);
+
+    if (!isLastPage) {
+        nextPageButton.nextHandler = createTransactionListPage(currentPage + 1, prevPageButton, nextPageButton, currentPageElement);
+        nextPageButton.addEventListener('click', nextPageButton.nextHandler);
+    }
+
+    if (currentPage > 1) {
+        prevPageButton.prevHandler = createTransactionListPage(currentPage - 1, prevPageButton, nextPageButton, currentPageElement);
         prevPageButton.addEventListener('click', prevPageButton.prevHandler);
     }
 }

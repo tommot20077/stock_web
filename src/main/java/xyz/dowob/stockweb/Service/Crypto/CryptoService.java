@@ -74,7 +74,7 @@ public class CryptoService {
     private final ApplicationEventPublisher applicationEventPublisher;
 
 
-    @Value("${db.influxdb.bucket.crypto_history.detail}")
+    @Value("${db.influxdb.bucket.crypto_history.detail:1d}")
     private String frequency;
 
     @Value("${db.influxdb.bucket.crypto_history.dateline:20180101}")
@@ -88,6 +88,20 @@ public class CryptoService {
     RateLimiter rateLimiter = RateLimiter.create(1.0);
 
 
+    /**
+     * CryptoService構造函數
+     *
+     * @param webSocketHandler          虛擬貨幣WebSocket處理器
+     * @param taskRepository            任務數據庫
+     * @param cryptoInfluxService       加密貨幣InfluxDB服務
+     * @param connectionManager         WebSocket連接管理器
+     * @param cryptoRepository          加密貨幣數據庫
+     * @param objectMapper              JSON對象映射
+     * @param fileService               文件服務
+     * @param progressTrackerService    進度追踪器服務
+     * @param dynamicThreadPoolService  動態線程池服務
+     * @param applicationEventPublisher 應用事件發布者
+     */
     @Autowired
     public CryptoService(CryptoWebSocketHandler webSocketHandler, TaskRepository taskRepository, CryptoInfluxService cryptoInfluxService, WebSocketConnectionManager connectionManager, CryptoRepository cryptoRepository, ObjectMapper objectMapper, FileService fileService, ProgressTrackerService progressTrackerService, DynamicThreadPoolService dynamicThreadPoolService, ApplicationEventPublisher applicationEventPublisher) {
         this.cryptoWebSocketHandler = webSocketHandler;
@@ -103,6 +117,11 @@ public class CryptoService {
     }
 
 
+    /**
+     * 虛擬貨幣WebSocket連接狀態事件處理
+     *
+     * @param event WebSocket連接狀態事件
+     */
     @EventListener
     public void handleWebSocketConnectionStatusEvent(WebSocketConnectionStatusEvent event) {
         isRunning = event.isConnected();
@@ -116,6 +135,7 @@ public class CryptoService {
         logger.info("啟動自動連線WebSocket: " + enableAutoStart);
         if (enableAutoStart) {
             openConnection();
+            isRunning = true;
         }
     }
 

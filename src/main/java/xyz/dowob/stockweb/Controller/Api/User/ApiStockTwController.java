@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 這是一個用於處理用戶與台灣股票相關的控制器
+ *
  * @author yuan
  */
 @Controller
@@ -32,6 +34,13 @@ public class ApiStockTwController {
     private final CrontabMethod crontabMethod;
 
 
+    /**
+     * 這是一個構造函數，用於注入StockTwService和UserService
+     *
+     * @param stockTwService 台灣股票服務
+     * @param userService    用戶服務
+     * @param crontabMethod  CrontabMethod
+     */
     @Autowired
     public ApiStockTwController(StockTwService stockTwService, UserService userService, CrontabMethod crontabMethod) {
         this.stockTwService = stockTwService;

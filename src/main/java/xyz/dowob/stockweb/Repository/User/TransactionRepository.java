@@ -1,5 +1,7 @@
 package xyz.dowob.stockweb.Repository.User;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import xyz.dowob.stockweb.Model.User.Transaction;
 import xyz.dowob.stockweb.Model.User.User;
@@ -20,5 +22,5 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      *
      * @return 用戶交易列表
      */
-    List<Transaction> findByUserOrderByTransactionDateDesc(User user);
+    Page<Transaction> findByUserOrderByTransactionDateDesc(User user, Pageable pageable);
 }

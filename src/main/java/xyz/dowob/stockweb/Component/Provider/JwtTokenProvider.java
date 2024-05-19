@@ -18,6 +18,8 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 
 /**
+ * 這是一個Jwt令牌提供者，用於生成和驗證JwtToken。
+ *
  * @author yuan
  */
 @Component
@@ -34,6 +36,11 @@ public class JwtTokenProvider {
 
     private SecretKey key;
 
+    /**
+     * 這是一個構造函數，用於注入UserRepository。
+     *
+     * @param userRepository 使用者資料庫
+     */
     @Autowired
     public JwtTokenProvider(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -63,10 +70,11 @@ public class JwtTokenProvider {
 
     /**
      * 驗證JwtToken
+     * 根據傳入的JwtToken, 從資料庫中取得使用者, 並比對Token版本
      *
      * @param authToken JwtToken
      *
-     * @return 驗證結果
+     * @return boolean 驗證結果
      */
 
     public boolean validateToken(String authToken) {
@@ -86,6 +94,7 @@ public class JwtTokenProvider {
 
     /**
      * 生成JwtToken
+     * expirationMinute透過中的security.jwt.expiration設定，預設為120分鐘
      *
      * @param userId  使用者ID
      * @param version Token版本

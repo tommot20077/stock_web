@@ -8,6 +8,8 @@ import xyz.dowob.stockweb.Model.Currency.Currency;
 import java.math.BigDecimal;
 
 /**
+ * 此類別包含處理資產相關操作的方法。
+ * 用於將特定資產的匯率轉換為偏好貨幣的匯率。
  * @author yuan
  */
 @Component

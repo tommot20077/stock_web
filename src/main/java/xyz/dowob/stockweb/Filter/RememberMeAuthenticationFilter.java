@@ -29,18 +29,28 @@ import java.io.IOException;
  */
 @Component
 public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
+    /**
+     * 注入用戶服務
+     */
     @Autowired
     private UserService userService;
 
+    /**
+     * 注入用戶令牌服務
+     */
     @Autowired
     private TokenService tokenService;
 
+    /**
+     * 注入緩存管理器
+     */
     @Autowired
     private CacheManager cacheManager;
 
 
     /**
      * 驗證Cookie
+     * 收到請求時，檢查是否有記住我Cookie，如果有，則驗證Cookie，並將用戶設置為已驗證
      *
      * @param request     請求
      * @param response    響應

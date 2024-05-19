@@ -8,5 +8,6 @@ public enum NewsType {
     HEADLINE,
     STOCK_TW,
     CRYPTO,
-    CURRENCY
+    CURRENCY,
+    DEBT
 }

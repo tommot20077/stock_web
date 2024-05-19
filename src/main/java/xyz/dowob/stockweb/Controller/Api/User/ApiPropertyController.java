@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 這是一個用於處理用戶與財產相關的控制器
+ *
  * @author yuan
  */
 @Controller
@@ -33,6 +35,12 @@ public class ApiPropertyController {
 
     Logger logger = LoggerFactory.getLogger(ApiPropertyController.class);
 
+    /**
+     * 這是一個構造函數，用於注入UserService和PropertyService
+     *
+     * @param userService     用戶服務
+     * @param propertyService 財產服務
+     */
     @Autowired
     public ApiPropertyController(UserService userService, PropertyService propertyService) {
         this.userService = userService;
@@ -287,7 +295,9 @@ public class ApiPropertyController {
 
     /**
      * 取得用戶回報率相關狀況總覽
+     *
      * @param session 用戶session
+     *
      * @return ResponseEntity
      */
     @GetMapping("/getRoiStatistics")

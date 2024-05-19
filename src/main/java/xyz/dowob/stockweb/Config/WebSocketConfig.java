@@ -10,11 +10,14 @@ import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 
 /**
+ * 虛擬貨幣WebSocket配置
+ *
  * @author yuan
  */
 @Configuration
@@ -69,12 +72,18 @@ public class WebSocketConfig {
      * @param cryptoRepository    CryptoRepository
      * @param eventPublisher      ApplicationEventPublisher
      * @param subscribeRepository SubscribeRepository
+     * @param retryTemplate       RetryTemplate
      *
      * @return CryptoWebSocketHandler
      */
     @Bean
     public CryptoWebSocketHandler cryptoWebSocketHandler(
-            CryptoInfluxService cryptoInfluxService, SubscribeMethod subscribeMethod, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
-        return new CryptoWebSocketHandler(cryptoInfluxService, subscribeMethod, cryptoRepository, eventPublisher, subscribeRepository);
+            CryptoInfluxService cryptoInfluxService, SubscribeMethod subscribeMethod, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository, RetryTemplate retryTemplate) {
+        return new CryptoWebSocketHandler(cryptoInfluxService,
+                                          subscribeMethod,
+                                          cryptoRepository,
+                                          eventPublisher,
+                                          subscribeRepository,
+                                          retryTemplate);
     }
 }

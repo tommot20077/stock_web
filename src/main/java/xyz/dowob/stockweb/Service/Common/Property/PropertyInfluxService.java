@@ -34,8 +34,6 @@ import java.util.*;
 public class PropertyInfluxService {
     private final InfluxDBClient propertySummaryInfluxClient;
 
-    private final InfluxDBClient testInfluxClient;// todo delete
-
     private final AssetInfluxMethod assetInfluxMethod;
 
     private final RetryTemplate retryTemplate;
@@ -47,11 +45,17 @@ public class PropertyInfluxService {
 
     Logger logger = LoggerFactory.getLogger(PropertyInfluxService.class);
 
+    /**
+     * 用戶資產Influx操作服務建構子
+     *
+     * @param propertySummaryInfluxClient 用戶資產Influx客戶端
+     * @param assetInfluxMethod           資產Influx操作方法
+     * @param retryTemplate               重試模板
+     */
     @Autowired
     public PropertyInfluxService(
-            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("testInfluxClient") InfluxDBClient testInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+            @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
-        this.testInfluxClient = testInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
         this.retryTemplate = retryTemplate;
     }
@@ -327,6 +331,12 @@ public class PropertyInfluxService {
 
     }
 
+    /**
+     * 將用戶ROI統計資料寫入InfluxDB
+     *
+     * @param dataMap ROI統計資料
+     * @param user    用戶
+     */
     public void writeUserRoiStatisticsToInflux(Map<String, BigDecimal> dataMap, User user) {
         Point roiStatisticsPoint = Point.measurement("roi_statistics")
                                         .addTag("user_id", user.getId().toString())
@@ -336,6 +346,12 @@ public class PropertyInfluxService {
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, roiStatisticsPoint);
     }
 
+    /**
+     * 將用戶夏普比率寫入InfluxDB
+     *
+     * @param dataMap 夏普比率
+     * @param user    用戶
+     */
     public void writeUserSharpRatioToInflux(Map<String, String> dataMap, User user) {
         for (Map.Entry<String, String> entry : dataMap.entrySet()) {
             Double sharpRatio = "數據不足".equals(entry.getValue()) ? null : Double.parseDouble(entry.getValue());
@@ -349,6 +365,12 @@ public class PropertyInfluxService {
         }
     }
 
+    /**
+     * 將用戶最大回撤寫入InfluxDB
+     *
+     * @param dataMap 最大回撤
+     * @param user    用戶
+     */
     public void writeUserDrawDownToInflux(Map<String, Map<String, List<BigDecimal>>> dataMap, User user) {
         List<String> key = List.of("week", "month", "year");
         Long time = Instant.now().toEpochMilli();

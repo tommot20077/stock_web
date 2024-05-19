@@ -44,6 +44,15 @@ public class StockTwInfluxService {
 
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
+    /**
+     * StockTwInfluxService構造函數
+     *
+     * @param stockTwInfluxClient        台灣股票InfluxDB客戶端
+     * @param stockTwHistoryInfluxClient 台灣股票歷史InfluxDB客戶端
+     * @param assetInfluxMethod          資產InfluxDB方法
+     * @param currencyRepository         貨幣資料庫
+     * @param retryTemplate              重試模板
+     */
     @Autowired
     public StockTwInfluxService(
             @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {

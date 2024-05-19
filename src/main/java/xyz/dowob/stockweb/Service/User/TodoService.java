@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.TaskScheduler;
@@ -49,6 +50,14 @@ public class TodoService {
 
     private final Logger logger = LoggerFactory.getLogger(TodoService.class);
 
+    /**
+     * TodoService構造函數
+     *
+     * @param todoListRepository 待辦事項數據庫
+     * @param javaMailSender     郵件發送器
+     * @param taskScheduler      任務調度器
+     */
+    @Autowired
     public TodoService(TodoListRepository todoListRepository, JavaMailSender javaMailSender, TaskScheduler taskScheduler) {
         this.todoListRepository = todoListRepository;
         this.javaMailSender = javaMailSender;

@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 這是一個定時任務方法，用於執行定時任務。
+ * 它包含了一系列的定時任務，用於更新資料庫中的資料。
+ *
  * @author yuan
  */
 @Component
@@ -60,7 +63,22 @@ public class CrontabMethod {
 
     private final PropertyInfluxService propertyInfluxService;
 
-
+    /**
+     * 這是一個構造函數，用於注入服務。
+     *
+     * @param tokenService           用戶令牌服務
+     * @param currencyService        貨幣相關服務
+     * @param stockTwService         台股相關服務
+     * @param cryptoService          加密貨幣相關服務
+     * @param userService            用戶相關服務
+     * @param propertyService        資產相關服務
+     * @param newsService            新聞相關服務
+     * @param redisService           緩存相關服務
+     * @param assetService           資產相關服務
+     * @param cryptoWebSocketHandler 加密貨幣WebSocket處理器
+     * @param subscribeMethod        訂閱相關方法
+     * @param propertyInfluxService  資產Influx相關服務
+     */
     @Autowired
     public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
         this.tokenService = tokenService;
@@ -89,13 +107,13 @@ public class CrontabMethod {
     @Value("${news.autoupdate.currency:false}")
     private boolean newsAutoupdateCurrency;
 
-    @Value("${news.autoupdate.crypto:false}")
+    @Value("${news.autoupdate.crypto:true}")
     private boolean newsAutoupdateCrypto;
 
-    @Value("${news.autoupdate.stock_tw:false}")
+    @Value("${news.autoupdate.stock_tw:true}")
     private boolean newsAutoupdateStockTw;
 
-    @Value("${common.global_size:100}")
+    @Value("${common.global_page_size:100}")
     private int pageSize;
 
     @Value("${stock_tw.enable_auto_start:false}")
@@ -103,6 +121,7 @@ public class CrontabMethod {
 
     /**
      * 初始化台股即時更新
+     * 根據配置文件設置stock_tw.enable_auto_start
      */
     @PostConstruct
     public void init() {
@@ -141,7 +160,7 @@ public class CrontabMethod {
     }
 
     /**
-     * 檢查訂閱狀況
+     * 檢查台灣股票訂閱狀況，如果有訂閱則追蹤即時交易價格
      * 每天早上8:30
      *
      * @throws JsonProcessingException 無法獲取列表
@@ -170,7 +189,8 @@ public class CrontabMethod {
 
     /**
      * 追蹤台股股票5秒搓合交易價格
-     * 週一至週五上午9點至下午1點
+     * 在開盤時間每5秒更新一次，收盤時間每10分鐘更新一次
+     * 台灣時間週一至週五上午9點至下午2點
      */
     @Scheduled(cron = "*/5 * 9-13 * * MON-FRI ",
                zone = "Asia/Taipei")
@@ -200,7 +220,7 @@ public class CrontabMethod {
 
     /**
      * 更新台股股票的每日歷史價格
-     * 週一至週五下午4點30分
+     * 台灣時間週一至週五下午4點30分
      */
     @Scheduled(cron = "0 30 16 * * MON-FRI ",
                zone = "Asia/Taipei")
@@ -211,7 +231,7 @@ public class CrontabMethod {
 
     /**
      * 更新加密貨幣的每日歷史價格
-     * 每天凌晨2點30分
+     * 每天UTC時間凌晨2點30分
      */
     @Scheduled(cron = "0 30 2 * * ? ",
                zone = "UTC")
@@ -222,7 +242,7 @@ public class CrontabMethod {
 
     /**
      * 檢查資產的歷史數據完整性
-     * 每4小時
+     * 每4小時執行一次
      */
     @Scheduled(cron = "0 30 */4 * * ? ",
                zone = "UTC")
@@ -233,10 +253,10 @@ public class CrontabMethod {
 
     /**
      * 記錄使用者的資產總價, 並寫入Influx
-     * 每小時
+     * 當用戶沒有資產時, 重製用戶的Influx資產資料庫
+     * 每小時執行一次
      */
-    @Scheduled(cron = "0 0 */1 * * ? ",
-               zone = "UTC")
+    @Scheduled(cron = "0 0 */1 * * ? ")
     public void recordUserPropertySummary() {
         logger.info("開始記錄使用者的資產總價");
         List<User> users = userService.getAllUsers();
@@ -264,7 +284,7 @@ public class CrontabMethod {
 
     /**
      * 更新使用者的現金流
-     * 每4小時
+     * 每4小時執行一次
      */
 
     @Scheduled(cron = "0 10 */4 * * ? ",
@@ -284,7 +304,7 @@ public class CrontabMethod {
 
     /**
      * 更新使用者的 ROI
-     * 每4小時
+     * 每4小時執行一次
      */
     @Scheduled(cron = "0 40 */4 * * ? ",
                zone = "UTC")
@@ -301,8 +321,8 @@ public class CrontabMethod {
     }
 
     /**
-     * 更新使用者的 ROI 統計
-     * 每4小時
+     * 更新使用者的 ROI 統計資料
+     * 每4小時執行一次
      */
     @Scheduled(cron = "0 45 */4 * * ? ",
                zone = "UTC")
@@ -310,14 +330,14 @@ public class CrontabMethod {
         logger.info("開始更新使用者的 ROI 統計");
         List<User> users = userService.getAllUsers();
         for (User user : users) {
-            //Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
-            //propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
+            Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
+            propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
 
-            //Map<String, String> sharpeRatioResult = propertyService.calculateSharpeRatio(user);
-            //propertyInfluxService.writeUserSharpRatioToInflux(sharpeRatioResult, user);
+            Map<String, String> sharpeRatioResult = propertyService.calculateSharpeRatio(user);
+            propertyInfluxService.writeUserSharpRatioToInflux(sharpeRatioResult, user);
 
             Map<String, Map<String, List<BigDecimal>>> drawDownResult = propertyService.calculateUserDrawDown(user);
-            //propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
+            propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
 
 
         }
@@ -326,9 +346,9 @@ public class CrontabMethod {
 
     /**
      * 檢查並重新連接WebSocket
-     * 每分鐘
+     * 每5分鐘
      */
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 300000)
     public void checkAndReconnectWebSocket() {
         if (cryptoService.isNeedToCheckConnection() && !cryptoWebSocketHandler.isRunning()) {
             cryptoService.checkAndReconnectWebSocket();
@@ -336,24 +356,30 @@ public class CrontabMethod {
     }
 
     /**
-     * 刪除過期的新聞, 保留最近幾天的新聞
-     * 每天凌晨1點
+     * 刪除過期的新聞, 保留最近指定時間內的新聞
+     * 預設保留30天，可在配置文件中設置{newsRemainDays}
+     * 每天UTC時間凌晨1點
      */
     @Scheduled(cron = "0 0 1 * * ? ",
                zone = "UTC")
     public void removeExpiredNews() {
-        logger.info("開始刪除過期的新聞");
-        LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
-        newsService.deleteNewsBeforeDate(removeTime);
-        logger.debug("刪除完成");
+        if (newsRemainDays > 0) {
+            logger.info("開始刪除過期的新聞");
+            LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
+            newsService.deleteNewsBeforeDate(removeTime);
+            logger.debug("刪除完成");
+        }
     }
 
     /**
      * 更新新聞資料
-     * 每8小時
+     * 1. 刪除新聞緩存
+     * 2. 更新頭條新聞
+     * 3. 更新訂閱資產的新聞
+     * 4. 更新債券新聞
+     * 每8小時執行一次
      */
-    @Scheduled(cron = "0 30 */8 * * ? ",
-               zone = "UTC")
+    @Scheduled(cron = "0 30 */8 * * ? ")
     public void updateNewsData() {
         logger.info("開始更新頭條新聞");
         redisService.deleteByPattern("news_headline_page_*");
@@ -367,15 +393,16 @@ public class CrontabMethod {
             logger.debug("正在更新 " + asset.getId() + " 的新聞");
             newsService.sendNewsRequest(false, 1, null, asset);
         }
+        newsService.sendNewsRequest(false, 1, "DEBT", null);
+
         logger.info("新聞更新完成");
     }
 
     /**
      * 更新資產列表緩存
-     * 每4小時
+     * 每4小時執行一次
      */
-    @Scheduled(cron = "0 10 */4 * * ? ",
-               zone = "UTC")
+    @Scheduled(cron = "0 10 */4 * * ? ")
     public void updateAssetListCache() {
         try {
             List<String> keys = new ArrayList<>(Arrays.asList("crypto", "stock_tw", "currency"));
@@ -418,6 +445,9 @@ public class CrontabMethod {
 
     /**
      * 獲取股票台灣自動更新狀態
+     * 獲取當前時間，判斷是否在開盤時間
+     * 如果在開盤時間，則返回是否開啟
+     * 如果不在開盤時間，則返回false
      *
      * @return 是否開啟
      */

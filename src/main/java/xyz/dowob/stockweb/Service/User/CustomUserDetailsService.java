@@ -21,6 +21,11 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    /**
+     * CustomUserDetailsService構造函數
+     *
+     * @param userRepository 用戶數據庫
+     */
     @Autowired
     public CustomUserDetailsService(UserRepository userRepository) {
         this.userRepository = userRepository;

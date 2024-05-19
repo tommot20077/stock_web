@@ -5,7 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
@@ -30,10 +35,14 @@ import xyz.dowob.stockweb.Service.Common.Property.PropertyInfluxService;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
+ * 有關於用戶交易訊息的業務邏輯
+ *
  * @author yuan
  */
 @Service
@@ -60,6 +69,23 @@ public class TransactionService {
 
     Logger logger = LoggerFactory.getLogger(TransactionService.class);
 
+    @Value("${common.global_page_size:100}")
+    private int globalPageSize;
+
+    /**
+     * TransactionService構造函數
+     *
+     * @param transactionRepository 交易數據庫
+     * @param currencyRepository    貨幣數據庫
+     * @param cryptoRepository      加密貨幣數據庫
+     * @param propertyRepository    資產數據庫
+     * @param stockTwRepository     台股數據庫
+     * @param subscribeMethod       訂閱方法
+     * @param combineMethod         組合方法
+     * @param propertyInfluxService 資產InfluxDB服務
+     * @param eventCacheMethod      事件緩存方法
+     * @param eventPublisher        事件發布器
+     */
     @Autowired
     public TransactionService(TransactionRepository transactionRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, PropertyRepository propertyRepository, StockTwRepository stockTwRepository, SubscribeMethod subscribeMethod, CombineMethod combineMethod, PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
@@ -428,12 +454,13 @@ public class TransactionService {
      *
      * @throws JsonProcessingException JSON處理錯誤
      */
-    public String getUserAllTransaction(User user) throws JsonProcessingException {
-        logger.debug("查詢用戶所有交易紀錄");
+    public String getUserAllTransaction(User user, int page) throws JsonProcessingException {
+        Pageable pageable = PageRequest.of(page - 1, globalPageSize);
+
         List<TransactionListDto.TransactionDto> transactions = new ArrayList<>();
-        List<Transaction> userTransactions = transactionRepository.findByUserOrderByTransactionDateDesc(user);
-        logger.debug("用戶所有交易紀錄數量: {}", userTransactions.size());
-        for (Transaction transaction : userTransactions) {
+        Page<Transaction> userTransactions = transactionRepository.findByUserOrderByTransactionDateDesc(user, pageable);
+
+        for (Transaction transaction : userTransactions.getContent()) {
             TransactionListDto.TransactionDto transactionDto = new TransactionListDto.TransactionDto();
             logger.debug("交易紀錄: {}", transaction);
             transactionDto.setId(String.valueOf(transaction.getId()));
@@ -458,11 +485,15 @@ public class TransactionService {
             logger.debug("交易類型: {}", transaction.getType());
             transactions.add(transactionDto);
         }
-        logger.debug("查詢所有交易紀錄完成");
-        logger.debug("全部交易紀錄: {}", transactions);
+        Map<String, Object> result = new HashMap<>(Map.of("transactions",
+                                                          transactions,
+                                                          "totalPages",
+                                                          userTransactions.getTotalPages(),
+                                                          "currentPage",
+                                                          userTransactions.getNumber() + 1));
 
         ObjectMapper objectMapper = new ObjectMapper();
-        return objectMapper.writeValueAsString(transactions);
+        return objectMapper.writeValueAsString(result);
     }
 
 

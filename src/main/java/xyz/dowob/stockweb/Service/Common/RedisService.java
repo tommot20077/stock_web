@@ -23,6 +23,11 @@ public class RedisService {
 
     Logger logger = LoggerFactory.getLogger(RedisService.class);
 
+    /**
+     * RedisService構造函數
+     *
+     * @param redisTemplate redis模板
+     */
     @Autowired
     public RedisService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;

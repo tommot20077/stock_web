@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
+ * 這是一個初始化類，用於在應用程序啟動時創建InfluxDB的bucket。
+ *
  * @author yuan
  */
 @Component
@@ -51,7 +53,11 @@ public class InfluxInitial {
 
     Logger logger = LoggerFactory.getLogger(InfluxInitial.class);
 
-
+    /**
+     * 這是一個構造函數，用於注入InfluxDBClient，此注入客戶端不包含Bucket參數。
+     *
+     * @param influxClient influxDB客戶端
+     */
     public InfluxInitial(
             @Qualifier("influxClient") InfluxDBClient influxClient) {
         this.influxClient = influxClient;
@@ -78,16 +84,16 @@ public class InfluxInitial {
         String orgId = getOrganization().getId();
         for (String key : keys) {
             if (key == null || key.isEmpty()) {
-                logger.info("請先配置設定" + key);
-                throw new IllegalStateException("請先配置設定" + key);
+                logger.info("請先配置設定: " + key);
+                throw new IllegalStateException("請先配置設定: " + key);
             }
         }
 
         for (String bucket : buckets) {
             logger.debug("檢查influx配置: " + bucket);
             if (bucket == null || bucket.isEmpty()) {
-                logger.warn("請先配置設定" + bucket);
-                throw new IllegalStateException("請先配置設定" + bucket);
+                logger.warn("請先配置設定: " + bucket);
+                throw new IllegalStateException("請先配置設定: " + bucket);
             }
             try {
                 if (!checkBucketExists(bucket)) {

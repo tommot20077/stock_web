@@ -247,6 +247,29 @@ async function getUserAllSubscribes() {
     }
 }
 
+async function fetchDebtsData(formatTime = false) {
+    let url = "/api/user/asset/getGovernmentBond"
+    if (formatTime) {
+        url += "?formatByTime=true"
+    }
+    try {
+        let response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            return await response.json();
+        } else {
+            let errorText = await response.text();
+            throw new Error(errorText);
+        }
+    } catch (error) {
+        console.error(error);
+    }
+}
 
 function getPropertyType(type_id) {
     if (document.getElementById(type_id)) {
@@ -476,7 +499,7 @@ function deleteProperty(event, elementId) {
     });
 }
 
-async function getUserAllTransactions() {
+async function getUserTransactions(page = 1) {
     const tableBody = document.getElementById('TransactionTableBody');
     tableBody.innerHTML =
         `<td colspan="8"">
@@ -489,7 +512,7 @@ async function getUserAllTransactions() {
     tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
 
     try {
-        let response = await fetch("/api/user/transaction/getUserAllTransaction", {
+        let response = await fetch("/api/user/transaction/getUserAllTransaction?page=" + page, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'

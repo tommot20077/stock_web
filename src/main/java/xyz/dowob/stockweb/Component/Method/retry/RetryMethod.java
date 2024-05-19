@@ -8,6 +8,9 @@ import xyz.dowob.stockweb.Exception.RetryException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * 這是一個重試方法，用於控制重試次數。
+ * 這個類的目的是為了在重試次數達到最大值時拋出RetryException異常。
+ *
  * @author yuan
  */
 @Component
@@ -17,6 +20,9 @@ public class RetryMethod {
 
     private AtomicInteger maxRetryTimes;
 
+    /**
+     * 初始化方法，用於設置最大重試次數。
+     */
     @PostConstruct
     private void init() {
         maxRetryTimes = new AtomicInteger(maxRetryTimesValue);
@@ -27,6 +33,9 @@ public class RetryMethod {
         return new RetryContent(maxRetryTimes.get());
     }
 
+    /**
+     * 這是一個重試內容，用於控制重試次數。
+     */
     public class RetryContent {
         private final AtomicInteger currentRetryTimes;
 

@@ -1,6 +1,6 @@
 package xyz.dowob.stockweb.Component.EventListener.StockTw;
 
-import org.jetbrains.annotations.NotNull;
+import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +13,10 @@ import xyz.dowob.stockweb.Service.Common.ProgressTrackerService;
 import xyz.dowob.stockweb.Service.Stock.StockTwService;
 
 /**
+ * 當StockTwHistoryDataChangeEvent事件發生時，此類別將被調用。
+ * 實現ApplicationListener接口。並以StockTwHistoryDataChangeEvent作為參數。
+ * 此類別用於監聽StockTwHistoryDataChangeEvent事件，並根據事件的addOrRemove屬性執行相應操作。
+ *
  * @author yuan
  */
 @Component
@@ -25,6 +29,13 @@ public class StockTwHistoryDataChangeListener implements ApplicationListener<Sto
 
     private final RetryTemplate retryTemplate;
 
+    /**
+     * StockTwHistoryDataChangeListener類別的構造函數。
+     *
+     * @param stockTwService         股票相關服務方法
+     * @param progressTrackerService 進度追蹤相關服務方法
+     * @param retryTemplate          重試模板
+     */
     @Autowired
     public StockTwHistoryDataChangeListener(StockTwService stockTwService, ProgressTrackerService progressTrackerService, RetryTemplate retryTemplate) {
         this.stockTwService = stockTwService;
@@ -42,10 +53,12 @@ public class StockTwHistoryDataChangeListener implements ApplicationListener<Sto
      */
     @Override
     public void onApplicationEvent(
-            @NotNull StockTwHistoryDataChangeEvent event) {
+            @NonNull StockTwHistoryDataChangeEvent event) {
         logger.info("收到股票歷史資料變更事件");
         if ("add".equals(event.getAddOrRemove())) {
-            if (progressTrackerService.getAllProgressInfo().stream().anyMatch(x -> x.getTaskName().equals(event.getStockTw().getStockCode()))) {
+            if (progressTrackerService.getAllProgressInfo()
+                                      .stream()
+                                      .anyMatch(x -> x.getTaskName().equals(event.getStockTw().getStockCode()))) {
                 logger.debug("該股票已經在執行中，不處理");
                 return;
             }

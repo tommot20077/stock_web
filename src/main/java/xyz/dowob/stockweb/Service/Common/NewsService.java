@@ -11,6 +11,7 @@ import com.google.gson.JsonParser;
 import io.micrometer.common.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +31,8 @@ import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Repository.Common.NewsRepository;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -59,11 +62,17 @@ public class NewsService {
     @Value("${news.prefer.language:zh}")
     private String preferLanguage;
 
-    @Value("${common.global_page_size}")
+    @Value("${common.global_page_size:100}")
     private int pageSize;
 
     Logger logger = LoggerFactory.getLogger(NewsService.class);
 
+    /**
+     * 建構子
+     *
+     * @param newsRepository 新聞數據庫
+     */
+    @Autowired
     public NewsService(NewsRepository newsRepository) {
         this.newsRepository = newsRepository;
     }
@@ -105,7 +114,13 @@ public class NewsService {
         } else {
             inquiryUrl = inquiryUrl + "everything" + "?";
             inquiryUrl = inquiryUrl + "language=" + preferLanguage + "&";
-            inquiryUrl = inquiryUrl + "q=" + keyword + "&";
+            if ("DEBT".equalsIgnoreCase(keyword)) {
+                String query = "公債 OR 國債";
+                String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
+                inquiryUrl = "https://newsapi.org/v2/everything?language=zh&q=" + encodedQuery + "&pageSize=100&page=1";
+            } else {
+                inquiryUrl = inquiryUrl + "q=" + keyword + "&";
+            }
         }
         inquiryUrl = inquiryUrl + "pageSize=" + pageSize + "&";
         inquiryUrl = inquiryUrl + "page=" + page;
@@ -138,9 +153,7 @@ public class NewsService {
             ResponseEntity<String> response = restTemplate.exchange(requestEntity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 logger.debug("請求成功: " + response.getBody());
-
                 handleResponse(response.getBody(), isHeadline, page, keyword, asset);
-
             } else {
                 logger.error("請求失敗: " + response.getBody());
                 throw new RuntimeException("請求失敗: " + response.getBody());
@@ -219,7 +232,11 @@ public class NewsService {
                 news.setNewsType(NewsType.HEADLINE);
             } else {
                 if (asset == null) {
-                    news.setNewsType(NewsType.HEADLINE);
+                    if ("DEBT".equalsIgnoreCase(keyword)) {
+                        news.setNewsType(NewsType.DEBT);
+                    } else {
+                        news.setNewsType(NewsType.HEADLINE);
+                    }
                 } else {
                     switch (asset.getAssetType()) {
                         case STOCK_TW:

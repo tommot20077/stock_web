@@ -9,6 +9,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
+ * 這是一個用於處理錯誤的控制器
  * @author yuan
  */
 @Controller
@@ -16,6 +17,7 @@ public class CustomErrorController implements ErrorController {
 
     /**
      * 處理所有錯誤並導向錯誤頁面(不包含404)
+     * 404錯誤將導向首頁
      *
      * @param request 錯誤請求
      * @param model   錯誤訊息
@@ -34,7 +36,6 @@ public class CustomErrorController implements ErrorController {
             }
             model.addAttribute("statusCode", statusCode);
         }
-
         return "error";
     }
 }

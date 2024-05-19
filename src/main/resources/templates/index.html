@@ -161,7 +161,20 @@
 						</ul>
 					</div>
 				</li>
-
+				<li class="nav-item">
+					<a class="nav-link" data-bs-toggle="collapse" href=/#governmentDebt aria-expanded="false"
+							aria-controls="auth">
+						<i class="menu-icon mdi mdi-nutrition"></i>
+						<span class="menu-title">公債</span>
+						<i class="menu-arrow"></i>
+					</a>
+					<div class="collapse" id="governmentDebt">
+						<ul class="nav flex-column sub-menu">
+							<li class="nav-item"><a class="nav-link" href=/debt_info> 公債概況 </a></li>
+							<li class="nav-item"><a class="nav-link" href=/news/debt> 公債新聞 </a></li>
+						</ul>
+					</div>
+				</li>
 				<li class="nav-item nav-category">資產</li>
 				<li class="nav-item">
 					<a class="nav-link" data-bs-toggle="collapse" href=/#property aria-expanded="false"
@@ -606,10 +619,11 @@
 	getUserDetails();
 	userLineChart();
 	userPropertySummaryPieChart()
-	displayStatisticsOverview();
 	displayServerStatus();
 	displayTodoList();
-	displayRoiStatistics();
+	Promise.all([fetchRoiStatistics(), displayStatisticsOverview()]).then(([roiData]) => {
+		displayRoiStatistics(roiData);
+	});
 
 	setInterval(() => {
 		displayServerStatus();

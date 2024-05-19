@@ -27,6 +27,12 @@ public class CurrencyInfluxService {
 
     Logger logger = LoggerFactory.getLogger(CurrencyInfluxService.class);
 
+    /**
+     * CurrencyInfluxService構造函數
+     *
+     * @param currencyClient    貨幣InfluxDB客戶端
+     * @param assetInfluxMethod 資產InfluxDB方法
+     */
     @Autowired
     public CurrencyInfluxService(
             @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyClient, AssetInfluxMethod assetInfluxMethod) {

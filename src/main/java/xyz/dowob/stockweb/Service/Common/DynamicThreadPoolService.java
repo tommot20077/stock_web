@@ -39,6 +39,11 @@ public class DynamicThreadPoolService {
         this.executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(globalThreadLimit);
     }
 
+    /**
+     * 獲取線程池。
+     *
+     * @return 線程池。
+     */
     public ExecutorService getExecutorService() {
         return executorService;
     }

@@ -5,10 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.JsonParseException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.Property.TransactionListDto;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.User.TransactionService;
@@ -18,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * 這是一個用於處理用戶交易相關的控制器
  * @author yuan
  */
 @Controller
@@ -27,10 +25,14 @@ public class ApiTransactionController {
 
     private final UserService userService;
 
+    /**
+     * 這是一個構造函數，用於注入TransactionService和UserService
+     * @param transactionService 交易服務
+     * @param userService 用戶服務
+     */
     @Autowired
     public ApiTransactionController(TransactionService transactionService, UserService userService) {
         this.transactionService = transactionService;
-
         this.userService = userService;
     }
 
@@ -78,13 +80,13 @@ public class ApiTransactionController {
      * @return ResponseEntity
      */
     @GetMapping("/getUserAllTransaction")
-    public ResponseEntity<?> getUserAllTransaction(HttpSession session) {
+    public ResponseEntity<?> getUserAllTransaction(HttpSession session, @RequestParam(required = false, name = "page", defaultValue = "1") int page) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            String jsonString = transactionService.getUserAllTransaction(user);
+            String jsonString = transactionService.getUserAllTransaction(user, page);
             return ResponseEntity.ok().body(jsonString);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("伺服器錯誤: " + e.getMessage());

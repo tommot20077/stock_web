@@ -22,6 +22,8 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import xyz.dowob.stockweb.Component.Event.Crypto.WebSocketConnectionStatusEvent;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
+import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
+import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
@@ -38,27 +40,43 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 當WebSocket連線建立後，此類別將被調用。
+ * 實現TextWebSocketHandler接口。
+ * 此類別用於處理WebSocket連接，並將數據寫入InfluxDB。
+ * 此類別包含訂閱和取消訂閱特定交易對的方法。
+ *
+ * @author yuan
+ */
 @NoArgsConstructor(force = true)
 @Component
 public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
+    @NotNull
     private final CryptoInfluxService cryptoInfluxService;
 
+    @NotNull
     private final SubscribeMethod subscribeMethod;
 
+    @NotNull
     private final CryptoRepository cryptoRepository;
 
-    private final ApplicationEventPublisher eventPublisher;
-
+    @NotNull
     private final SubscribeRepository subscribeRepository;
 
-    private final
+    @NotNull
+    private final ApplicationEventPublisher eventPublisher;
 
-    Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
+    @NotNull
+    private final RetryTemplate retryTemplate;
 
-    int maxRetryCount = 5;
+    private final Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
 
-    int retryDelay = 10;
+    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+    private ThreadPoolTaskScheduler taskScheduler;
+
+    private WebSocketSession webSocketSession;
 
     int connectMaxLiftTime = 24 * 60 * 60;
 
@@ -67,23 +85,32 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     @Getter
     boolean isRunning = false;
 
-    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    private ThreadPoolTaskScheduler taskScheduler;
-
-    private WebSocketSession webSocketSession;
-
-    private int retryCount = 0;
-
+    /**
+     * 創建CryptoWebSocketHandler的構造函數。
+     *
+     * @param cryptoInfluxService 虛擬貨幣相關服務方法
+     * @param subscribeMethod     用戶訂閱管理相關方法
+     * @param cryptoRepository    虛擬貨幣資料庫
+     * @param eventPublisher      事件發布者
+     * @param subscribeRepository 用戶訂閱資料庫
+     * @param retryTemplate       重試模板
+     */
     @Autowired
-    public CryptoWebSocketHandler(CryptoInfluxService cryptoInfluxService, SubscribeMethod subscribeMethod, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository) {
+    public CryptoWebSocketHandler(@NotNull CryptoInfluxService cryptoInfluxService, @NotNull SubscribeMethod subscribeMethod, @NotNull CryptoRepository cryptoRepository, @NotNull ApplicationEventPublisher eventPublisher, @NotNull SubscribeRepository subscribeRepository, @NotNull RetryTemplate retryTemplate) {
         this.cryptoInfluxService = cryptoInfluxService;
         this.subscribeMethod = subscribeMethod;
         this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
         this.subscribeRepository = subscribeRepository;
+        this.retryTemplate = retryTemplate;
     }
 
+    /**
+     * 設定ThreadPoolTaskScheduler。
+     *
+     * @param taskScheduler ThreadPoolTaskScheduler
+     */
     @Autowired
     public void setTaskScheduler(ThreadPoolTaskScheduler taskScheduler) {
         this.taskScheduler = taskScheduler;
@@ -93,24 +120,16 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      * 當WebSocket連線建立後，此方法會被調用。它將設定WebSocket會話，並開始重新連接的計劃。
      *
      * @param session WebSocket會話
-     *
-     * @throws Exception 如果ApplicationEventPublisher未初始化
      */
     @Override
-    public void afterConnectionEstablished(@NotNull WebSocketSession session) throws Exception {
-        if (eventPublisher != null) {
-            this.webSocketSession = session;
-            logger.info("WebSocket連線成功");
-            this.connectionTime = new Date();
-            this.retryCount = 0;
-            isRunning = true;
-            scheduleReconnection();
-            eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, true, session));
-            subscribeAllPreviousTradingPair();
-        } else {
-            logger.warn("ApplicationEventPublisher未初始化");
-            throw new Exception("ApplicationEventPublisher未初始化");
-        }
+    public void afterConnectionEstablished(@NotNull WebSocketSession session) {
+        this.webSocketSession = session;
+        logger.info("WebSocket連線成功");
+        this.connectionTime = new Date();
+        isRunning = true;
+        scheduleReconnection();
+        eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, true, session));
+        subscribeAllPreviousTradingPair();
     }
 
     /**
@@ -118,35 +137,26 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      *
      * @param session WebSocket會話
      * @param status  關閉狀態
-     *
-     * @throws Exception 如果ApplicationEventPublisher未初始化
      */
     @Override
-    public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws Exception {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
-            logger.info("WebSocket連線關閉: Session " + session.getId());
-            scheduler.shutdownNow();
-            try {
-                if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                    logger.info("WebSocket連線關閉: 已強制關閉");
-                }
-            } catch (InterruptedException e) {
+    public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
+        eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
+        logger.info("WebSocket連線關閉: Session " + session.getId());
+        scheduler.shutdownNow();
+        try {
+            if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
                 scheduler.shutdownNow();
                 logger.info("WebSocket連線關閉: 已強制關閉");
-            } finally {
-                releaseResources();
-                this.retryCount = 0;
-                isRunning = false;
-                this.scheduler = Executors.newSingleThreadScheduledExecutor();
-                scheduleReconnection();
             }
-        } else {
-            logger.warn("ApplicationEventPublisher未初始化");
-            throw new Exception("ApplicationEventPublisher未初始化");
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            logger.info("WebSocket連線關閉: 已強制關閉");
+        } finally {
+            releaseResources();
+            isRunning = false;
+            this.scheduler = Executors.newSingleThreadScheduledExecutor();
+            scheduleReconnection();
         }
-
     }
 
     /**
@@ -181,12 +191,13 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) {
         logger.error("WebSocket 傳輸錯誤: ", exception);
-        if (retryCount < maxRetryCount && !isRunning) {
-            logger.info("嘗試重新連接WebSocket");
-            reconnectAndResubscribe();
-        } else if (isRunning) {
-            logger.info("WebSocket連接已重新建立");
-        } else {
+        try {
+            retryTemplate.doWithRetry(() -> {
+                logger.info("嘗試重新連接WebSocket");
+                reconnectAndResubscribe();
+                logger.info("WebSocket連接已重新建立");
+            });
+        } catch (RetryException e) {
             logger.error("WebSocket連接失敗，已達最大重試次數");
             releaseResources();
             isRunning = false;
@@ -220,12 +231,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     logger.debug("轉換的kline: " + kline);
                     if (kline != null) {
                         logger.debug("開始寫入InfluxDB");
-                        if (cryptoInfluxService != null) {
-                            cryptoInfluxService.writeToInflux(kline);
-                            logger.debug("寫入InfluxDB成功");
-                        } else {
-                            logger.debug("InfluxDB服務未初始化");
-                        }
+                        cryptoInfluxService.writeToInflux(kline);
+                        logger.debug("寫入InfluxDB成功");
                     } else {
                         logger.debug("kline為null");
                     }
@@ -269,33 +276,27 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.warn("沒有找到" + tradingPair + "的交易對");
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
-            if (subscribeRepository != null && subscribeMethod != null && eventPublisher != null && cryptoRepository != null) {
-                if (subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel)
-                                       .isPresent()) {
-                    logger.warn("已訂閱過" + tradingPair + channel + "交易對");
-                    throw new Exception("已訂閱過" + tradingPair + channel + "交易對");
+            if (subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel).isPresent()) {
+                logger.warn("已訂閱過" + tradingPair + channel + "交易對");
+                throw new Exception("已訂閱過" + tradingPair + channel + "交易對");
+            } else {
+                if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
+                    logger.warn(user.getUsername() + "已訂閱過" + tradingPair + channel + "交易對，不進行訂閱");
                 } else {
-                    if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
-                        logger.warn(user.getUsername() + "已訂閱過" + tradingPair + channel + "交易對，不進行訂閱");
-                    } else {
-                        logger.debug("用戶主動訂閱，此訂閱設定可刪除");
-                        Subscribe subscribe = new Subscribe();
-                        subscribe.setUser(user);
-                        subscribe.setAsset(cryptoTradingPairSymbol);
-                        subscribe.setChannel(channel);
-                        subscribe.setUserSubscribed(true);
-                        subscribe.setRemoveAble(true);
-                        subscribeRepository.save(subscribe);
-                        logger.info("已訂閱" + tradingPair + channel + "交易對");
+                    logger.debug("用戶主動訂閱，此訂閱設定可刪除");
+                    Subscribe subscribe = new Subscribe();
+                    subscribe.setUser(user);
+                    subscribe.setAsset(cryptoTradingPairSymbol);
+                    subscribe.setChannel(channel);
+                    subscribe.setUserSubscribed(true);
+                    subscribe.setRemoveAble(true);
+                    subscribeRepository.save(subscribe);
+                    logger.info("已訂閱" + tradingPair + channel + "交易對");
 
-                        if (!cryptoTradingPairSymbol.checkUserIsSubscriber(user)){
-                            subscribeMethod.addSubscriberToCryptoTradingPair(cryptoTradingPairSymbol, user.getId());
-                        }
+                    if (!cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
+                        subscribeMethod.addSubscriberToCryptoTradingPair(cryptoTradingPairSymbol, user.getId());
                     }
                 }
-            } else {
-                logger.error("Repository未初始化");
-                throw new Exception("Repository未初始化");
             }
         }
     }
@@ -316,38 +317,35 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             logger.warn("沒有找到" + tradingPair + "的交易對");
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
-            if (subscribeRepository != null && cryptoRepository != null && eventPublisher != null && subscribeMethod != null) {
-                Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
-                                                                                           cryptoTradingPairSymbol.getId(),
-                                                                                           channel).orElse(null);
-                if (subscribe == null) {
-                    logger.warn("尚未訂閱過" + tradingPair + channel + "交易對");
-                    throw new Exception("尚未訂閱過" + tradingPair + channel + "交易對");
-                } else if (subscribe.isRemoveAble()) {
-                    subscribeRepository.delete(subscribe);
-                    if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
-                        subscribeMethod.removeSubscriberFromTradingPair(cryptoTradingPairSymbol, user.getId());
-                    }
-
-                    if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0 && webSocketSession != null && webSocketSession.isOpen()) {
-                        String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
-                        logger.debug("取消訂閱訊息: " + message);
-                        webSocketSession.sendMessage(new TextMessage(message));
-                        logger.info("已取消訂閱" + tradingPair + channel + "交易對");
-                        int allSubscribeNumber = cryptoRepository.countAllSubscribeNumber();
-                        if (allSubscribeNumber == 0) {
-                            logger.warn("目前沒有交易對的訂閱");
-                            webSocketSession.close(CloseStatus.GOING_AWAY);
-                            eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
-                            webSocketSession = null;
-                            logger.info("WebSocket連線已關閉");
-                            isRunning = false;
-                        }
-                    }
-                } else {
-                    logger.warn("此訂閱: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
-                    throw new Exception("此資產: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+            Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
+                                                                                       cryptoTradingPairSymbol.getId(),
+                                                                                       channel).orElse(null);
+            if (subscribe == null) {
+                logger.warn("尚未訂閱過" + tradingPair + channel + "交易對");
+                throw new Exception("尚未訂閱過" + tradingPair + channel + "交易對");
+            } else if (subscribe.isRemoveAble()) {
+                subscribeRepository.delete(subscribe);
+                if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
+                    subscribeMethod.removeSubscriberFromTradingPair(cryptoTradingPairSymbol, user.getId());
                 }
+                if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0 && webSocketSession != null && webSocketSession.isOpen()) {
+                    String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
+                    logger.debug("取消訂閱訊息: " + message);
+                    webSocketSession.sendMessage(new TextMessage(message));
+                    logger.info("已取消訂閱" + tradingPair + channel + "交易對");
+                    int allSubscribeNumber = cryptoRepository.countAllSubscribeNumber();
+                    if (allSubscribeNumber == 0) {
+                        logger.warn("目前沒有交易對的訂閱");
+                        webSocketSession.close(CloseStatus.GOING_AWAY);
+                        eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
+                        webSocketSession = null;
+                        logger.info("WebSocket連線已關閉");
+                        isRunning = false;
+                    }
+                }
+            } else {
+                logger.warn("此訂閱: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+                throw new Exception("此資產: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
             }
         }
     }
@@ -360,13 +358,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      * @return CryptoTradingPair
      */
 
-    public CryptoTradingPair findTradingPair(String tradingPair) {
-        if (cryptoRepository != null) {
-            return cryptoRepository.findByTradingPair(tradingPair).orElse(null);
-        } else {
-            logger.warn("CryptoRepository未初始化");
-            return null;
-        }
+    private CryptoTradingPair findTradingPair(String tradingPair) {
+        return cryptoRepository.findByTradingPair(tradingPair).orElse(null);
     }
 
     /**
@@ -375,7 +368,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      */
     public void reconnectAndResubscribe() {
         try {
-            Instant scheduledTime = Instant.now().plusSeconds(retryDelay);
+            Instant scheduledTime = Instant.now().plusSeconds(10);
             taskScheduler.schedule(() -> {
                 if (!scheduler.isShutdown() && !scheduler.isTerminated()) {
                     scheduler.shutdown();
@@ -391,7 +384,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                         logger.info("WebSocket連線關閉: 已強制關閉");
                     }
                 }
-                if (webSocketSession != null && webSocketSession.isOpen() && eventPublisher != null) {
+                if (webSocketSession != null && webSocketSession.isOpen()) {
                     try {
                         webSocketSession.close(CloseStatus.GOING_AWAY);
                         eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
@@ -402,8 +395,6 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                         logger.error("嘗試關閉WebSocket連接時發生錯誤", e);
                     }
                 }
-
-
                 WebSocketClient webSocketClient = new StandardWebSocketClient();
                 WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(webSocketClient,
                                                                                               this,
@@ -412,13 +403,11 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 connectionManager.start();
                 logger.info("WebSocket重新連線成功");
                 this.connectionTime = new Date();
-                this.retryCount = 0;
                 this.isRunning = true;
                 subscribeAllPreviousTradingPair();
             }, scheduledTime);
         } catch (Exception e) {
             logger.error("嘗試重新連接WebSocket時發生錯誤", e);
-            retryCount++;
         }
     }
 
@@ -452,15 +441,10 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      * @return List<String>
      */
     private List<String> findSubscribedTradingPairList() {
-        if (cryptoRepository != null) {
-            return cryptoRepository.findAllByHasAnySubscribed(true)
-                                   .stream()
-                                   .map(tradingPair -> "\"" + tradingPair.getTradingPair().toLowerCase() + "@kline_1m\"")
-                                   .toList();
-        } else {
-            logger.warn("CryptoRepository未初始化");
-            return null;
-        }
+        return cryptoRepository.findAllByHasAnySubscribed(true)
+                               .stream()
+                               .map(tradingPair -> "\"" + tradingPair.getTradingPair().toLowerCase() + "@kline_1m\"")
+                               .toList();
     }
 
     /**

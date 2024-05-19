@@ -39,6 +39,8 @@ import java.util.Map;
 import java.util.TimeZone;
 
 /**
+ * 用戶相關服務
+ *
  * @author yuan
  */
 @Service
@@ -57,9 +59,19 @@ public class UserService {
 
     private final MailTokenProvider mailTokenProvider;
 
-
     Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    /**
+     * UserService構造函數
+     *
+     * @param userRepository      用戶數據庫
+     * @param tokenRepository     憑證數據庫
+     * @param tokenService        憑證服務
+     * @param currencyRepository  貨幣數據庫
+     * @param subscribeRepository 訂閱數據庫
+     * @param passwordEncoder     密碼加密器
+     * @param mailTokenProvider   郵件憑證提供者
+     */
     @Autowired
     public UserService(
             UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {

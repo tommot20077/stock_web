@@ -19,6 +19,12 @@ public class Progress {
 
     private final String taskName;
 
+    /**
+     * 進度條的構造函數
+     *
+     * @param totalTask 總任務數
+     * @param taskName  任務名稱
+     */
     public Progress(int totalTask, String taskName) {
         this.totalTask = totalTask;
         this.taskName = taskName;

@@ -1,7 +1,7 @@
 package xyz.dowob.stockweb.Component.EventListener.StockTw;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import org.jetbrains.annotations.NotNull;
+import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +11,9 @@ import xyz.dowob.stockweb.Component.Event.StockTw.StockTwSubscriberChangeEvent;
 import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 
 /**
+ * 當StockTwSubscriberChangeEvent事件發生時，此類別將被調用。
+ * 實現ApplicationListener接口。並以StockTwSubscriberChangeEvent作為參數。
+ * 此類別用於監聽StockTwSubscriberChangeEvent事件，並根據事件的發生進行相應操作。
  * @author yuan
  */
 @Component
@@ -29,11 +32,11 @@ public class StockTwSubscriberChangeListener implements ApplicationListener<Stoc
      *
      * @param event 股票訂閱變更事件對象。
      *              方法首先記錄一條信息，表示收到了股票訂閱變更事件。然後，嘗試調用 crontabMethod 的 checkSubscriptions 和 trackStockTwPricesPeriodically 方法來檢查訂閱並定期追蹤股票價格。
-     *              如果在處理 JSON 時出現異常，則記錄一條錯誤信息並拋出 RuntimeException。
+     * @throws RuntimeException 如果在 JSON 轉換過程中出現異常，則拋出異常
      */
     @Override
     public void onApplicationEvent(
-            @NotNull StockTwSubscriberChangeEvent event) {
+            @NonNull StockTwSubscriberChangeEvent event) {
         logger.info("收到股票訂閱變更");
         try {
             crontabMethod.checkSubscriptions();

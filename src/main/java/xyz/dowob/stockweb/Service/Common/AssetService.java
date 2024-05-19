@@ -41,11 +41,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @author yuan
@@ -71,6 +73,18 @@ public class AssetService {
 
     Logger logger = LoggerFactory.getLogger(AssetService.class);
 
+    /**
+     * AssetService建構子
+     *
+     * @param assetRepository    資產資料庫操作介面
+     * @param assetInfluxMethod  資產InfluxDB相關方法
+     * @param objectMapper       JSON轉換物件
+     * @param redisService       Redis緩存相關服務
+     * @param assetHandler       資產處理器
+     * @param currencyRepository 貨幣資料庫操作介面
+     * @param stockTwRepository  台股資料庫操作介面
+     * @param cryptoRepository   加密貨幣資料庫操作介面
+     */
     @Autowired
     public AssetService(AssetRepository assetRepository, AssetInfluxMethod assetInfluxMethod, ObjectMapper objectMapper, RedisService redisService, AssetHandler assetHandler, CurrencyRepository currencyRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository) {
         this.assetRepository = assetRepository;
@@ -91,6 +105,9 @@ public class AssetService {
 
     @Value("${db.influxdb.bucket.crypto_history}")
     private String cryptoHistoryBucket;
+
+    @Value("${db.influxdb.bucket.common_economy}")
+    private String commonEconomyBucket;
 
     @Value("${common.global_page_size:100}")
     private int pageSize;
@@ -254,7 +271,13 @@ public class AssetService {
         }
     }
 
-
+    /**
+     * 獲取資產統計數據並存儲到Redis中。
+     *
+     * @param asset 資產對象。
+     *
+     * @return 資產統計數據列表。
+     */
     public List<String> getAssetStatisticsAndSaveToRedis(Asset asset) {
         List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         Map<LocalDateTime, String> priceMap = new TreeMap<>();
@@ -326,15 +349,33 @@ public class AssetService {
         return resultList;
     }
 
-
+    /**
+     * 獲取資產統計數據並存儲到Redis中。
+     *
+     * @param assetId 資產對象的識別Id。
+     *
+     * @return Asset 資產對象。
+     *
+     * @throws RuntimeException 當找不到資產時拋出異常。
+     */
     public Asset getAssetById(Long assetId) {
         return assetRepository.findById(assetId).orElseThrow(() -> new RuntimeException("找不到資產"));
     }
 
+    /**
+     * 轉換資產統計數據為JSON格式。
+     *
+     * @param cachedAssetJson 緩存資產JSON數據。
+     * @param asset           資產對象。
+     * @param user            用戶對象。
+     *
+     * @return 資產統計數據JSON。
+     *
+     * @throws RuntimeException 當資產數據處理錯誤時拋出異常。
+     */
     public String formatRedisAssetInfoCacheToJson(List<String> cachedAssetJson, Asset asset, User user) {
         try {
             Map<String, Object> resultMap = new HashMap<>();
-
             if (user == null) {
                 resultMap.put("statistics", cachedAssetJson);
             } else {
@@ -367,6 +408,18 @@ public class AssetService {
         }
     }
 
+    /**
+     * 轉換Redis資產K線數據為JSON格式。
+     *
+     * @param type         資產類型。
+     * @param listKey      緩存列表鍵。
+     * @param hashInnerKey 緩存內部鍵。
+     * @param user         用戶對象。
+     *
+     * @return 資產K線數據JSON。
+     *
+     * @throws RuntimeException 當資產數據處理錯誤時拋出異常。
+     */
     public String formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey, User user) {
         ArrayNode mergeArray = objectMapper.createArrayNode();
         Map<String, Object> resultMap = new HashMap<>();
@@ -393,10 +446,15 @@ public class AssetService {
     }
 
 
-    public List<Asset> findHasSubscribeAsset() {
-        return findHasSubscribeAsset(true, true, true);
-    }
-
+    /**
+     * 獲取具有訂閱資產的資產列表
+     *
+     * @param crypto   是否包含加密貨幣
+     * @param stockTw  是否包含台股
+     * @param currency 是否包含貨幣
+     *
+     * @return 資產列表
+     */
     public List<Asset> findHasSubscribeAsset(boolean crypto, boolean stockTw, boolean currency) {
         List<Asset> result = new ArrayList<>();
         if (crypto) {
@@ -411,6 +469,17 @@ public class AssetService {
         return result;
     }
 
+    /**
+     * 根據資產類型獲取資產分頁數據
+     *
+     * @param category 資產類型
+     * @param page     分頁
+     * @param isCache  是否緩存
+     *
+     * @return 資產列表
+     *
+     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
+     */
     public List<Asset> findAssetPageByType(String category, int page, boolean isCache) throws JsonProcessingException {
 
         PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
@@ -426,6 +495,17 @@ public class AssetService {
         return assetsList;
     }
 
+    /**
+     * 轉換資產列表為前端類型並存儲到Redis中。
+     * 前端格式 只需要包含資產名稱、資產Id、是否訂閱、資產類型
+     *
+     * @param assetList 資產列表
+     * @param innerKey  內部鍵
+     *
+     * @return 資產列表JSON
+     *
+     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
+     */
     public String formatStringAssetListToFrontendType(List<?> assetList, String innerKey) throws JsonProcessingException {
         List<Map<String, Object>> resultList = new ArrayList<>();
         if (assetList == null || assetList.isEmpty()) {
@@ -467,9 +547,17 @@ public class AssetService {
             throw new RuntimeException("資產類型錯誤: " + assetList);
         }
         return cacheHashDataToRedis("frontendAssetList", innerKey, resultList, 24);
-
     }
 
+    /**
+     * 轉換緩存的資產列表JSON為資產列表
+     *
+     * @param assetJson 資產JSON
+     *
+     * @return 資產列表
+     *
+     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
+     */
     public List<Map<String, Object>> formatJsonToAssetList(String assetJson) throws JsonProcessingException {
         if (assetJson == null) {
             return null;
@@ -479,22 +567,73 @@ public class AssetService {
     }
 
 
+    /**
+     * 轉換泛型數據為JSON格式並存儲到Redis中。
+     *
+     * @param key        緩存鍵
+     * @param innerKey   緩存內部鍵
+     * @param content    泛型數據
+     * @param expireTime 過期時間
+     *
+     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
+     */
     private <T> String cacheHashDataToRedis(String key, String innerKey, T content, int expireTime) throws JsonProcessingException {
         String json = formatContentToJson(content);
         redisService.saveHashToCache(key, innerKey, json, expireTime);
         return json;
     }
 
-    public <T> String formatContentToJson(T content) throws JsonProcessingException {
+    /**
+     * 轉換泛型數據為JSON格式並存儲到Redis中。
+     *
+     * @param key        緩存鍵
+     * @param content    泛型數據
+     * @param expireTime 過期時間
+     *
+     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
+     */
+    public <T> String cacheValueDataToRedis(String key, T content, int expireTime) throws JsonProcessingException {
+        String json = formatContentToJson(content);
+        redisService.saveValueToCache(key, json, expireTime);
+        return json;
+    }
+
+    /**
+     * 轉換泛型數據為JSON格式。
+     *
+     * @param content 泛型數據
+     *
+     * @return JSON數據
+     *
+     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
+     */
+    private <T> String formatContentToJson(T content) throws JsonProcessingException {
         return objectMapper.writeValueAsString(content);
     }
 
+    /**
+     * 獲取資產總頁數
+     *
+     * @param category 資產類型
+     * @param pageSize 每頁數量
+     *
+     * @return 總頁數
+     */
     public int findAssetTotalPage(String category, int pageSize) {
         PageRequest pageRequest = PageRequest.of(0, pageSize);
         return getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest)
                                                                .getTotalPages() : assetRepository.findAll(pageRequest).getTotalPages();
     }
 
+    /**
+     * 獲取資產類型
+     *
+     * @param category 資產類型
+     *
+     * @return 資產類型
+     *
+     * @throws RuntimeException 當找不到資產類型時拋出異常
+     */
     private AssetType getAssetType(String category) {
         return switch (category) {
             case "crypto" -> AssetType.CRYPTO;
@@ -575,6 +714,135 @@ public class AssetService {
         }
         assetInfluxMethod.formatGovernmentBondsToPoint(governmentBondsMap);
     }
+
+    /**
+     * 獲取政府債券數據，此方法需要有序排序。
+     * 排序以國家名稱為主，再以期限排序。
+     *
+     * @return 政府債券數據
+     */
+    public Map<String, Map<String, BigDecimal>> getGovernmentBondData() {
+        Map<String, Map<String, BigDecimal>> result = new LinkedHashMap<>();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
+        List<FluxTable> tableList = assetInfluxMethod.queryByTimeAndUser(commonEconomyBucket,
+                                                                         "government_bonds",
+                                                                         null,
+                                                                         null,
+                                                                         List.of(now),
+                                                                         168,
+                                                                         true,
+                                                                         false).get(now);
+        for (FluxTable table : tableList) {
+            for (FluxRecord record : table.getRecords()) {
+                String country = (String) record.getValueByKey("country");
+                String period = record.getField();
+                Double doubleRate = (Double) record.getValue();
+                BigDecimal rate;
+                if (doubleRate != null) {
+                    rate = BigDecimal.valueOf(doubleRate);
+                } else {
+                    continue;
+                }
+                result.computeIfAbsent(country, k -> new HashMap<>()).put(period, rate);
+            }
+        }
+
+        Comparator<String> periodComparator = (p1, p2) -> {
+            int value1 = periodToSortValue(p1);
+            int value2 = periodToSortValue(p2);
+            return Integer.compare(value1, value2);
+        };
+
+        for (Map.Entry<String, Map<String, BigDecimal>> entry : result.entrySet()) {
+            Map<String, BigDecimal> sortedMap = new TreeMap<>(periodComparator);
+            sortedMap.putAll(entry.getValue());
+            result.put(entry.getKey(), sortedMap);
+        }
+
+        Map<String, Map<String, BigDecimal>> sortedResult = new TreeMap<>(result);
+        logger.debug("政府債券數據排序: " + sortedResult);
+        return new LinkedHashMap<>(sortedResult);
+    }
+
+    /**
+     * 格式化政府債券數據，此方法需要有序排序。
+     * 排序以期限為主，再以國家名稱排序。
+     *
+     * @param governmentBondData 政府債券數據
+     * @param <T>                泛型
+     *
+     * @return 格式化後的政府債券數據
+     */
+    public <T> Map<String, Map<String, BigDecimal>> formatGovernmentBondDataByTime(T governmentBondData) {
+        Map<String, Map<String, BigDecimal>> result = new LinkedHashMap<>();
+        Map<String, Map<String, BigDecimal>> dataMap = checkGovernmentBondData(governmentBondData);
+
+        List<String> sortedPeriods = dataMap.entrySet()
+                                            .stream()
+                                            .flatMap(entry -> entry.getValue().keySet().stream())
+                                            .sorted(Comparator.comparingInt(this::periodToSortValue))
+                                            .distinct()
+                                            .toList();
+
+        logger.debug("政府債券數據排序: " + sortedPeriods);
+        sortedPeriods.forEach(period -> {
+            dataMap.forEach((country, bondMap) -> {
+                BigDecimal rate = bondMap.get(period);
+                if (rate != null) {
+                    result.computeIfAbsent(period, k -> new TreeMap<>()).put(country, rate);
+                }
+            });
+        });
+        return result;
+    }
+
+    /**
+     * 自訂義排序方法，將期限轉換為排序值。
+     * 期限排序值為: 隔夜(0) < 1周(1) < 1個月(4) < 1年(52) (以周為單位)
+     *
+     * @param period 期限
+     *
+     * @return 排序值
+     */
+    private int periodToSortValue(String period) {
+        if (period.contains("overnight")) {
+            return 0;
+        }
+        if (period.contains("week")) {
+            return Integer.parseInt(period.split("-")[0]);
+        }
+        if (period.contains("month")) {
+            return Integer.parseInt(period.split("-")[0]) * 4;
+        }
+        if (period.contains("year")) {
+            return Integer.parseInt(period.split("-")[0]) * 52;
+        }
+        throw new RuntimeException("政府債券數據排序時解析錯誤: " + period);
+    }
+
+    /**
+     * 檢查政府債券數據類型
+     *
+     * @param governmentBondData 政府債券數據
+     * @param <T>                泛型
+     *
+     * @return 政府債券數據
+     */
+    private <T> Map<String, Map<String, BigDecimal>> checkGovernmentBondData(T governmentBondData) {
+        if (governmentBondData instanceof String) {
+            try {
+                return objectMapper.readValue((String) governmentBondData, new TypeReference<>() {});
+            } catch (JsonProcessingException e) {
+                logger.error("政府債券數據解析錯誤: ", e);
+                throw new RuntimeException("政府債券數據解析錯誤: ", e);
+            }
+        } else if (governmentBondData instanceof Map<?, ?>) {
+            return (Map<String, Map<String, BigDecimal>>) governmentBondData;
+        } else {
+            throw new RuntimeException("政府債券數據類型錯誤: " + governmentBondData);
+        }
+    }
 }
+
 
 

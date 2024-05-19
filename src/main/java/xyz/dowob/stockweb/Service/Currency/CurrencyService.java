@@ -30,7 +30,7 @@ import java.util.*;
  */
 @Service
 public class CurrencyService {
-    @Value(value = "${currency.api.url}")
+    @Value(value = "${currency.api.url:https://tw.rter.info/capi.php}")
     private String apiUrl;
 
     private final CurrencyRepository currencyRepository;
@@ -41,6 +41,13 @@ public class CurrencyService {
 
     Logger logger = LoggerFactory.getLogger(CurrencyService.class);
 
+    /**
+     * CurrencyService構造函數
+     *
+     * @param currencyRepository    貨幣數據庫
+     * @param subscribeRepository   訂閱數據庫
+     * @param currencyInfluxService 貨幣InfluxDB服務
+     */
     @Autowired
     public CurrencyService(CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, CurrencyInfluxService currencyInfluxService) {
         this.currencyRepository = currencyRepository;

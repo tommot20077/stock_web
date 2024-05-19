@@ -2,6 +2,7 @@ package xyz.dowob.stockweb.Component.Method;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Model.User.Property;
@@ -10,6 +11,8 @@ import xyz.dowob.stockweb.Repository.User.PropertyRepository;
 import java.util.List;
 
 /**
+ * 這是一個合併方法，用於合併用戶持有資產。
+ *
  * @author yuan
  */
 @Component
@@ -18,6 +21,12 @@ public class CombineMethod {
 
     private static final Logger logger = LoggerFactory.getLogger(CombineMethod.class);
 
+    /**
+     * 這是一個構造函數，用於注入用戶財產資料庫。
+     *
+     * @param propertyRepository 用戶財產資料庫
+     */
+    @Autowired
     public CombineMethod(PropertyRepository propertyRepository) {
         this.propertyRepository = propertyRepository;
     }

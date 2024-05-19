@@ -1,6 +1,6 @@
 package xyz.dowob.stockweb.Component.EventListener.Asset;
 
-import org.jetbrains.annotations.NotNull;
+import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +20,9 @@ import java.util.List;
 
 
 /**
+ * 當AssetHistoryDataFetchCompleteEvent事件發生時，此類別將被調用。
+ * 實現ApplicationListener接口。並以AssetHistoryDataFetchCompleteEvent作為參數。
+ *
  * @author yuan
  */
 @Component
@@ -34,6 +37,14 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
 
     Logger logger = LoggerFactory.getLogger(AssetHistoryDataFetchCompleteListener.class);
 
+    /**
+     * AssetHistoryDataFetchCompleteListener類別的構造函數。
+     *
+     * @param propertyInfluxService influx資產相關服務方法
+     * @param eventCacheMethod      伺服器事件緩存相關方法
+     * @param retryTemplate         重試模板
+     * @param eventPublisher        事件發布者
+     */
     @Autowired
     public AssetHistoryDataFetchCompleteListener(PropertyInfluxService propertyInfluxService, EventCacheMethod eventCacheMethod, RetryTemplate retryTemplate, ApplicationEventPublisher eventPublisher) {
         this.propertyInfluxService = propertyInfluxService;
@@ -48,8 +59,6 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
      * 1. 從事件中獲取資產並獲取相關的事件緩存。
      * 2. 如果事件緩存不為空，則遍歷事件緩存，計算淨流量並寫入Influx，然後刪除事件緩存。
      * 3. 發布PropertyUpdateEvent事件。
-     * 如果事件失敗，則拋出異常。
-     * 如果重試失敗，則拋出異常。
      *
      * @param event AssetHistoryDataFetchCompleteEvent事件對象
      *
@@ -57,7 +66,7 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
      */
     @Override
     public void onApplicationEvent(
-            @NotNull AssetHistoryDataFetchCompleteEvent event) {
+            @NonNull AssetHistoryDataFetchCompleteEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getSuccess()) {

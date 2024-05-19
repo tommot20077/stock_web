@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 這是一個資產與Influx有關的方法，用於查詢和寫入資產資料。
+ *
  * @author yuan
  */
 @Component
@@ -84,6 +86,19 @@ public class AssetInfluxMethod {
 
     Logger logger = LoggerFactory.getLogger(AssetInfluxMethod.class);
 
+    /**
+     * 構造函數，用於注入InfluxDBClient
+     *
+     * @param stockTwInfluxClient         台灣股票InfluxDB客戶端
+     * @param stockTwHistoryInfluxClient  台灣股票歷史InfluxDB客戶端
+     * @param cryptoInfluxClient          加密貨幣InfluxDB客戶端
+     * @param cryptoHistoryInfluxClient   加密貨幣歷史InfluxDB客戶端
+     * @param currencyInfluxClient        貨幣InfluxDB客戶端
+     * @param propertySummaryInfluxClient 用戶資產InfluxDB客戶端
+     * @param commonEconomyInfluxClient   通用經濟數據InfluxDB客戶端
+     * @param currencyRepository          貨幣相關的資料庫
+     * @param retryTemplate               重試模板
+     */
     @Autowired
     public AssetInfluxMethod(
             @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("commonEconomyInfluxClient") InfluxDBClient commonEconomyInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
@@ -105,6 +120,12 @@ public class AssetInfluxMethod {
      * @param useHistoryData 是否使用歷史資料
      *
      * @return Object[] {bucket, client, measurement, field, assetType, symbol}
+     * bucket: 資料庫名稱
+     * client: InfluxDB客戶端
+     * measurement: 資料表名稱
+     * field: 欄位名稱
+     * assetType: 資產類型
+     * symbol: 資產標識
      *
      * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
@@ -138,7 +159,7 @@ public class AssetInfluxMethod {
     }
 
     /**
-     * 查詢最新價格
+     * 查詢資產最新價格
      *
      * @param asset          資產
      * @param useHistoryData 是否使用歷史資料
@@ -178,7 +199,7 @@ public class AssetInfluxMethod {
     }
 
     /**
-     * 取得最新價格
+     * 取得最新價格，會先查詢最新價格，如果查詢失敗則查詢最新歷史價格
      *
      * @param asset 資產
      *
@@ -239,7 +260,7 @@ public class AssetInfluxMethod {
 
 
     /**
-     * 寫入InfluxDB
+     * 寫入Influx方法。
      *
      * @param influxClient InfluxDB客戶端
      * @param point        資料點
@@ -265,13 +286,17 @@ public class AssetInfluxMethod {
     }
 
     /**
-     * 查詢資產價格
+     * 查詢指定時間內的資產價格表格
      *
      * @param asset     資產
      * @param isHistory 是否查詢歷史資料
      * @param timeStamp 時間戳
      *
      * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     * assetId: 資產ID
+     * history/current: 歷史/當前價格
+     *
+     * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
     public Map<String, List<FluxTable>> queryByAsset(Asset asset, Boolean isHistory, String timeStamp) {
         var ref = new Object() {
@@ -325,7 +350,7 @@ public class AssetInfluxMethod {
     }
 
     /**
-     * 查詢資產價格
+     * 查詢特定時間資產價格
      *
      * @param propertySummaryBucket 用戶總資產資料庫
      * @param measurement           資料表
@@ -340,6 +365,9 @@ public class AssetInfluxMethod {
      * @param needToFillData        是否需要自動填充資料
      *
      * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     * assetId: 資產ID
+     * history/current: 歷史/當前價格
+     * FluxTable: 資料表
      *
      * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
@@ -372,7 +400,7 @@ public class AssetInfluxMethod {
             if (needToFillData) {
                 baseQuery.append(" |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
             }
-            if (!filters.isEmpty()) {
+            if (filters != null && !filters.isEmpty()) {
                 for (Map.Entry<String, String> additionalFilters : filters.entrySet()) {
                     String additionFilterKey = additionalFilters.getKey();
                     String additionFilterValue = additionalFilters.getValue();
@@ -389,7 +417,7 @@ public class AssetInfluxMethod {
     }
 
     /**
-     * 查詢資產價格根據時間跟用戶
+     * 根據時間跟用戶查詢資產價格
      *
      * @param bucket           使用的資料庫
      * @param measurement      資料表
@@ -401,6 +429,9 @@ public class AssetInfluxMethod {
      * @param needToFillData   是否需要自動填充資料
      *
      * @return Map<String, List < FluxTable>> {assetId + "_history/current", FluxTable}
+     * assetId: 資產ID
+     * history/current: 歷史/當前價格
+     * FluxTable: 資料表
      */
 
     public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
@@ -434,6 +465,7 @@ public class AssetInfluxMethod {
 
     /**
      * 取得ROI統計日期
+     * 今天、昨天、一週前、一個月前、一年前
      *
      * @return List<LocalDateTime>
      */
@@ -448,6 +480,13 @@ public class AssetInfluxMethod {
         return localDateTime;
     }
 
+    /**
+     * 轉換公債資料成資料點形式
+     *
+     * @param data 公債資料
+     *             key: 國家
+     *             value: { 週期: 利率 }
+     */
     public void formatGovernmentBondsToPoint(Map<String, Map<String, BigDecimal>> data) {
         Instant now = Instant.now();
         long utcMillis = now.toEpochMilli();

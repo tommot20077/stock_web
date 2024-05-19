@@ -82,6 +82,22 @@ public class PropertyService {
 
     Logger logger = LoggerFactory.getLogger(PropertyService.class);
 
+    /**
+     * 用戶財產服務建構子
+     *
+     * @param stockTwRepository     股票資料庫操作介面
+     * @param propertyRepository    財產資料庫操作介面
+     * @param currencyRepository    貨幣資料庫操作介面
+     * @param cryptoRepository      加密貨幣資料庫操作介面
+     * @param transactionRepository 交易資料庫操作介面
+     * @param subscribeMethod       訂閱方法
+     * @param assetInfluxMethod     資產Influx方法
+     * @param propertyInfluxService 財產Influx服務
+     * @param assetHandler          資產處理器
+     * @param chartMethod           圖表方法
+     * @param eventCacheMethod      伺服器事件快取方法
+     * @param eventPublisher        事件發布者
+     */
     @Autowired
     public PropertyService(
             StockTwRepository stockTwRepository, PropertyRepository propertyRepository, CurrencyRepository currencyRepository, CryptoRepository cryptoRepository, TransactionRepository transactionRepository, SubscribeMethod subscribeMethod, AssetInfluxMethod assetInfluxMethod, PropertyInfluxService propertyInfluxService, AssetHandler assetHandler, ChartMethod chartMethod, @Lazy EventCacheMethod eventCacheMethod, ApplicationEventPublisher eventPublisher) {
@@ -851,7 +867,7 @@ public class PropertyService {
                                                                                      false);
 
 
-        List<Map<String, Object>> formatDailyRoiToChartData = chartMethod.formatDailyRoiToChartData(weekRoi);
+        List<Map<String, Object>> formatDailyRoiToChartData = chartMethod.formatDailyRoiToChartData(weekRoi.get("roi"));
         Map<String, List<Map<String, Object>>> result = chartMethod.formatSummaryToChartData(userSummary, user.getPreferredCurrency());
         result.put("daily_roi", formatDailyRoiToChartData);
         try {
@@ -1130,10 +1146,11 @@ public class PropertyService {
 
     /**
      * 計算用戶資產報酬率平均值和浮動值
+     * 獲取用戶資產報酬率、計算平均值和浮動值
      *
      * @param user 用戶
      *
-     * @return
+     * @return 用戶資產報酬率平均值和浮動值
      */
     public Map<String, BigDecimal> roiStatisticCalculation(User user) {
         BigDecimal average = BigDecimal.ZERO;
@@ -1214,6 +1231,13 @@ public class PropertyService {
         return result;
     }
 
+    /**
+     * 取得用戶資產報酬率統計
+     *
+     * @param user 用戶
+     *
+     * @return 用戶資產報酬率統計
+     */
     public Map<String, Object> getRoiStatistic(User user) {
         Map<String, Object> result = new HashMap<>();
         Map<String, List<FluxTable>> roiStatisticTable = propertyInfluxService.queryInflux(propertySummaryBucket,
@@ -1244,6 +1268,14 @@ public class PropertyService {
     }
 
 
+    /**
+     * 計算用戶資產夏普比率
+     * 獲取用戶資產報酬率、公債報酬率、用戶報酬率標準差進行計算
+     *
+     * @param user 用戶
+     *
+     * @return 用戶資產報酬率
+     */
     public Map<String, String> calculateSharpeRatio(User user) {
         Instant now = Instant.now();
         Map<String, String> result = new HashMap<>(Map.of("month", "數據不足", "year", "數據不足"));
@@ -1339,6 +1371,15 @@ public class PropertyService {
         return result;
     }
 
+    /**
+     * 取得夏普比率
+     * 其中baseRateCountry為公債利率國家
+     * 透過配置檔asset.sharp_ratio.country取得
+     *
+     * @param user 用戶
+     *
+     * @return 夏普比率
+     */
     public Map<String, String> getSharpRatio(User user) {
         Map<String, String> result = new HashMap<>(Map.of("month", "數據不足", "year", "數據不足"));
         Map<String, Map<String, List<String>>> sharpRatioQueryFilter = new HashMap<>();
@@ -1370,18 +1411,26 @@ public class PropertyService {
         return result;
     }
 
+    /**
+     * 計算用戶資產最大回撤
+     * 獲取用戶資產報酬率、計算最大回撤
+     *
+     * @param user 用戶
+     *
+     * @return 用戶資產最大回撤
+     */
     public Map<String, Map<String, List<BigDecimal>>> calculateUserDrawDown(User user) {
         Map<String, Map<String, List<BigDecimal>>> result = new HashMap<>();
         List<Map<String, String>> queryTime = List.of(Map.of("week", "7d"), Map.of("month", "30d"), Map.of("year", "365d"));
         for (Map<String, String> timeMap : queryTime) {
             Map<String, List<BigDecimal>> currentTimeMap = new HashMap<>(Map.of("crypto",
-                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
-                                                                   "stock_tw",
-                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
-                                                                   "currency",
-                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
-                                                                   "total",
-                                                                   Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO)));
+                                                                                Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
+                                                                                "stock_tw",
+                                                                                Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
+                                                                                "currency",
+                                                                                Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO),
+                                                                                "total",
+                                                                                Arrays.asList(BigDecimal.ZERO, BigDecimal.ZERO)));
 
             Map<String, List<FluxTable>> drawDownTable = propertyInfluxService.queryInflux(propertySummaryBucket,
                                                                                            "summary_property",
@@ -1419,7 +1468,6 @@ public class PropertyService {
                         }
                     }
                     type = Objects.requireNonNull(record.getField()).replace("_sum", "");
-
                 }
                 currentTimeMap.put(type.replace("_sum", ""), List.of(peak, maxDrawDown.multiply(BigDecimal.valueOf(100))));
             }
@@ -1429,6 +1477,11 @@ public class PropertyService {
         return result;
     }
 
+    /**
+     * 初始化回撤資料格式
+     *
+     * @return 回撤資料標準格式
+     */
     private Map<String, Map<String, Map<String, Object>>> initializeDrawDownData() {
         Map<String, Map<String, Map<String, Object>>> dataMap = new HashMap<>();
 
@@ -1449,6 +1502,13 @@ public class PropertyService {
         return dataMap;
     }
 
+    /**
+     * 取得回撤資料
+     *
+     * @param user 用戶
+     *
+     * @return 回撤資料
+     */
     public Map<String, Map<String, Map<String, Object>>> getDrawDown(User user) {
         Map<String, Map<String, Map<String, Object>>> result = initializeDrawDownData();
 
@@ -1466,10 +1526,8 @@ public class PropertyService {
                                                                                        false,
                                                                                        false,
                                                                                        false);
-        if (!drawDownTable.containsKey("roi_statistics") || drawDownTable.get("roi_statistics").isEmpty() || drawDownTable.get("roi_statistics")
-                                                                                                                .getFirst()
-                                                                                                                .getRecords()
-                                                                                                                .isEmpty()) {
+        if (!drawDownTable.containsKey("roi_statistics") || drawDownTable.get("roi_statistics").isEmpty() || drawDownTable.get(
+                "roi_statistics").getFirst().getRecords().isEmpty()) {
             logger.debug("取得 Draw Down 資料: null");
         } else {
             List<FluxTable> tables = drawDownTable.get("roi_statistics");
@@ -1498,10 +1556,27 @@ public class PropertyService {
         return result;
     }
 
+    /**
+     * 讀取influxTable的資料並轉換為Map
+     * 此方法為不設置key的方法
+     *
+     * @param fluxTables InfluxDB資料
+     *
+     * @return Map 轉換後的資料
+     */
     private Map<String, Object> getFluxTableValue(List<FluxTable> fluxTables) {
         return getFluxTableValue(fluxTables, null);
     }
 
+    /**
+     * 讀取influxTable的資料並轉換為Map
+     * 此方法為設置key的方法
+     *
+     * @param fluxTables InfluxDB資料
+     * @param key        設置的key
+     *
+     * @return Map 轉換後的資料
+     */
     private Map<String, Object> getFluxTableValue(List<FluxTable> fluxTables, String key) {
         Map<String, Object> result = new HashMap<>();
         for (FluxTable table : fluxTables) {
@@ -1517,10 +1592,11 @@ public class PropertyService {
     }
 
     /**
-     * @param yearInterestRate
-     * @param formatTimeRate
+     * @param yearInterestRate 年利率
+     * @param formatTimeRate   格式化後的時間比率
+     *                         比如當計算月利率時，formatTimeRate為1/12
      *
-     * @return
+     * @return 計算後的利率
      */
     private BigDecimal calculateRateByYearInterestRate(BigDecimal yearInterestRate, BigDecimal formatTimeRate) {
         double ratio = formatTimeRate.doubleValue();
@@ -1528,6 +1604,13 @@ public class PropertyService {
         return formatRate.subtract(BigDecimal.ONE);
     }
 
+    /**
+     * 計算格式化後的時間比率
+     *
+     * @param timeRate 時間比率
+     *
+     * @return 格式化後的時間比率
+     */
     private BigDecimal calculateFormatTimeRate(String timeRate) {
         String[] split = timeRate.split("-");
         BigDecimal formatTimeRate;

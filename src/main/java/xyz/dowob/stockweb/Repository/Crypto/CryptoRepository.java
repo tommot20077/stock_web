@@ -93,6 +93,7 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
 
     /**
      * 新增訂閱者並檢查是否需要獲取歷史資料
+     * 當虛擬貨幣沒有任何訂閱者時，發布事件獲取歷史資料
      * @param cryptoTradingPair 虛擬貨幣
      * @param userId 用戶id
      * @param eventPublisher 事件發布者
@@ -130,6 +131,7 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
 
     /**
      * 刪除訂閱者並檢查是否需要刪除歷史資料
+     * 當訂閱數量為0時，發布刪除歷史資料事件
      * @param cryptoTradingPair 虛擬貨幣
      * @param userId 用戶id
      * @param eventPublisher 事件發布者

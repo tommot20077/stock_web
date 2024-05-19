@@ -7,6 +7,9 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
+ * Spring Boot 啟動類
+ * 啟用快取、非同步、定時任務
+ *
  * @author yuan
  */
 @SpringBootApplication

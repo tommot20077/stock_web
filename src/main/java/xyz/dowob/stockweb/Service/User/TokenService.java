@@ -53,6 +53,17 @@ public class TokenService {
 
     Logger logger = LoggerFactory.getLogger(UserService.class);
 
+    /**
+     * TokenService構造函數
+     *
+     * @param userRepository    用戶數據庫
+     * @param tokenRepository   用戶令牌數據庫
+     * @param jwtTokenProvider  jwt 令牌提供器
+     * @param passwordEncoder   密碼加密器
+     * @param mailTokenProvider 郵件令牌提供器
+     * @param userService       用戶服務
+     * @param retryTemplate     重試模板
+     */
     @Autowired
     public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, UserService userService, RetryTemplate retryTemplate) {
         this.userRepository = userRepository;

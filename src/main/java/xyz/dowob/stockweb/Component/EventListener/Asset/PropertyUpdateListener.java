@@ -1,6 +1,6 @@
 package xyz.dowob.stockweb.Component.EventListener.Asset;
 
-import org.jetbrains.annotations.NotNull;
+import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +16,10 @@ import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import java.util.List;
 
 /**
+ * 當PropertyUpdateEvent事件發生時，此類別將被調用。
+ * 實現ApplicationListener接口。並以PropertyUpdateEvent作為參數。
+ * 此類別用於更新用戶的資產。
+ *
  * @author yuan
  */
 @Component
@@ -28,6 +32,13 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
 
     Logger logger = LoggerFactory.getLogger(PropertyUpdateListener.class);
 
+    /**
+     * PropertyUpdateListener類別的構造函數。
+     *
+     * @param retryTemplate   重試模板
+     * @param propertyService 資產相關服務方法
+     * @param crontabMethod   定時任務相關方法
+     */
     @Autowired
     public PropertyUpdateListener(RetryTemplate retryTemplate, PropertyService propertyService, CrontabMethod crontabMethod) {
         this.retryTemplate = retryTemplate;
@@ -39,11 +50,10 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
     /**
      * 當PropertyUpdateEvent事件發生時，此方法將被調用。
      * 如果事件中的用戶不為null，則進行以下操作：
-     * 獲取該用戶的所有資產。
-     * 如果該用戶沒有資產，則停止記錄該用戶，並重置該用戶的資產資料庫。
-     * 如果該用戶有資產，則將所有資產寫入Influx。
-     * 如果事件中的用戶為null，則更新所有用戶的資產。
-     * 如果重試失敗，則拋出異常。
+     * 1.獲取該用戶的所有資產。
+     * 2.如果該用戶沒有資產，則停止記錄該用戶，並重置該用戶的資產資料庫。
+     * 3.如果該用戶有資產，則將所有資產寫入Influx。
+     * 4.如果事件中的用戶為null，則更新所有用戶的資產。
      *
      * @param event PropertyUpdateEvent事件對象
      *
@@ -51,7 +61,7 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
      */
     @Override
     public void onApplicationEvent(
-            @NotNull PropertyUpdateEvent event) {
+            @NonNull PropertyUpdateEvent event) {
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getUser() != null) {

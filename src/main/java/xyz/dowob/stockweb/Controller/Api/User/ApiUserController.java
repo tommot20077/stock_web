@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
+ * 這是一個用於處理用戶相關的控制器
+ *
  * @author yuan
  */
 @RequestMapping("/api/user/common")
@@ -58,6 +60,18 @@ public class ApiUserController {
     private final CrontabMethod crontabMethod;
 
 
+    /**
+     * 這是一個構造函數
+     *
+     * @param userService   用戶相關服務
+     * @param tokenService  用戶令牌相關服務
+     * @param newsService   新聞相關服務
+     * @param redisService  緩存服務
+     * @param assetService  資產相關服務
+     * @param cryptoService 加密貨幣相關服務
+     * @param todoService   待辦事項相關服務
+     * @param crontabMethod CrontabMethod
+     */
     @Autowired
     public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoService cryptoService, TodoService todoService, CrontabMethod crontabMethod) {
         this.userService = userService;
@@ -318,7 +332,6 @@ public class ApiUserController {
                                                                            required = false) Long assetId, @RequestParam(name = "page",
                                                                                                                          required = false,
                                                                                                                          defaultValue = "1") int page) {
-        String key = "news";
         String innerKey;
         Asset asset = null;
         if (assetId != null) {
@@ -334,7 +347,7 @@ public class ApiUserController {
         }
 
         try {
-            String cachedNewsJson = redisService.getHashValueFromKey(key, innerKey);
+            String cachedNewsJson = redisService.getHashValueFromKey("news", innerKey);
             if (cachedNewsJson != null) {
                 return ResponseEntity.ok().body(cachedNewsJson);
             } else {
@@ -351,7 +364,7 @@ public class ApiUserController {
                     result.put("result", "沒有新聞");
                     return ResponseEntity.ok().body(result);
                 } else {
-                    redisService.saveHashToCache(key, innerKey, newsJson, 4);
+                    redisService.saveHashToCache("news", innerKey, newsJson, 4);
                     return ResponseEntity.ok().body(newsJson);
                 }
             }

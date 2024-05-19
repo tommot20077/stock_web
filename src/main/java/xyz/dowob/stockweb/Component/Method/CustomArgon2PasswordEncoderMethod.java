@@ -5,6 +5,8 @@ import de.mkammerer.argon2.Argon2Factory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
+ * 這是一個自定義Argon2PasswordEncoder方法，用於加密和比對密碼。
+ *
  * @author yuan
  */
 public class CustomArgon2PasswordEncoderMethod implements PasswordEncoder {

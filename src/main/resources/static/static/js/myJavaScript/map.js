@@ -4,9 +4,13 @@ function getAssetType(type) {
         'STOCK_US': "美國股票",
         'CRYPTO': "加密貨幣",
         "CURRENCY": "貨幣",
+        'DEBT': "公債",
         "貨幣": "CURRENCY",
         '美國股票': "STOCK_US",
         '台灣股票': "STOCK_TW",
+        '公債': "DEBT",
+        '加密貨幣': "CRYPTO"
+
 
     }
     return map[type] || type;
