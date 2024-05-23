@@ -139,7 +139,7 @@ function updateUserProfile() {
                 let csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
 
                 fetch("/api/user/common/updateUserDetail", {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: {
                         [csrfHeader]: csrfToken,
                         'Content-Type': 'application/json'

@@ -241,10 +241,8 @@ public class ApiAssetController {
             if (isFormatByTime) {
                 return ResponseEntity.ok().body(assetService.formatGovernmentBondDataByTime(json));
             }
-            System.out.println("成功");
             return ResponseEntity.ok().body(json);
         } catch (Exception e) {
-            System.out.println("失敗");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
     }

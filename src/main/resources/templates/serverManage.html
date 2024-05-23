@@ -356,6 +356,7 @@
 			"asset: 資產ID，預設: 無，必填: false <br>" +
 			"優先度: 資產ID &gt; 關鍵字", "/api/admin/common/updateAssetNewsData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新所有類型新聞資料", "無", "/api/admin/common/updateNewsData", "POST", csrfToken);
+	generateAdminCommandTable("commandListTableBody", "清理過期新聞", "無", "/api/admin/common/removeExpiredNews", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "清理過期憑證", "無", "/api/admin/common/cleanExpiredTokens", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "確認訂閱資產歷史資料完整性", "無", "/api/admin/common/checkHistoryData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "Redis緩存資產列表", "無", "/api/admin/common/updateAssetListCache", "POST", csrfToken);
@@ -374,7 +375,6 @@
 	generateAdminCommandTable("commandListTableBody", "確認虛擬貨幣即時價格連線狀態", "無", "/api/admin/crypto/checkAndReconnectWebSocket", "POST", csrfToken);
 
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票清單", "無", "/api/admin/stock/tw/updateStockList", "POST", csrfToken);
-	generateAdminCommandTable("commandListTableBody", "取得台灣股票列表", "無", "/api/admin/stock/tw/getStockList", "GET", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票5秒搓合交易價格", "無", "/api/admin/stock/tw/updateStockDetail", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票歷史價格資料", "stockCode: 股票代碼，必填: true", "/api/admin/stock/tw/trackStockHistoryData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票每日歷史價格資料", "無", "/api/admin/stock/tw/trackStockDailyData", "POST", csrfToken);
@@ -382,7 +382,6 @@
 	generateAdminCommandTable("commandListTableBody", "關閉台灣股票即時價格功能", "無", "/api/admin/stock/tw/unTrackImmediatePrice", "POST", csrfToken);
 
 	generateAdminCommandTable("commandListTableBody", "更新貨幣清單", "無", "/api/admin/currency/updateCurrencyData", "POST", csrfToken);
-	generateAdminCommandTable("commandListTableBody", "取得指定資產資料", "id: 資產ID，預設: 無，必填: true", "/api/user/asset/getAssetInfo", "GET", csrfToken);
 
 </script>
 

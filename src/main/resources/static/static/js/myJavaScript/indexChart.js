@@ -15,14 +15,14 @@ function generateTimeLabels(days, numPerDay) {
     return labels;
 }
 
+function remindMaxSpace(maxValue) {
+    let power = Math.floor(Math.log10(maxValue));
+    let remainder = Math.ceil(maxValue / Math.pow(10, power)) + 1;
+    return Math.pow(10, power) * remainder;
+}
 function generatePriceLabels(maxValue) {
-    let step;
-    if (maxValue > Math.pow(10, Math.floor(Math.log10(maxValue)))) {
-        step = Math.pow(10, Math.floor(Math.log10(maxValue)));
-    } else {
-        step = 5 * Math.pow(10, Math.floor(Math.log10(maxValue)) - 1);
-    }
-    return step
+    let formatMax = remindMaxSpace(maxValue);
+    return formatMax / 5;
 }
 
 function fillData(datasets, labels, summaryData, numPerDay, dataGroups) {
@@ -192,7 +192,9 @@ function getLineConfig(datasets, labels, yLabel, maxValue){
                     ticks: {
                         stepSize: generatePriceLabels(maxValue),
                     },
-                    beginAtZero: true
+                    beginAtZero: true,
+                    max: remindMaxSpace(maxValue)
+
                 }
             },
             responsive: true,

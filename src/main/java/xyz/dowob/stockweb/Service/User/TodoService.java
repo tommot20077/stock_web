@@ -43,7 +43,7 @@ public class TodoService {
 
     private final TaskScheduler taskScheduler;
 
-    private Map<Long, ScheduledFuture<?>> scheduledFutureMap = new HashMap<>();
+    private final Map<Long, ScheduledFuture<?>> scheduledFutureMap = new HashMap<>();
 
     @Value(value = "${spring.mail.username}")
     private String emailSender;
@@ -83,7 +83,6 @@ public class TodoService {
             }
             scheduleEmailReminderTask(todo);
         });
-
     }
 
     /**
