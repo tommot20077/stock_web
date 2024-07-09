@@ -1395,16 +1395,18 @@ public class PropertyService {
                                                                                          false,
                                                                                          false,
                                                                                          false);
-        if (!sharpRatioTable.containsKey("sharp_ratio") || sharpRatioTable.get("sharp_ratio")
-                                                                          .isEmpty() || sharpRatioTable.get("sharp_ratio")
-                                                                                                       .getFirst()
-                                                                                                       .getRecords()
-                                                                                                       .isEmpty()) {
+        if (!sharpRatioTable.containsKey("roi_statistics") || sharpRatioTable.get("roi_statistics").isEmpty() || sharpRatioTable.get(
+                "roi_statistics").getFirst().getRecords().getFirst().getValues().isEmpty()) {
             logger.debug("取得夏普比率: null");
         } else {
-            Map<String, Object> sharp = getFluxTableValue(sharpRatioTable.get("sharp_ratio"));
-            for (Map.Entry<String, Object> entry : sharp.entrySet()) {
-                result.put(entry.getKey(), entry.getValue().toString());
+            for (FluxTable table : sharpRatioTable.get("roi_statistics")) {
+                for (FluxRecord record : table.getRecords()) {
+                    if (record.getValues().containsKey("month")) {
+                        result.put("month", Objects.requireNonNull(record.getValueByKey("_value")).toString());
+                    } else if (record.getValues().containsKey("year")) {
+                        result.put("year", Objects.requireNonNull(record.getValueByKey("_value")).toString());
+                    }
+                }
             }
         }
         result.put("base_country", baseRateCountry);

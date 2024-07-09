@@ -270,9 +270,9 @@ async function displayRoiStatistics(roiData) {
     if (monthRoi && monthRoi !== "數據不足" && roiData.draw_down.month.total.rate !== "數據不足"){
         let formatDrawRate = parseFloat(roiData.draw_down.month.total.rate)
         if (formatDrawRate !== 0) {
-            yearCalmarRatio = parseFloat(monthRoi) / formatDrawRate;
+            monthCalmarRatio = parseFloat(monthRoi) / formatDrawRate;
         } else {
-            yearCalmarRatio = "無限大"
+            monthCalmarRatio = "無限大"
         }
     }
     if (yearRoi && yearRoi !== "數據不足" && roiData.draw_down.year.total.rate !== "數據不足"){
@@ -283,7 +283,6 @@ async function displayRoiStatistics(roiData) {
             yearCalmarRatio = "無限大"
         }
     }
-
 
     let tableBody = document.getElementById('roiStatisticTableBody');
     let count = 1;
