@@ -85,7 +85,7 @@ public class ProgressTrackerService implements DisposableBean {
 
 
     /**
-     * 重寫destroy方法，關閉線程池
+     * 重寫destroy方法，在關閉線程池之前將任務狀態寫入數據庫
      *
      * @throws Exception 關閉線程池時可能拋出的異常
      */

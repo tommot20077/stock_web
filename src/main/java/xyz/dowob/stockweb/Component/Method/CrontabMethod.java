@@ -120,14 +120,23 @@ public class CrontabMethod {
     private boolean isStockTwAutoStart;
 
     /**
-     * 初始化台股即時更新
-     * 根據配置文件設置stock_tw.enable_auto_start
+     * 初始化方法
+     * 1.台股即時更新:根據配置文件設置stock_tw.enable_auto_start
+     * 2.檢查資產前綴樹緩存是否存在，不存在則重新緩存
      */
     @PostConstruct
     public void init() {
         logger.info("自動連線台股即時更新: " + isStockTwAutoStart);
         if (isStockTwAutoStart) {
             immediatelyUpdateStockTw = true;
+        }
+
+        logger.info("檢查資產前綴樹緩存...");
+        if (redisService.getCacheValueFromKey("assetTrie") == null) {
+            logger.info("資產前綴樹緩存不存在，重新緩存");
+            assetService.cacheTrieToRedis();
+        } else {
+            logger.info("資產前綴樹緩存存在");
         }
     }
 
@@ -460,6 +469,16 @@ public class CrontabMethod {
             }
         }
         return false;
+    }
+
+    /**
+     * 定期緩存資產前綴樹
+     * 每週五凌晨2點
+     */
+    @Scheduled(cron = "0 0 2 * * 5")
+    public void cacheAssetTrie() {
+        redisService.deleteByPattern("assetTrie");
+        assetService.cacheTrieToRedis();
     }
 }
 

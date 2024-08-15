@@ -1,7 +1,9 @@
-package xyz.dowob.stockweb.Controller;
+package xyz.dowob.stockweb.Controller.Error;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
@@ -10,10 +12,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  * 這是一個用於處理錯誤的控制器
+ *
  * @author yuan
  */
 @Controller
 public class CustomErrorController implements ErrorController {
+    Logger logger = LoggerFactory.getLogger(CustomErrorController.class);
 
     /**
      * 處理所有錯誤並導向錯誤頁面(不包含404)
@@ -29,13 +33,29 @@ public class CustomErrorController implements ErrorController {
         Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
 
         if (status != null) {
+            logger.error("Error status: " + status);
             int statusCode = Integer.parseInt(status.toString());
-
-            if (statusCode == HttpStatus.NOT_FOUND.value()) {
-                return "redirect:/index";
+            if (isApiRequest(request)) {
+                logger.debug("發生錯誤:api類型");
+                return handleApiError(statusCode);
             }
-            model.addAttribute("statusCode", statusCode);
+            if (statusCode == HttpStatus.NOT_FOUND.value()) {
+                logger.debug("發生網頁:404錯誤");
+                return "redirect:/index";
+            } else {
+                model.addAttribute("statusCode", statusCode);
+            }
         }
         return "error";
+    }
+
+    private boolean isApiRequest(HttpServletRequest request) {
+        String acceptHeader = request.getHeader("Accept");
+        logger.error("acceptHeader: " + acceptHeader);
+        return acceptHeader != null && (acceptHeader.contains("application/json"));
+    }
+
+    private String handleApiError(int statusCode) {
+        return "{\"statusCode\": " + statusCode + ", \"message\": \"發生錯誤\"}";
     }
 }

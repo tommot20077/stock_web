@@ -1054,3 +1054,46 @@ function loadingInColumn(TableBody, column) {
     tableBody.style.cssText = "text-align: center; padding: 20px; font-size: 1.5em;";
 }
 
+function searchAsset(query) {
+    fetch(`/api/user/asset/searchAsset?query=${query}`)
+        .then(response => response.json())
+        .then(data => {
+            let searchResult = document.getElementById('searchResults');
+            searchResult.innerHTML = '';
+            searchResult.style.display = 'block';
+            if (data.length > 0) {
+                data.sort((a, b) => {
+                    if (a.subscribe !== b.subscribe) {
+                        return b.subscribe - a.subscribe;
+                    }
+                    return a.assetName.localeCompare(b.assetName);
+                });
+                data.forEach(asset => {
+                    let div = document.createElement('div');
+                    div.textContent = asset.assetName;
+                    div.style.cursor = asset.subscribe ? 'pointer' : 'default';
+                    div.style.color = asset.subscribe ? '#2E2E2E' : '#A0A0A0';
+                    div.addEventListener('click', () => {
+                        if (asset.subscribe) {
+                            window.location.href = `/asset_info/${asset.assetId}`;
+                        }
+                    });
+                    div.addEventListener('mouseover', () => {
+                        div.style.backgroundColor = asset.subscribe ? '#F5F5F5' : '#FFFFFF';
+                    });
+                    div.addEventListener('mouseout', () => {
+                        div.style.backgroundColor = '';
+                    });
+                    div.style.overflowWrap = 'break-word';
+                    searchResult.appendChild(div);
+                })
+            } else {
+                let div = document.createElement('div');
+                div.textContent = '無搜尋結果';
+                searchResult.appendChild(div);
+            }
+        })
+        .catch(error => console.error(error));
+}
+
+

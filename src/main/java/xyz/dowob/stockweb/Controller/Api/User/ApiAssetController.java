@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import xyz.dowob.stockweb.Component.Method.AssetTrie.Trie;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
@@ -242,6 +243,28 @@ public class ApiAssetController {
                 return ResponseEntity.ok().body(assetService.formatGovernmentBondDataByTime(json));
             }
             return ResponseEntity.ok().body(json);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 依照前綴詞搜尋符合名稱的資產
+     *
+     * @param query 查詢字串
+     *
+     * @return ResponseEntity
+     */
+    @GetMapping("/searchAsset")
+    public ResponseEntity<?> searchAsset(
+            @RequestParam(name = "query",
+                          required = false) String query) {
+        try {
+            if (query == null || query.isBlank()) {
+                return ResponseEntity.badRequest().body("請輸入查詢字串");
+            }
+            Trie trie = assetService.getAssetTrie();
+            return ResponseEntity.ok().body(assetService.searchAssetList(query, trie));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }

@@ -13,6 +13,7 @@
 	<link rel="stylesheet" href=/static/vendors/typicons/typicons.css>
 	<link rel="stylesheet" href=/static/vendors/simple-line-icons/css/simple-line-icons.css>
 	<link rel="stylesheet" href=/static/vendors/css/vendor.bundle.base.css>
+	<link rel="stylesheet" href=/static/common.css>
 	<!-- endinject -->
 	<!-- Plugin css for this page -->
 	<link rel="stylesheet" href=/static/js/select.dataTables.min.css>
@@ -55,7 +56,8 @@
 				<li class="nav-item">
 					<form class="search-form" action="#">
 						<i class="icon-search"></i>
-						<input type="search" class="form-control" placeholder="開始搜索" title="開始搜索">
+						<input id="searchInput" type="search" class="form-control" placeholder="開始搜索" title="開始搜索">
+						<div id="searchResults" class="search-results"></div>
 					</form>
 				</li>
 				<li class="nav-item dropdown d-none d-lg-block user-dropdown">
@@ -367,6 +369,7 @@
 		const currentPageElement = document.getElementById('currentPage');
 		updateNewsTable(prevPageButton, nextPageButton, currentPageElement, 1, category, "");
 	})
+	searchFunction();
 </script>
 
 

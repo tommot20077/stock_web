@@ -67,7 +67,8 @@
 				<li class="nav-item">
 					<form class="search-form" action="#">
 						<i class="icon-search"></i>
-						<input type="search" class="form-control" placeholder="開始搜索" title="開始搜索">
+						<input id="searchInput" type="search" class="form-control" placeholder="開始搜索" title="開始搜索">
+						<div id="searchResults" class="search-results"></div>
 					</form>
 				</li>
 				<li class="nav-item dropdown d-none d-lg-block user-dropdown">
@@ -349,6 +350,7 @@
 <!-- endinject -->
 <!-- Custom js for this page-->
 <script src="/static/js/file-upload.js"></script>
+<script src="/static/js/myJavaScript/common.js"></script>
 <script src="/static/js/typeahead.js"></script>
 <script src="/static/js/select2.js"></script>
 <script src="/static/js/myJavaScript/serverConfig.js"></script>
@@ -393,9 +395,8 @@
 	generateAdminCommandTable("commandListTableBody", "更新台灣股票每日歷史價格資料", "無", "/api/admin/stock/tw/trackStockDailyData", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "開啟台灣股票即時價格功能", "無", "/api/admin/stock/tw/trackImmediatePrice", "POST", csrfToken);
 	generateAdminCommandTable("commandListTableBody", "關閉台灣股票即時價格功能", "無", "/api/admin/stock/tw/unTrackImmediatePrice", "POST", csrfToken);
-
 	generateAdminCommandTable("commandListTableBody", "更新貨幣清單", "無", "/api/admin/currency/updateCurrencyData", "POST", csrfToken);
-
+	searchFunction();
 </script>
 
 

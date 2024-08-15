@@ -53,7 +53,7 @@ public class Progress {
      */
     public float getProgressPercentage() {
         if (totalTask == 0) {
-            return 0;
+            return 100;
         }
         return (float) progressCount.get() / totalTask;
     }

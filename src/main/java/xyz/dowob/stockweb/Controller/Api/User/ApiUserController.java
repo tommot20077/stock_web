@@ -210,10 +210,9 @@ public class ApiUserController {
      *
      * @return ResponseEntity
      */
-    @PostMapping("/updateUserDetail")
+    @PutMapping("/updateUserDetail")
     public ResponseEntity<?> updateUserDetail(
             @RequestBody Map<String, String> userInfo, HttpSession session) {
-
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user != null) {
@@ -225,7 +224,6 @@ public class ApiUserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("錯誤: " + e.getMessage());
         }
-
     }
 
 

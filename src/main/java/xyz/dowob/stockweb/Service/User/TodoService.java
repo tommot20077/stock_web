@@ -92,7 +92,7 @@ public class TodoService {
      * @param user    使用者
      */
     public void addTodo(TodoDto todoDto, User user) {
-        logger.info("addTodo: " + todoDto.toString());
+        logger.debug("addTodo: " + todoDto.toString());
         Todo todo = todoDto.toEntity(todoDto, user);
         todoListRepository.save(todo);
         if (Objects.equals(todoDto.getIsReminder(), "true")) {

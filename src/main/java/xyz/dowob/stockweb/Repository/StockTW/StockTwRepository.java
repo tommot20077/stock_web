@@ -164,6 +164,4 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
             });
         }
     }
-
-
 }

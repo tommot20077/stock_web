@@ -25,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
+import xyz.dowob.stockweb.Component.Method.AssetTrie.Trie;
 import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
+import xyz.dowob.stockweb.Dto.Common.AssetListDto;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
@@ -37,6 +39,10 @@ import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -47,7 +53,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * @author yuan
@@ -336,6 +341,7 @@ public class AssetService {
                 }
             }
         }
+
         priceMap.put(localDateList.getFirst(), (assetInfluxMethod.getLatestPrice(asset)).toString());
         logger.debug("結果資料: " + priceMap);
         List<String> resultList = new ArrayList<>();
@@ -840,6 +846,98 @@ public class AssetService {
             return (Map<String, Map<String, BigDecimal>>) governmentBondData;
         } else {
             throw new RuntimeException("政府債券數據類型錯誤: " + governmentBondData);
+        }
+    }
+
+    /**
+     * 獲取資產列表前綴樹，當Redis中沒有資產前綴樹時，將從MySQL獲取資產數據並構建前綴樹
+     *
+     * @return 資產前綴樹
+     */
+    public Trie getAssetTrie() {
+        String assetTrie = redisService.getCacheValueFromKey("assetTrie");
+        if (assetTrie == null) {
+            return cacheTrieToRedis();
+        }
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(assetTrie));
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
+            return (Trie) ois.readObject();
+        } catch (Exception e) {
+            logger.error("資產列表Trie緩存錯誤: ", e);
+            throw new RuntimeException("資產列表Trie緩存錯誤: ", e);
+        }
+    }
+
+    /**
+     * 轉換資產前綴樹成字串流並緩存到Redis中
+     *
+     * @return 資產前綴樹
+     */
+    public Trie cacheTrieToRedis() {
+        Trie trie = getAssetDataAndBuildTrie();
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(trie);
+            String formateString = Base64.getEncoder().encodeToString(bos.toByteArray());
+            redisService.saveValueToCache("assetTrie", formateString, 168);
+        } catch (Exception e) {
+            logger.error("資產列表Trie緩存錯誤: ", e);
+            throw new RuntimeException("資產列表Trie緩存錯誤: ", e);
+        }
+        return trie;
+    }
+
+    /**
+     * 獲取資產數據並構建前綴樹，將資產依照類型提取名稱，並構建前綴樹
+     *
+     * @return 資產前綴樹
+     */
+    private Trie getAssetDataAndBuildTrie() {
+        List<AssetListDto> assetList = assetRepository.findAll().stream().flatMap(asset -> {
+            List<Object[]> attribute = switch (asset.getAssetType()) {
+                case CRYPTO: {
+                    CryptoTradingPair cryptoTradingPair = (CryptoTradingPair) asset;
+                    List<Object[]> list = new ArrayList<>();
+                    list.add(new Object[]{cryptoTradingPair.getTradingPair(), cryptoTradingPair.isHasAnySubscribed()});
+                    yield list;
+
+                }
+                case STOCK_TW: {
+                    StockTw stockTw = (StockTw) asset;
+                    List<Object[]> list = new ArrayList<>();
+                    list.add(new Object[]{stockTw.getStockCode() + "_Stock_Tw", stockTw.isHasAnySubscribed()});
+                    list.add(new Object[]{stockTw.getStockName() + "_Stock_Tw", stockTw.isHasAnySubscribed()});
+                    yield list;
+                }
+                case CURRENCY: {
+                    List<Object[]> list = new ArrayList<>();
+                    list.add(new Object[]{((Currency) asset).getCurrency(), true});
+                    yield list;
+                }
+            };
+            return attribute.stream().map(objects -> new AssetListDto(asset.getId(), objects[0].toString(), (boolean) objects[1]));
+        }).toList();
+        Trie trie = new Trie();
+        for (AssetListDto assetDto : assetList) {
+            trie.insert(assetDto);
+        }
+        return trie;
+    }
+
+    /**
+     * 根據關鍵字搜索資產列表
+     *
+     * @param keyword 關鍵字
+     * @param trie    資產前綴樹
+     *
+     * @return 府和前綴的資產列表JSON
+     */
+    public String searchAssetList(String keyword, Trie trie) {
+        List<AssetListDto> searchResult = trie.search(keyword.toUpperCase());
+        try {
+            return objectMapper.writeValueAsString(searchResult);
+        } catch (JsonProcessingException e) {
+            logger.error("資產列表搜索錯誤: ", e);
+            throw new RuntimeException("資產列表搜索錯誤: ", e);
         }
     }
 }

@@ -74,7 +74,7 @@ public class FileService {
                         return null;
                     }
                     if (zipFile.length() != response.getHeaders().getContentLength()) {
-                        logger.error("檔案大小不一致");
+                        logger.error("檔案大小檢驗時不一致");
                         return null;
                     }
                 } else {
@@ -82,7 +82,7 @@ public class FileService {
                     return null;
                 }
             } catch (RestClientException e) {
-                logger.error("请求失败: " + e.getMessage());
+                logger.error("請求失敗: " + e.getMessage());
                 return null;
             }
 
@@ -98,15 +98,11 @@ public class FileService {
                         }
                     }
                     result.addAll(readCsvFile(csvFile.getPath()));
-                    logger.debug("加入數據到結果");
-
                     if (!csvFile.delete()) {
                         logger.error("數據刪除失敗");
                         throw new RuntimeException("數據刪除失敗" + csvFile.getAbsolutePath());
                     }
-
                     zipEntry = zis.getNextEntry();
-                    logger.debug("下一個檔案");
                 }
                 zis.closeEntry();
                 logger.debug("沒有資料，關閉檔案");

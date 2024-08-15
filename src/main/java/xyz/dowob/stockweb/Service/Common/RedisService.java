@@ -62,7 +62,7 @@ public class RedisService {
      *
      * @param key            列表的键
      * @param values         新的数据值
-     * @param expirationTime 过期时间，以小時为单位
+     * @param expirationTime 過期时间，以小時為单位
      */
     public void saveListToCache(String key, List<String> values, long expirationTime) {
         redisTemplate.delete(key);

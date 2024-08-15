@@ -88,7 +88,7 @@ public class NewsService {
      * @return 查詢Url
      */
     public String getInquiryUrl(boolean isHeadline, int page, String keyword, Asset asset) {
-        String inquiryUrl = newsApiUrl;
+        StringBuilder inquiryUrl = new StringBuilder(newsApiUrl);
         if (asset != null && StringUtils.isBlank(keyword) && !isHeadline) {
             switch (asset) {
                 case Currency currency -> keyword = currency.getCurrency();
@@ -108,28 +108,28 @@ public class NewsService {
         }
 
         if (isHeadline) {
-            inquiryUrl = inquiryUrl + "top-headlines" + "?";
-            inquiryUrl = inquiryUrl + "country=" + preferCountry + "&";
-            inquiryUrl = inquiryUrl + "category=" + indexCategory + "&";
+            inquiryUrl.append("top-headlines?");
+            inquiryUrl.append("country=").append(preferCountry).append("&");
+            inquiryUrl.append("category=").append(indexCategory).append("&");
         } else {
-            inquiryUrl = inquiryUrl + "everything" + "?";
-            inquiryUrl = inquiryUrl + "language=" + preferLanguage + "&";
+            inquiryUrl.append("everything?");
+            inquiryUrl.append("language=").append(preferLanguage).append("&");
             if ("DEBT".equalsIgnoreCase(keyword)) {
                 String query = "公債 OR 國債";
                 String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-                inquiryUrl = "https://newsapi.org/v2/everything?language=zh&q=" + encodedQuery + "&pageSize=100&page=1";
+                inquiryUrl = new StringBuilder("https://newsapi.org/v2/everything?language=zh&q=" + encodedQuery + "&pageSize=100&page=1");
             } else {
-                inquiryUrl = inquiryUrl + "q=" + keyword + "&";
+                inquiryUrl = new StringBuilder(inquiryUrl + "q=" + keyword + "&");
             }
         }
-        inquiryUrl = inquiryUrl + "pageSize=" + pageSize + "&";
-        inquiryUrl = inquiryUrl + "page=" + page;
+        inquiryUrl.append("pageSize=").append(pageSize).append("&");
+        inquiryUrl.append("page=").append(page);
         logger.debug("查詢Url: " + inquiryUrl);
-        return inquiryUrl;
+        return inquiryUrl.toString();
     }
 
     /**
-     * 發送新聞請求,並處理回應
+     * 發送取得新聞資料得請求,並處理回應資料
      *
      * @param isHeadline 是否為頭條
      * @param page       頁數

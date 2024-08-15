@@ -137,3 +137,28 @@ function getColorsArray(dataLength) {
     }
     return colors;
 }
+
+function searchFunction() {
+    let searchTimeout;
+    let searchResults = document.getElementById('searchResults');
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        let query = this.value.trim();
+        if (query.length > 0) {
+            searchTimeout = setTimeout(() => searchAsset(query), 300);
+        } else {
+            searchResults.style.display = 'none';
+            searchResults.innerHTML = '';
+        }
+    })
+
+    document.addEventListener('click', function(event) {
+        let searchResults = document.getElementById('searchResults');
+        let searchInput = document.getElementById('searchInput');
+        if (!searchResults.contains(event.target) && event.target !== searchInput) {
+            setTimeout(() => {
+                searchResults.innerHTML = '';
+            }, 100);
+        }
+    });
+}

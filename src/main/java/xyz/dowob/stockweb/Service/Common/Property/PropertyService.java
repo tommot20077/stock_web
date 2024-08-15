@@ -1331,7 +1331,7 @@ public class PropertyService {
 
 
         if (usBondTable.get("government_bonds").isEmpty()) {
-            logger.warn("取得債券資料: null,請先更新公債資料庫");
+            logger.warn("取得債券資料: null, 請先更新公債資料庫");
             return result;
         } else if (userRoiTable.get("roi").isEmpty() || userRoiStatisticTable.get("roi_statistics").isEmpty() || userRoiTimeTable.get(
                 "roi_statistics").isEmpty()) {
