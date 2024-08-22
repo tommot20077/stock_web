@@ -8,8 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * @author yuan
  * InfluxDB設定
@@ -66,7 +64,7 @@ public class InfluxConfig {
      */
     @Bean(name = "CryptoInfluxClient")
     public InfluxDBClient cryptoInfluxClient() {
-        return createClient(cryptoBucket);
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
     }
 
     /**
@@ -76,7 +74,7 @@ public class InfluxConfig {
      */
     @Bean(name = "CryptoHistoryInfluxClient")
     public InfluxDBClient cryptoHistoryBucket() {
-        return createClient(cryptoHistoryBucket);
+        return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoHistoryBucket);
     }
 
     /**
@@ -148,9 +146,10 @@ public class InfluxConfig {
      * @return InfluxDBClient
      */
     private InfluxDBClient createClient(String bucketName) {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().connectTimeout(influxConnectTimeout, TimeUnit.SECONDS)
-                                                                 .readTimeout(influxReadTimeout, TimeUnit.SECONDS)
-                                                                 .writeTimeout(influxReadTimeout, TimeUnit.SECONDS);
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().connectTimeout(influxConnectTimeout,
+                                                                                 java.util.concurrent.TimeUnit.SECONDS)
+                                                                 .readTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS)
+                                                                 .writeTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS);
 
 
         InfluxDBClientOptions options = InfluxDBClientOptions.builder()

@@ -62,16 +62,13 @@ public class SecurityConfig {
                                                                                                    .expiredSessionStrategy(event -> event.getResponse()
                                                                                                                                          .sendRedirect(
                                                                                                                                                  "/login"))))
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rememberMeAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(jwtAuthenticationFilter(), RememberMeAuthenticationFilter.class)
+
 
             .formLogin((form) -> form.loginPage("/login").defaultSuccessUrl("/", true).failureUrl("/error").permitAll())
             .exceptionHandling((exception) -> exception.accessDeniedPage("/login"))
-            .authorizeHttpRequests((authorize) -> authorize.requestMatchers("/api/user/common/login",
-                                                                            "/api/user/common/register",
-                                                                            "/api/user/common/verifyEmail",
-                                                                            "/api/user/common/sendResetPasswordEmail",
-                                                                            "/api/user/common/resetPassword",
+            .authorizeHttpRequests((authorize) -> authorize.requestMatchers("/api/user/common/**",
                                                                             "/login",
                                                                             "/login_p",
                                                                             "/register",

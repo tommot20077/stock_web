@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -224,7 +223,6 @@ public class UserService {
                     user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
                                                             .orElseThrow(() -> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
                     logger.warn("用戶 " + user.getEmail() + " 更改預設幣別失敗，使用預設幣別：USD");
-                    throw new IllegalStateException("更改預設幣別失敗，使用預設幣別：USD");
                 }
             }
             userRepository.save(user);

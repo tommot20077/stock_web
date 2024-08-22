@@ -3,6 +3,7 @@ package xyz.dowob.stockweb.Component.Method;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -369,6 +370,7 @@ public class CrontabMethod {
      * 預設保留30天，可在配置文件中設置{newsRemainDays}
      * 每天UTC時間凌晨1點
      */
+    @Transactional
     @Scheduled(cron = "0 0 1 * * ? ",
                zone = "UTC")
     public void removeExpiredNews() {
@@ -476,6 +478,7 @@ public class CrontabMethod {
      * 每週五凌晨2點
      */
     @Scheduled(cron = "0 0 2 * * 5")
+    @Transactional
     public void cacheAssetTrie() {
         redisService.deleteByPattern("assetTrie");
         assetService.cacheTrieToRedis();

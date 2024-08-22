@@ -384,6 +384,7 @@ public class CryptoService {
 
         try {
             processDate(getMonthlyDate, endDate, monthlyFormatter, cryptoTradingPair.getTradingPair(), "monthly", taskId, executorService, futureList);
+            endDate[0] = todayDate.plusDays(1);
             processDate(getDailyDate, endDate, dailyFormatter, cryptoTradingPair.getTradingPair(), "daily", taskId, executorService, futureList);
             logger.debug("歷史價格資料抓取完成");
 
