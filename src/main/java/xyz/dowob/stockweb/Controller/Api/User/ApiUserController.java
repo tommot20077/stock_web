@@ -70,7 +70,7 @@ public class ApiUserController {
      * @param assetService  資產相關服務
      * @param cryptoService 加密貨幣相關服務
      * @param todoService   待辦事項相關服務
-     * @param crontabMethod CrontabMethod
+     * @param crontabMethod 定時任務相關方法
      */
     @Autowired
     public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoService cryptoService, TodoService todoService, CrontabMethod crontabMethod) {

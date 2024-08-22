@@ -370,6 +370,7 @@ public class CryptoService {
         final LocalDate[] getMonthlyDate = {todayDate.minusMonths(2)};
         final LocalDate[] getDailyDate = {todayDate.minusMonths(1).withDayOfMonth(1)};
         DateTimeFormatter monthlyFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        DateTimeFormatter dailyFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
 
         int trackDaysZip = getDateBetween(getDailyDate[0], todayDate, false);
@@ -380,77 +381,10 @@ public class CryptoService {
         logger.debug("本次任務Id: " + taskId);
         Task task = new Task(taskId, "獲取: " + cryptoTradingPair.getTradingPair() + " 的歷史價格", trackDaysZip + trackMonthsZip);
         taskRepository.save(task);
+
         try {
-            while ((getMonthlyDate[0].isAfter(endDate[0]) || getMonthlyDate[0].isEqual(endDate[0]))) {
-                String formatGetMonthlyDate = getMonthlyDate[0].format(monthlyFormatter);
-                String fileName = String.format("%s-%s-%s.zip", cryptoTradingPair.getTradingPair(), frequency, formatGetMonthlyDate);
-                String monthlyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s",
-                                                  "monthly",
-                                                  cryptoTradingPair.getTradingPair(),
-                                                  frequency,
-                                                  fileName);
-                logger.debug("要追蹤歷史價格的交易對: " + cryptoTradingPair.getTradingPair());
-                logger.debug("歷史價格資料網址: " + monthlyUrl);
-
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    dynamicThreadPoolService.onTaskStart();
-                    rateLimiter.acquire();
-                    List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(monthlyUrl, fileName);
-                    if (csvData == null) {
-                        logger.debug("資料讀取失敗");
-                        endDate[0] = getMonthlyDate[0];
-                    } else {
-                        logger.debug("資料讀取完成");
-                        cryptoInfluxService.writeCryptoHistoryToInflux(csvData, cryptoTradingPair.getTradingPair());
-                        logger.debug("抓取" + fileName + "的資料完成");
-                    }
-                    progressTrackerService.incrementProgress(taskId);
-                }, executorService).handle((result, throwable) -> {
-                    dynamicThreadPoolService.onTaskComplete();
-                    if (throwable != null) {
-                        logger.error("線程執行失敗，執行檔名: " + fileName + ", 錯誤訊息: " + throwable.getMessage());
-                    }
-                    return null;
-                });
-                futureList.add(future);
-                getMonthlyDate[0] = getMonthlyDate[0].minusMonths(1);
-            }
-
-            endDate[0] = todayDate.minusDays(1);
-            while (getDailyDate[0].isBefore(endDate[0]) || getDailyDate[0].isEqual(endDate[0])) {
-                String formatGetDailyDate = getDailyDate[0].format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                String fileName = String.format("%s-%s-%s.zip", cryptoTradingPair.getTradingPair(), frequency, formatGetDailyDate);
-                String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s",
-                                                "daily",
-                                                cryptoTradingPair.getTradingPair(),
-                                                frequency,
-                                                fileName);
-                logger.debug("要追蹤歷史價格的交易對: " + cryptoTradingPair.getTradingPair());
-                logger.debug("歷史價格資料網址: " + dailyUrl);
-
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    dynamicThreadPoolService.onTaskStart();
-                    rateLimiter.acquire();
-                    List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dailyUrl, fileName);
-                    if (csvData == null) {
-                        logger.debug("資料讀取失敗: " + fileName);
-                    } else {
-                        logger.debug("資料讀取完成");
-                        cryptoInfluxService.writeCryptoHistoryToInflux(csvData, cryptoTradingPair.getTradingPair());
-                        getDailyDate[0] = getDailyDate[0].plusDays(1);
-                        logger.debug("抓取" + fileName + "的資料完成");
-                    }
-                    progressTrackerService.incrementProgress(taskId);
-                }, executorService).handle((result, throwable) -> {
-                    dynamicThreadPoolService.onTaskComplete();
-                    if (throwable != null) {
-                        logger.error("線程執行失敗，執行檔名: " + fileName + ", 錯誤訊息: " + throwable.getMessage());
-                    }
-                    return null;
-                });
-                futureList.add(future);
-                getDailyDate[0] = getDailyDate[0].plusDays(1);
-            }
+            processDate(getMonthlyDate, endDate, monthlyFormatter, cryptoTradingPair.getTradingPair(), "monthly", taskId, executorService, futureList);
+            processDate(getDailyDate, endDate, dailyFormatter, cryptoTradingPair.getTradingPair(), "daily", taskId, executorService, futureList);
             logger.debug("歷史價格資料抓取完成");
 
             CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenComplete((result, ex) -> {
@@ -476,6 +410,49 @@ public class CryptoService {
             progressTrackerService.deleteProgress(taskId);
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, cryptoTradingPair));
             return CompletableFuture.completedFuture(taskId);
+        }
+    }
+
+    public void processDate(LocalDate[] startDate, LocalDate[] endDate, DateTimeFormatter dateTimeFormatter, String cryptoTradingPair, String period, String taskId, ExecutorService executorService, List<CompletableFuture<Void>> futureList) {
+        while ((startDate[0].isAfter(endDate[0]) || startDate[0].isEqual(endDate[0]))) {
+            String formatGetDate = startDate[0].format(dateTimeFormatter);
+            String fileName = String.format("%s-%s-%s.zip", cryptoTradingPair, frequency, formatGetDate);
+            String dataFormatUrl = String.format(dataUrl + "%s/klines/%s/%s/%s",
+                                              period,
+                                              cryptoTradingPair,
+                                              frequency,
+                                              fileName);
+            logger.debug("要追蹤歷史價格的交易對: " + cryptoTradingPair);
+            logger.debug("歷史價格資料網址: " + dataFormatUrl);
+
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                dynamicThreadPoolService.onTaskStart();
+                rateLimiter.acquire();
+                List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dataFormatUrl, fileName);
+                if (csvData == null) {
+                    logger.debug("資料讀取失敗");
+                    if ("monthly".equals(period)) {
+                        endDate[0] = startDate[0];
+                    }
+                } else {
+                    logger.debug("資料讀取完成");
+                    cryptoInfluxService.writeCryptoHistoryToInflux(csvData, cryptoTradingPair);
+                    logger.debug("抓取" + fileName + "的資料完成");
+                }
+                progressTrackerService.incrementProgress(taskId);
+            }, executorService).handle((result, throwable) -> {
+                dynamicThreadPoolService.onTaskComplete();
+                if (throwable != null) {
+                    logger.error("線程執行失敗，執行檔名: " + fileName + ", 錯誤訊息: " + throwable.getMessage());
+                }
+                return null;
+            });
+            futureList.add(future);
+            if ("monthly".equals(period)) {
+                startDate[0] = startDate[0].minusMonths(1);
+            } else {
+                startDate[0] = startDate[0].plusDays(1);
+            }
         }
     }
 

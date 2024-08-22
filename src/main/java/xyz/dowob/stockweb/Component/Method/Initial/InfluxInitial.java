@@ -84,7 +84,7 @@ public class InfluxInitial {
         String orgId = getOrganization().getId();
         for (String key : keys) {
             if (key == null || key.isEmpty()) {
-                logger.info("請先配置設定: " + key);
+                logger.warn("請先配置設定: " + key);
                 throw new IllegalStateException("請先配置設定: " + key);
             }
         }

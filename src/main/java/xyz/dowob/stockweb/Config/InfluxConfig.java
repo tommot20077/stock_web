@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author yuan
  * InfluxDB設定
@@ -64,7 +66,7 @@ public class InfluxConfig {
      */
     @Bean(name = "CryptoInfluxClient")
     public InfluxDBClient cryptoInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoBucket);
+        return createClient(cryptoBucket);
     }
 
     /**
@@ -74,7 +76,7 @@ public class InfluxConfig {
      */
     @Bean(name = "CryptoHistoryInfluxClient")
     public InfluxDBClient cryptoHistoryBucket() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, cryptoHistoryBucket);
+        return createClient(cryptoHistoryBucket);
     }
 
     /**
@@ -104,7 +106,7 @@ public class InfluxConfig {
      */
     @Bean(name = "CurrencyInfluxClient")
     public InfluxDBClient currencyInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, currencyBucket);
+        return createClient(currencyBucket);
     }
 
     /**
@@ -114,7 +116,7 @@ public class InfluxConfig {
      */
     @Bean(name = "propertySummaryInfluxClient")
     public InfluxDBClient propertySummaryInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, propertySummaryBucket);
+        return createClient(propertySummaryBucket);
     }
 
     /**
@@ -124,7 +126,7 @@ public class InfluxConfig {
      */
     @Bean(name = "commonEconomyInfluxClient")
     public InfluxDBClient governmentBondsInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, commonEconomyBucket);
+        return createClient(commonEconomyBucket);
     }
 
 
@@ -146,10 +148,9 @@ public class InfluxConfig {
      * @return InfluxDBClient
      */
     private InfluxDBClient createClient(String bucketName) {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().connectTimeout(influxConnectTimeout,
-                                                                                 java.util.concurrent.TimeUnit.SECONDS)
-                                                                 .readTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS)
-                                                                 .writeTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS);
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().connectTimeout(influxConnectTimeout, TimeUnit.SECONDS)
+                                                                 .readTimeout(influxReadTimeout, TimeUnit.SECONDS)
+                                                                 .writeTimeout(influxReadTimeout, TimeUnit.SECONDS);
 
 
         InfluxDBClientOptions options = InfluxDBClientOptions.builder()
@@ -168,6 +169,6 @@ public class InfluxConfig {
      */
     @Bean(name = "testInfluxClient")
     public InfluxDBClient testInfluxClient() {
-        return InfluxDBClientFactory.create(url, token.toCharArray(), org, "test_data");
+        return createClient("test_data");
     }
 }

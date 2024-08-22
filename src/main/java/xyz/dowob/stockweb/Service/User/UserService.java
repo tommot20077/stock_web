@@ -213,17 +213,19 @@ public class UserService {
 
             Currency currency = currencyRepository.findByCurrency(userInfo.get("preferredCurrency")).orElse(null);
             if (currency != null && !currency.getCurrency().equals(user.getPreferredCurrency().getCurrency())) {
-                user.setPreferredCurrency(currency);
-                logger.warn("用戶 " + user.getEmail() + " 更改預設幣別");
-                subscribeRepository.findAllByUserAndAssetAssetType(user, AssetType.CURRENCY).forEach(subscribe -> {
-                    subscribe.setChannel(currency.getCurrency());
-                    subscribeRepository.save(subscribe);
-                });
-            } else {
-                user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
+                try {
+                    user.setPreferredCurrency(currency);
+                    logger.warn("用戶 " + user.getEmail() + " 更改預設幣別");
+                    subscribeRepository.findAllByUserAndAssetAssetType(user, AssetType.CURRENCY).forEach(subscribe -> {
+                        subscribe.setChannel(currency.getCurrency());
+                        subscribeRepository.save(subscribe);
+                    });
+                } catch (Exception e) {
+                    user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
                                                             .orElseThrow(() -> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
-                logger.warn("用戶 " + user.getEmail() + " 更改預設幣別失敗，使用預設幣別：USD");
-                throw new IllegalStateException("更改預設幣別失敗，使用預設幣別：USD");
+                    logger.warn("用戶 " + user.getEmail() + " 更改預設幣別失敗，使用預設幣別：USD");
+                    throw new IllegalStateException("更改預設幣別失敗，使用預設幣別：USD");
+                }
             }
             userRepository.save(user);
         } else {

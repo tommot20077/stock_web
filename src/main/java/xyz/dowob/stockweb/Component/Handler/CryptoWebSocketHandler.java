@@ -292,10 +292,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     subscribe.setRemoveAble(true);
                     subscribeRepository.save(subscribe);
                     logger.info("已訂閱" + tradingPair + channel + "交易對");
-
-                    if (!cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
-                        subscribeMethod.addSubscriberToCryptoTradingPair(cryptoTradingPairSymbol, user.getId());
-                    }
+                    subscribeMethod.addSubscriberToCryptoTradingPair(cryptoTradingPairSymbol, user.getId());
                 }
             }
         }
@@ -395,8 +392,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                         logger.error("嘗試關閉WebSocket連接時發生錯誤", e);
                     }
                 }
-                WebSocketClient webSocketClient = new StandardWebSocketClient();
-                WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(webSocketClient,
+                WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(new StandardWebSocketClient(),
                                                                                               this,
                                                                                               "wss://stream.binance.com:9443/stream?streams=");
                 connectionManager.setAutoStartup(true);
