@@ -126,7 +126,7 @@ public class PropertyListDto {
         private String description;
 
         public getAllPropertiesDto(Property property, BigDecimal currentPrice, BigDecimal currentTotalPrice) {
-            this.userId = property.getId();
+            this.userId = property.getUser().getId();
             this.preferredCurrency = property.getUser().getPreferredCurrency().getCurrency();
             this.preferredCurrencyRate = property.getUser().getPreferredCurrency().getExchangeRate();
             this.propertyId = property.getId();

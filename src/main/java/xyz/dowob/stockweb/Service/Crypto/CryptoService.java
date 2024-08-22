@@ -359,16 +359,16 @@ public class CryptoService {
      */
     @Async
     public CompletableFuture<String> trackCryptoHistoryPrices(CryptoTradingPair cryptoTradingPair) {
+        List<CompletableFuture<Void>> futureList = new ArrayList<>();
+
         dynamicThreadPoolService.adjustThreadPoolBasedOnLoad();
         ExecutorService executorService = dynamicThreadPoolService.getExecutorService();
-        List<CompletableFuture<Void>> futureList = new ArrayList<>();
-        int currentCorePoolSize = dynamicThreadPoolService.getCurrentCorePoolSize();
-        logger.debug("任務線程數: " + currentCorePoolSize + "個線程");
+        logger.debug("任務線程數: " + dynamicThreadPoolService.getCurrentCorePoolSize() + "個線程");
 
-        final LocalDate[] endDate = {LocalDate.parse(dateline, DateTimeFormatter.BASIC_ISO_DATE)};
         LocalDate todayDate = LocalDate.now(ZoneId.of("UTC"));
-        final LocalDate[] getMonthlyDate = {todayDate.minusMonths(2)};
-        final LocalDate[] getDailyDate = {todayDate.minusMonths(1).withDayOfMonth(1)};
+        final LocalDate[] endDate = {LocalDate.parse(dateline, DateTimeFormatter.BASIC_ISO_DATE)};
+        final LocalDate[] getMonthlyDate = {todayDate.minusMonths(1)};
+        final LocalDate[] getDailyDate = {todayDate.withDayOfMonth(1)};
         DateTimeFormatter monthlyFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
         DateTimeFormatter dailyFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -384,6 +384,7 @@ public class CryptoService {
 
         try {
             processDate(getMonthlyDate, endDate, monthlyFormatter, cryptoTradingPair.getTradingPair(), "monthly", taskId, executorService, futureList);
+            endDate[0] = todayDate.plusDays(1);
             processDate(getDailyDate, endDate, dailyFormatter, cryptoTradingPair.getTradingPair(), "daily", taskId, executorService, futureList);
             logger.debug("歷史價格資料抓取完成");
 
