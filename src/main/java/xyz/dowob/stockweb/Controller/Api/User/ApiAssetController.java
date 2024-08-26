@@ -65,6 +65,7 @@ public class ApiAssetController {
      *
      * @return ResponseEntity
      */
+    /*
     @PostMapping("/handleKlineInfo/{assetId}")
     public ResponseEntity<?> handleAssetInfo(
             @PathVariable Long assetId, @RequestParam(name = "type",
@@ -103,6 +104,7 @@ public class ApiAssetController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    */
 
     /**
      * 取得資產資料 (K線圖)
@@ -112,6 +114,7 @@ public class ApiAssetController {
      *
      * @return ResponseEntity
      */
+    /*
     @GetMapping("/getKlineInfo/{assetId}")
     public ResponseEntity<?> getKlineInfo(
             @PathVariable Long assetId, @RequestParam(name = "type",
@@ -143,6 +146,8 @@ public class ApiAssetController {
             return ResponseEntity.badRequest().body("錯誤: " + e.getMessage());
         }
     }
+
+     */
 
     /**
      * 取得資產資訊, 並存入Redis
