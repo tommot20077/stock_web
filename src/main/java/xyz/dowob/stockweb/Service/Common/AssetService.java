@@ -2,6 +2,7 @@ package xyz.dowob.stockweb.Service.Common;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -119,38 +120,29 @@ public class AssetService {
 
 
     /**
-     * 異步處理資產歷史數據，並將其存儲到Redis中。
+     * 處理資產歷史數據，並將其存儲到Redis中。
      *
      * @param asset     資產對象。
      * @param type      查詢類型。
      * @param timestamp 查詢時間戳。
      */
-    @Async
-    public void getAssetHistoryInfo(Asset asset, String type, String timestamp) {
+    public Map<String, List<FluxTable>> getAssetKlineInfo(Asset asset, String type, String timestamp) {
         logger.debug("開始處理資產type: " + type + " timestamp: " + timestamp);
         Map<String, List<FluxTable>> tableMap;
         String hashInnerKey = String.format("%s_%s:", type, asset.getId());
         String listKey = String.format("kline_%s", hashInnerKey);
         logger.debug("開始處理資產: " + asset.getId());
         try {
-
             switch (type) {
-                case "history":
+                case "history", "current":
                     redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
-                    tableMap = assetInfluxMethod.queryByAsset(asset, true, timestamp);
+                    tableMap = assetInfluxMethod.queryByAsset(asset, "history".equals(type), timestamp);
                     if (nodataMethod(asset, type, tableMap, listKey, hashInnerKey)) {
-                        return;
+                        redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 168);
                     }
-                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, "history");
-                    break;
-                case "current":
-                    redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
-                    tableMap = assetInfluxMethod.queryByAsset(asset, false, timestamp);
-                    if (nodataMethod(asset, type, tableMap, listKey, hashInnerKey)) {
-                        return;
-                    }
-                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, "current");
-                    break;
+                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, type);
+                    logger.debug("資產數據處理完成");
+                    return tableMap;
                 default:
                     throw new RuntimeException("錯誤的查詢類型");
             }
@@ -199,74 +191,13 @@ public class AssetService {
      * @param hashInnerKey 緩存內部鍵。
      * @param type         查詢類型。
      */
-    @Async
     protected void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey, String type) {
         try {
-            Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
-            String lastTimePoint = null;
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
-
-            for (Map.Entry<String, List<FluxTable>> entry : tableMap.entrySet()) {
-                if (entry.getValue().isEmpty()) {
-                    continue;
-                }
-                for (FluxTable fluxTable : entry.getValue()) {
-                    if (fluxTable.getRecords().isEmpty()) {
-                        continue;
-                    }
-                    for (FluxRecord record : fluxTable.getRecords()) {
-                        Instant recordTimestamp = ((Instant) Objects.requireNonNull(record.getValueByKey("_time")));
-                        String timestamp = formatter.format(recordTimestamp);
-
-                        if (lastTimePoint == null || Instant.parse(lastTimePoint).isBefore(Instant.parse(timestamp))) {
-                            lastTimePoint = timestamp;
-                        }
-                        String field = (String) record.getValueByKey("_field");
-                        BigDecimal value = null;
-                        String formattedValue = null;
-                        Object valueObj = record.getValueByKey("_value");
-                        if (valueObj instanceof Double doubleValue) {
-                            value = BigDecimal.valueOf(doubleValue);
-                            formattedValue = String.format("%.6f", value);
-                        }
-                        AssetKlineDataDto dataDto = klineDataMap.getOrDefault(timestamp, new AssetKlineDataDto());
-                        dataDto.setTimestamp(timestamp);
-                        if (value != null && field != null) {
-                            {
-                                switch (field) {
-                                    case "open":
-                                        dataDto.setOpen(formattedValue);
-                                        break;
-                                    case "high":
-                                        dataDto.setHigh(formattedValue);
-                                        break;
-                                    case "low":
-                                        dataDto.setLow(formattedValue);
-                                        break;
-                                    case "close":
-                                        dataDto.setClose(formattedValue);
-                                        break;
-                                    case "volume":
-                                        dataDto.setVolume(formattedValue);
-                                        break;
-                                    case "rate":
-                                        dataDto.setClose(formattedValue);
-                                        dataDto.setOpen(formattedValue);
-                                        dataDto.setHigh(formattedValue);
-                                        dataDto.setLow(formattedValue);
-                                        dataDto.setVolume("0");
-                                        break;
-                                    default:
-                                        throw new RuntimeException("資產資料轉換錯誤: " + field);
-                                }
-                            }
-                        }
-                        klineDataMap.put(timestamp, dataDto);
-                    }
-                }
-            }
+            Object[] kLineJsonAndLastTimePoint = formatTableToMap(tableMap);
             objectMapper.registerModule(new JavaTimeModule());
-            String kLineJson = objectMapper.writeValueAsString(klineDataMap.values());
+            String kLineJson = objectMapper.writeValueAsString(kLineJsonAndLastTimePoint[0]);
+            String lastTimePoint = (String) kLineJsonAndLastTimePoint[1];
+
             redisService.rPushToCacheList(key + "data", kLineJson, 168);
             redisService.saveHashToCache("kline", hashInnerKey + "type", type, 168);
             redisService.saveHashToCache("kline", hashInnerKey + "last_timestamp", lastTimePoint, 168);
@@ -274,6 +205,72 @@ public class AssetService {
         } catch (Exception e) {
             throw new RuntimeException("資產資料處理錯誤: ", e);
         }
+    }
+
+    public Object[] formatTableToMap(Map<String, List<FluxTable>> tableMap) {
+        Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+        String timestamp = null;
+
+        for (Map.Entry<String, List<FluxTable>> entry : tableMap.entrySet()) {
+            if (entry.getValue().isEmpty()) {
+                continue;
+            }
+            for (FluxTable fluxTable : entry.getValue()) {
+                if (fluxTable.getRecords().isEmpty()) {
+                    continue;
+                }
+                for (FluxRecord record : fluxTable.getRecords()) {
+                    Instant recordTimestamp = ((Instant) Objects.requireNonNull(record.getValueByKey("_time")));
+                    timestamp = formatter.format(recordTimestamp);
+                    String field = (String) record.getValueByKey("_field");
+                    BigDecimal value = null;
+                    String formattedValue = null;
+                    Object valueObj = record.getValueByKey("_value");
+                    if (valueObj instanceof Double doubleValue) {
+                        value = BigDecimal.valueOf(doubleValue);
+                        formattedValue = String.format("%.6f", value);
+                    }
+                    AssetKlineDataDto dataDto = klineDataMap.getOrDefault(timestamp, new AssetKlineDataDto());
+                    dataDto.setTimestamp(timestamp);
+                    if (value != null && field != null) {
+                        {
+                            switch (field) {
+                                case "open":
+                                    dataDto.setOpen(formattedValue);
+                                    break;
+                                case "high":
+                                    dataDto.setHigh(formattedValue);
+                                    break;
+                                case "low":
+                                    dataDto.setLow(formattedValue);
+                                    break;
+                                case "close":
+                                    dataDto.setClose(formattedValue);
+                                    break;
+                                case "volume":
+                                    dataDto.setVolume(formattedValue);
+                                    break;
+                                case "rate":
+                                    dataDto.setClose(formattedValue);
+                                    dataDto.setOpen(formattedValue);
+                                    dataDto.setHigh(formattedValue);
+                                    dataDto.setLow(formattedValue);
+                                    dataDto.setVolume("0");
+                                    break;
+                                default:
+                                    throw new RuntimeException("資產資料轉換錯誤: " + field);
+                            }
+                        }
+                    }
+                    klineDataMap.put(timestamp, dataDto);
+                }
+            }
+        }
+        logger.debug("klineDataMap: " + klineDataMap);
+        logger.debug("timestamp: " + timestamp);
+        return new Object[]{klineDataMap, timestamp};
     }
 
     /**
@@ -420,13 +417,12 @@ public class AssetService {
      * @param type         資產類型。
      * @param listKey      緩存列表鍵。
      * @param hashInnerKey 緩存內部鍵。
-     * @param user         用戶對象。
      *
      * @return 資產K線數據JSON。
      *
      * @throws RuntimeException 當資產數據處理錯誤時拋出異常。
      */
-    public String formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey, User user) {
+    public Map<String, Object> formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey) {
         ArrayNode mergeArray = objectMapper.createArrayNode();
         Map<String, Object> resultMap = new HashMap<>();
 
@@ -434,17 +430,18 @@ public class AssetService {
         String timestamp = redisService.getHashValueFromKey("kline", hashInnerKey + "last_timestamp");
         try {
             for (String item : cacheDataList) {
-                ArrayNode arrayNode = (ArrayNode) objectMapper.readTree(item);
-                mergeArray.addAll(arrayNode);
+                JsonNode jsonNode = objectMapper.readTree(item);
+                if (jsonNode.isArray()) {
+                    ArrayNode arrayNode = (ArrayNode) jsonNode;
+                    mergeArray.addAll(arrayNode);
+                }
             }
 
             resultMap.put("data", mergeArray);
             resultMap.put("type", type);
             resultMap.put("last_timestamp", timestamp);
-            resultMap.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
 
-
-            return objectMapper.writeValueAsString(resultMap);
+            return resultMap;
         } catch (JsonProcessingException e) {
             logger.error("資產資料處理錯誤: ", e);
             throw new RuntimeException("資產資料處理錯誤: ", e);

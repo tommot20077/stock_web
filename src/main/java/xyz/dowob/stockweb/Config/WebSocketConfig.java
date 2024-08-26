@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Config;
 
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -8,9 +9,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import xyz.dowob.stockweb.Component.Handler.ChatWebSocketHandler;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
+import xyz.dowob.stockweb.Component.Handler.KlineWebSocketHandler;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
+import xyz.dowob.stockweb.Interceptor.WebSocketHandleInterceptor;
 import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
@@ -21,7 +28,8 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
  * @author yuan
  */
 @Configuration
-public class WebSocketConfig {
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
     /**
@@ -85,5 +93,35 @@ public class WebSocketConfig {
                                           eventPublisher,
                                           subscribeRepository,
                                           retryTemplate);
+    }
+
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(chatWebSocketHandler(), "/ws/server/chat").setAllowedOrigins("*").addInterceptors(webSocketHandleInterceptor());
+        registry.addHandler(chatWebSocketHandler(), "/sockjs/server/chat")
+                .setAllowedOrigins("*")
+                .addInterceptors(webSocketHandleInterceptor())
+                .withSockJS();
+
+        registry.addHandler(klineWebSocketHandler(), "/ws/server/kline").setAllowedOrigins("*").addInterceptors(webSocketHandleInterceptor());
+        registry.addHandler(klineWebSocketHandler(), "/sockjs/server/kline")
+                .setAllowedOrigins("*")
+                .addInterceptors(webSocketHandleInterceptor())
+                .withSockJS();
+    }
+
+    @Bean
+    public ChatWebSocketHandler chatWebSocketHandler() {
+        return new ChatWebSocketHandler();
+    }
+
+    @Bean
+    public KlineWebSocketHandler klineWebSocketHandler() {
+        return new KlineWebSocketHandler();
+    }
+
+    @Bean
+    public WebSocketHandleInterceptor webSocketHandleInterceptor() {
+        return new WebSocketHandleInterceptor();
     }
 }
