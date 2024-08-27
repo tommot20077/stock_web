@@ -12,10 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Model.User.User;
@@ -35,15 +32,18 @@ public class PageController {
 
     private final TokenService tokenService;
 
+    private final AssetService assetService;
+
     /**
      * 這是一個構造函數，用於注入UserService和TokenService
      * @param userService 用戶服務
      * @param tokenService 用戶令牌服務
      */
     @Autowired
-    public PageController(UserService userService, TokenService tokenService) {
+    public PageController(UserService userService, TokenService tokenService, AssetService assetService) {
         this.userService = userService;
         this.tokenService = tokenService;
+        this.assetService = assetService;
     }
 
     /**
@@ -203,12 +203,18 @@ public class PageController {
 
     /**
      * 前往資產資訊頁面, assetId為資產ID
+     * 若資產不存在則重導向至首頁
      *
      * @return 資產資訊頁面
      */
     @GetMapping("/asset_info/{assetId}")
-    public String assetInfo() {
-        return "assetInfo";
+    public String assetInfo(@PathVariable Long assetId) {
+        try {
+            assetService.getAssetById(assetId);
+            return "assetInfo";
+        } catch (RuntimeException e) {
+            return "redirect:/";
+        }
     }
 
     /**
@@ -252,5 +258,10 @@ public class PageController {
             return "redirect:/";
         }
         return "serverManage";
+    }
+
+    @GetMapping("/testws/{id}")
+    public String testws(@PathVariable String id) {
+        return "testws";
     }
 }

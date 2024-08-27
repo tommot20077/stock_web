@@ -148,7 +148,6 @@ public class ApiAssetController {
     }
 
      */
-
     /**
      * 取得資產資訊, 並存入Redis
      *

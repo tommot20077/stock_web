@@ -3,7 +3,6 @@ package xyz.dowob.stockweb.Service.Common;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
@@ -20,7 +19,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
@@ -117,48 +115,11 @@ public class AssetService {
     @Value("${common.global_page_size:100}")
     private int pageSize;
 
-
-    /**
-     * 異步處理資產歷史數據，並將其存儲到Redis中。
-     *
-     * @param asset     資產對象。
-     * @param type      查詢類型。
-     * @param timestamp 查詢時間戳。
-     */
-    @Async
-    public void getAssetHistoryInfo(Asset asset, String type, String timestamp) {
-        logger.debug("開始處理資產type: " + type + " timestamp: " + timestamp);
-        Map<String, List<FluxTable>> tableMap;
-        String hashInnerKey = String.format("%s_%s:", type, asset.getId());
-        String listKey = String.format("kline_%s", hashInnerKey);
-        logger.debug("開始處理資產: " + asset.getId());
-        try {
-
-            switch (type) {
-                case "history":
-                    redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
-                    tableMap = assetInfluxMethod.queryByAsset(asset, true, timestamp);
-                    if (nodataMethod(asset, type, tableMap, listKey, hashInnerKey)) {
-                        return;
-                    }
-                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, "history");
-                    break;
-                case "current":
-                    redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
-                    tableMap = assetInfluxMethod.queryByAsset(asset, false, timestamp);
-                    if (nodataMethod(asset, type, tableMap, listKey, hashInnerKey)) {
-                        return;
-                    }
-                    saveAssetInfoToRedis(tableMap, listKey, hashInnerKey, "current");
-                    break;
-                default:
-                    throw new RuntimeException("錯誤的查詢類型");
-            }
-
-        } catch (Exception e) {
-            redisService.saveHashToCache("kline", hashInnerKey + "status", "fail", 168);
-            throw new RuntimeException("發生錯誤: ", e);
-        }
+    public Map<String, List<FluxTable>> getAssetKlineData (Long assetId, String type, String timestamp) {
+        Asset asset = getAssetById(assetId);
+        Map<String, List<FluxTable>> tableMap = assetInfluxMethod.queryByAsset(asset, "history".equals(type), timestamp);
+        logger.debug("資產K線數據: " + tableMap.toString());
+        return tableMap;
     }
 
     /**
@@ -166,28 +127,27 @@ public class AssetService {
      * 當資產沒有數據時，設定緩存狀態為no_data
      * 當資產有數據時，設定緩存狀態為success
      *
-     * @param asset        資產對象
+     * @param assetId        資產Id
      * @param type         查詢類型
      * @param tableMap     資料表
-     * @param listKey      緩存列表鍵
-     * @param hashInnerKey 緩存內部鍵
      *
      * @return 是否有數據
      */
-    private boolean nodataMethod(Asset asset, String type, Map<String, List<FluxTable>> tableMap, String listKey, String hashInnerKey) {
-        logger.debug("tableMap: " + tableMap);
-        if (tableMap.get("%s_%s".formatted(asset.getId(), type)).isEmpty()) {
+    public boolean checkNewDataMethod(Long assetId, String type, Map<String, List<FluxTable>> tableMap) {
+        String hashInnerKey = String.format("%s_%s:", type, assetId);
+        String listKey = String.format("kline_%s", hashInnerKey);
+        if (tableMap.get("%s_%s".formatted(assetId, type)).isEmpty()) {
             List<String> listCache = redisService.getCacheListValueFromKey(listKey + "data");
             if (listCache.isEmpty()) {
                 logger.debug("此資產沒有過資料紀錄，設定緩存狀態為no_data");
                 redisService.saveHashToCache("kline", hashInnerKey + "status", "no_data", 168);
-                return true;
+                return false;
             }
             logger.debug("此資產有資料紀錄，設定緩存狀態為success");
             redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 168);
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
 
 
@@ -197,83 +157,90 @@ public class AssetService {
      * @param tableMap     資料表。
      * @param key          緩存鍵。
      * @param hashInnerKey 緩存內部鍵。
-     * @param type         查詢類型。
      */
-    @Async
-    protected void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey, String type) {
+    public void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey) {
         try {
-            Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
-            String lastTimePoint = null;
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+            redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
 
-            for (Map.Entry<String, List<FluxTable>> entry : tableMap.entrySet()) {
-                if (entry.getValue().isEmpty()) {
-                    continue;
-                }
-                for (FluxTable fluxTable : entry.getValue()) {
-                    if (fluxTable.getRecords().isEmpty()) {
-                        continue;
-                    }
-                    for (FluxRecord record : fluxTable.getRecords()) {
-                        Instant recordTimestamp = ((Instant) Objects.requireNonNull(record.getValueByKey("_time")));
-                        String timestamp = formatter.format(recordTimestamp);
-
-                        if (lastTimePoint == null || Instant.parse(lastTimePoint).isBefore(Instant.parse(timestamp))) {
-                            lastTimePoint = timestamp;
-                        }
-                        String field = (String) record.getValueByKey("_field");
-                        BigDecimal value = null;
-                        String formattedValue = null;
-                        Object valueObj = record.getValueByKey("_value");
-                        if (valueObj instanceof Double doubleValue) {
-                            value = BigDecimal.valueOf(doubleValue);
-                            formattedValue = String.format("%.6f", value);
-                        }
-                        AssetKlineDataDto dataDto = klineDataMap.getOrDefault(timestamp, new AssetKlineDataDto());
-                        dataDto.setTimestamp(timestamp);
-                        if (value != null && field != null) {
-                            {
-                                switch (field) {
-                                    case "open":
-                                        dataDto.setOpen(formattedValue);
-                                        break;
-                                    case "high":
-                                        dataDto.setHigh(formattedValue);
-                                        break;
-                                    case "low":
-                                        dataDto.setLow(formattedValue);
-                                        break;
-                                    case "close":
-                                        dataDto.setClose(formattedValue);
-                                        break;
-                                    case "volume":
-                                        dataDto.setVolume(formattedValue);
-                                        break;
-                                    case "rate":
-                                        dataDto.setClose(formattedValue);
-                                        dataDto.setOpen(formattedValue);
-                                        dataDto.setHigh(formattedValue);
-                                        dataDto.setLow(formattedValue);
-                                        dataDto.setVolume("0");
-                                        break;
-                                    default:
-                                        throw new RuntimeException("資產資料轉換錯誤: " + field);
-                                }
-                            }
-                        }
-                        klineDataMap.put(timestamp, dataDto);
-                    }
-                }
-            }
-            objectMapper.registerModule(new JavaTimeModule());
-            String kLineJson = objectMapper.writeValueAsString(klineDataMap.values());
-            redisService.rPushToCacheList(key + "data", kLineJson, 168);
-            redisService.saveHashToCache("kline", hashInnerKey + "type", type, 168);
-            redisService.saveHashToCache("kline", hashInnerKey + "last_timestamp", lastTimePoint, 168);
+            List<String> klineDataMap = formatKlineTableByTime(tableMap);
+            redisService.rPushToCacheList(key + "data", klineDataMap.getFirst(), 168);
+            redisService.saveHashToCache("kline", hashInnerKey + "last_timestamp", klineDataMap.get(1), 168);
             redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 168);
         } catch (Exception e) {
+            redisService.saveHashToCache("kline", hashInnerKey + "status", "fail", 168);
             throw new RuntimeException("資產資料處理錯誤: ", e);
         }
+    }
+
+    public List<String> formatKlineTableByTime(Map<String,List<FluxTable>> tableMap) throws JsonProcessingException {
+        String lastTimePoint = null;
+        Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+        for (Map.Entry<String, List<FluxTable>> entry : tableMap.entrySet()) {
+            if (entry.getValue().isEmpty()) {
+                continue;
+            }
+            for (FluxTable fluxTable : entry.getValue()) {
+                if (fluxTable.getRecords().isEmpty()) {
+                    continue;
+                }
+                for (FluxRecord record : fluxTable.getRecords()) {
+                    Instant recordTimestamp = ((Instant) Objects.requireNonNull(record.getValueByKey("_time")));
+                    String timestamp = formatter.format(recordTimestamp);
+
+                    if (lastTimePoint == null || Instant.parse(lastTimePoint).isBefore(Instant.parse(timestamp))) {
+                        lastTimePoint = timestamp;
+                    }
+                    String field = (String) record.getValueByKey("_field");
+                    BigDecimal value = null;
+                    String formattedValue = null;
+                    Object valueObj = record.getValueByKey("_value");
+                    if (valueObj instanceof Double doubleValue) {
+                        value = BigDecimal.valueOf(doubleValue);
+                        formattedValue = String.format("%.6f", value);
+                    }
+                    AssetKlineDataDto dataDto = klineDataMap.getOrDefault(timestamp, new AssetKlineDataDto());
+                    dataDto.setTimestamp(timestamp);
+                    if (value != null && field != null) {
+                        {
+                            switch (field) {
+                                case "open":
+                                    dataDto.setOpen(formattedValue);
+                                    break;
+                                case "high":
+                                    dataDto.setHigh(formattedValue);
+                                    break;
+                                case "low":
+                                    dataDto.setLow(formattedValue);
+                                    break;
+                                case "close":
+                                    dataDto.setClose(formattedValue);
+                                    break;
+                                case "volume":
+                                    dataDto.setVolume(formattedValue);
+                                    break;
+                                case "rate":
+                                    dataDto.setClose(formattedValue);
+                                    dataDto.setOpen(formattedValue);
+                                    dataDto.setHigh(formattedValue);
+                                    dataDto.setLow(formattedValue);
+                                    dataDto.setVolume("0");
+                                    break;
+                                default:
+                                    throw new RuntimeException("資產資料轉換錯誤: " + field);
+                            }
+                        }
+                    }
+                    klineDataMap.put(timestamp, dataDto);
+                }
+            }
+        }
+        objectMapper.registerModule(new JavaTimeModule());
+        String kLineJson = objectMapper.writeValueAsString(klineDataMap);
+        ArrayList<String> klineDataList = new ArrayList<>();
+        klineDataList.add(kLineJson);
+        klineDataList.add(lastTimePoint);
+        return klineDataList;
     }
 
     /**
@@ -413,45 +380,6 @@ public class AssetService {
             throw new RuntimeException("資產資料處理錯誤: ", e);
         }
     }
-
-    /**
-     * 轉換Redis資產K線數據為JSON格式。
-     *
-     * @param type         資產類型。
-     * @param listKey      緩存列表鍵。
-     * @param hashInnerKey 緩存內部鍵。
-     * @param user         用戶對象。
-     *
-     * @return 資產K線數據JSON。
-     *
-     * @throws RuntimeException 當資產數據處理錯誤時拋出異常。
-     */
-    public String formatRedisAssetKlineCacheToJson(String type, String listKey, String hashInnerKey, User user) {
-        ArrayNode mergeArray = objectMapper.createArrayNode();
-        Map<String, Object> resultMap = new HashMap<>();
-
-        List<String> cacheDataList = redisService.getCacheListValueFromKey(listKey + "data");
-        String timestamp = redisService.getHashValueFromKey("kline", hashInnerKey + "last_timestamp");
-        try {
-            for (String item : cacheDataList) {
-                ArrayNode arrayNode = (ArrayNode) objectMapper.readTree(item);
-                mergeArray.addAll(arrayNode);
-            }
-
-            resultMap.put("data", mergeArray);
-            resultMap.put("type", type);
-            resultMap.put("last_timestamp", timestamp);
-            resultMap.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
-
-
-            return objectMapper.writeValueAsString(resultMap);
-        } catch (JsonProcessingException e) {
-            logger.error("資產資料處理錯誤: ", e);
-            throw new RuntimeException("資產資料處理錯誤: ", e);
-        }
-    }
-
-
     /**
      * 獲取具有訂閱資產的資產列表
      *
@@ -791,14 +719,12 @@ public class AssetService {
                                             .toList();
 
         logger.debug("政府債券數據排序: " + sortedPeriods);
-        sortedPeriods.forEach(period -> {
-            dataMap.forEach((country, bondMap) -> {
-                BigDecimal rate = bondMap.get(period);
-                if (rate != null) {
-                    result.computeIfAbsent(period, k -> new TreeMap<>()).put(country, rate);
-                }
-            });
-        });
+        sortedPeriods.forEach(period -> dataMap.forEach((country, bondMap) -> {
+            BigDecimal rate = bondMap.get(period);
+            if (rate != null) {
+                result.computeIfAbsent(period, k -> new TreeMap<>()).put(country, rate);
+            }
+        }));
         return result;
     }
 
