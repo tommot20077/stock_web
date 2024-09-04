@@ -207,5 +207,4 @@ function getLineConfig(datasets, labels, yLabel, maxValue){
             }
         }
     }
-
 }

@@ -455,17 +455,16 @@ async function updateAssetsList(prevPageButton, nextPageButton, currentPageEleme
     }
 }
 
-async function displayServerStatus() {
-    let serverStatus = await fetchServerStatus();
+function displayServerStatus(jsonData) {
     let isCryptoOpen = document.getElementById("isCryptoOpen");
     let isStockTwOpen = document.getElementById("isStockTwOpen");
-    if (serverStatus.isCryptoOpen) {
+    if (jsonData.isCryptoOpen) {
         isCryptoOpen.innerHTML = `<label class="badge badge-success text-white" style="background-color: #4DA761">開啟</label>`;
     } else {
         isCryptoOpen.innerHTML = `<label class="badge badge-danger text-white" style="background-color: #F95F53">關閉</label>`;
     }
 
-    if (serverStatus.isStockTwOpen) {
+    if (jsonData.isStockTwOpen) {
         isStockTwOpen.innerHTML = `<label class="badge badge-success text-white" style="background-color: #4DA761">開啟</label>`;
     } else {
         isStockTwOpen.innerHTML = `<label class="badge badge-danger text-white" style="background-color: #F95F53">關閉</label>`;

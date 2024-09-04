@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -14,7 +13,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
-import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Dto.User.TodoDto;
@@ -24,7 +22,6 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.NewsService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
-import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 import xyz.dowob.stockweb.Service.User.TodoService;
 import xyz.dowob.stockweb.Service.User.TokenService;
 import xyz.dowob.stockweb.Service.User.UserService;
@@ -53,35 +50,27 @@ public class ApiUserController {
 
     private final AssetService assetService;
 
-    private final CryptoService cryptoService;
-
     private final TodoService todoService;
-
-    private final CrontabMethod crontabMethod;
 
 
     /**
      * 這是一個構造函數
      *
-     * @param userService   用戶相關服務
-     * @param tokenService  用戶令牌相關服務
-     * @param newsService   新聞相關服務
-     * @param redisService  緩存服務
-     * @param assetService  資產相關服務
-     * @param cryptoService 加密貨幣相關服務
-     * @param todoService   待辦事項相關服務
-     * @param crontabMethod 定時任務相關方法
+     * @param userService  用戶相關服務
+     * @param tokenService 用戶令牌相關服務
+     * @param newsService  新聞相關服務
+     * @param redisService 緩存服務
+     * @param assetService 資產相關服務
+     * @param todoService  待辦事項相關服務
      */
     @Autowired
-    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoService cryptoService, TodoService todoService, CrontabMethod crontabMethod) {
+    public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, TodoService todoService) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.newsService = newsService;
         this.redisService = redisService;
         this.assetService = assetService;
-        this.cryptoService = cryptoService;
         this.todoService = todoService;
-        this.crontabMethod = crontabMethod;
     }
 
 
@@ -366,24 +355,6 @@ public class ApiUserController {
                     return ResponseEntity.ok().body(newsJson);
                 }
             }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 獲取伺服器即時狀態
-     *
-     * @return ResponseEntity, 包含是否連接加密貨幣WebSocket和是否啟動台灣股票五秒搓合交易
-     */
-    @GetMapping("/getServerStatus")
-    public ResponseEntity<?> getServerStatus() {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Boolean> status = new HashMap<>();
-            status.put("isCryptoOpen", cryptoService.isConnectionOpen());
-            status.put("isStockTwOpen", crontabMethod.isStockTwAutoStart());
-            return ResponseEntity.ok().body(objectMapper.writeValueAsString(status));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
         }
