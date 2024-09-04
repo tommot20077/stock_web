@@ -12,6 +12,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
+import xyz.dowob.stockweb.Component.Handler.ImmediateDataHandler;
 import xyz.dowob.stockweb.Component.Handler.KlineWebSocketHandler;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
@@ -93,20 +94,54 @@ public class WebSocketConfig implements WebSocketConfigurer {
                                           retryTemplate);
     }
 
+    /**
+     * 註冊WebSocket的處理並設定路徑以及跨域設定與攔截器
+     * 提供2種WebSocket連接方式，一種是ws，一種是sockjs
+     *
+     * @param registry WebSocketHandlerRegistry
+     */
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(klineWebSocketHandler(), "/ws/server/kline").setAllowedOrigins("*").addInterceptors(webSocketHandleInterceptor());
+        registry.addHandler(klineWebSocketHandler(), "/ws/server/kline")
+                .setAllowedOrigins("*")
+                .addInterceptors(webSocketHandleInterceptor());
         registry.addHandler(klineWebSocketHandler(), "/sockjs/server/kline")
+                .setAllowedOrigins("*")
+                .addInterceptors(webSocketHandleInterceptor())
+                .withSockJS();
+
+
+        registry.addHandler(immediateDataHandler(), "/ws/server/immediate")
+                .setAllowedOrigins("*")
+                .addInterceptors(webSocketHandleInterceptor());
+        registry.addHandler(immediateDataHandler(), "/sockjs/server/immediate")
                 .setAllowedOrigins("*")
                 .addInterceptors(webSocketHandleInterceptor())
                 .withSockJS();
     }
 
+    /**
+     * 創建KlineWebSocketHandler
+     * @return KlineWebSocketHandler
+     */
     @Bean
     public KlineWebSocketHandler klineWebSocketHandler() {
         return new KlineWebSocketHandler();
     }
 
+    /**
+     * 創建ImmediateDataHandler
+     * @return ImmediateDataHandler
+     */
+    @Bean
+    public ImmediateDataHandler immediateDataHandler() {
+        return new ImmediateDataHandler();
+    }
+
+    /**
+     * 創建WebSocketHandleInterceptor
+     * @return WebSocketHandleInterceptor
+     */
     @Bean
     public WebSocketHandleInterceptor webSocketHandleInterceptor() {
         return new WebSocketHandleInterceptor();

@@ -23,9 +23,7 @@
 	<link rel="stylesheet" href="/static/loading.css">
 	<!-- endinject -->
 	<link rel="shortcut icon" href=/static/favicon.ico/>
-	<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-	<script src="http://cdn.bootcss.com/sockjs-client/1.1.1/sockjs.js"></script>
-	<script src="/static/js/myJavaScript/common.js"></script>
+
 
 </head>
 <body>
@@ -455,12 +453,14 @@
 <script src="/static/js/myJavaScript/display.js"></script>
 <script src="/static/js/myJavaScript/fetch.js"></script>
 <script src="/static/js/myJavaScript/asserChart.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="http://cdn.bootcss.com/sockjs-client/1.1.1/sockjs.js"></script>
 <!-- End custom js for this page-->
 
 
 <script>
 	let assetId = getAssetParamFromUrl();
-	var socket = null;
+	let socket = null;
 
 
 	function initWebSocket() {
@@ -495,7 +495,7 @@
 		initKlineChart("current");
 	};
 	window.close = function () {
-		socket.onclose();
+		socket.close();
 	};
 
 

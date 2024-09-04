@@ -24,6 +24,7 @@ import static xyz.dowob.stockweb.Enum.Role.ADMIN;
 
 /**
  * 這是一個用於處理網頁頁面的控制器
+ *
  * @author yuan
  */
 @Controller
@@ -36,7 +37,8 @@ public class PageController {
 
     /**
      * 這是一個構造函數，用於注入UserService和TokenService
-     * @param userService 用戶服務
+     *
+     * @param userService  用戶服務
      * @param tokenService 用戶令牌服務
      */
     @Autowired
@@ -236,6 +238,12 @@ public class PageController {
     public String info() {
         return "info";
     }
+
+    /**
+     * 前往公債資訊頁面
+     *
+     * @return 債務資訊頁面
+     */
 
     @GetMapping("/debt_info")
     public String debtInfo() {

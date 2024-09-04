@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import xyz.dowob.stockweb.Component.Event.Asset.AssetHistoryDataFetchCompleteEvent;
+import xyz.dowob.stockweb.Component.Event.Asset.ImmediateDataUpdateEvent;
 import xyz.dowob.stockweb.Component.Event.Crypto.WebSocketConnectionStatusEvent;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Enum.AssetType;
@@ -164,6 +165,7 @@ public class CryptoService {
                                                            "wss://stream.binance.com:9443/stream?streams=");
         connectionManager.setAutoStartup(true);
         connectionManager.start();
+        applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, true, AssetType.CRYPTO));
     }
 
     /**
@@ -178,6 +180,7 @@ public class CryptoService {
             isNeedToCheckConnection = false;
             connectionManager.stop();
         }
+        applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, false, AssetType.CRYPTO));
     }
 
     /**

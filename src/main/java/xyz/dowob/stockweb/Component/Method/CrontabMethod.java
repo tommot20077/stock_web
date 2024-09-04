@@ -8,10 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import xyz.dowob.stockweb.Component.Event.Asset.ImmediateDataUpdateEvent;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.AssetService;
@@ -64,6 +67,8 @@ public class CrontabMethod {
 
     private final PropertyInfluxService propertyInfluxService;
 
+    private final ApplicationEventPublisher applicationEventPublisher;
+
     /**
      * 這是一個構造函數，用於注入服務。
      *
@@ -81,7 +86,7 @@ public class CrontabMethod {
      * @param propertyInfluxService  資產Influx相關服務
      */
     @Autowired
-    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService) {
+    public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService, ApplicationEventPublisher applicationEventPublisher) {
         this.tokenService = tokenService;
         this.currencyService = currencyService;
         this.stockTwService = stockTwService;
@@ -94,6 +99,7 @@ public class CrontabMethod {
         this.cryptoWebSocketHandler = cryptoWebSocketHandler;
         this.subscribeMethod = subscribeMethod;
         this.propertyInfluxService = propertyInfluxService;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     private List<String> trackableStocks = new ArrayList<>();
@@ -452,6 +458,7 @@ public class CrontabMethod {
     public void operateStockTwTrack(boolean isOpen) {
         immediatelyUpdateStockTw = isOpen;
         logger.info("已獲取股票台灣自動更新狀態 " + isOpen);
+        applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, isOpen, AssetType.STOCK_TW));
     }
 
     /**

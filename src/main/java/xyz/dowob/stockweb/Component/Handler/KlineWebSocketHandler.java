@@ -9,7 +9,6 @@ import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -27,6 +26,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * 用於處理K線圖WebSocket狀態的處理器。
+ * 繼承自TextWebSocketHandler，用於處理文本消息。
+ *
  * @author yuan
  * @program Stock-Web
  * @ClassName KlineWebSocketHandler
@@ -35,7 +37,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Version 1.0
  **/
 @Log4j2
-@Component
 public class KlineWebSocketHandler extends TextWebSocketHandler {
     private static final Map<User, Map<Long, String>> CONNECTIONS = new ConcurrentHashMap<>();
 
@@ -64,6 +65,11 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * 每分鐘更新一次current Kline資料。
+     * 若KLINE_SUBSCRIPTIONS為空，則不執行。
+     */
+
     @Scheduled(cron = "0 */1 * * * *")
     public void updateCurrentKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
@@ -73,6 +79,10 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         updateSubscription(CURRENT_TYPE);
     }
 
+    /**
+     * 每24小時更新一次history Kline資料。
+     * 若KLINE_SUBSCRIPTIONS為空，則不執行。
+     */
     @Scheduled(cron = "0 0 */24 * * *")
     public void updateHistoryKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
@@ -82,6 +92,12 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         updateSubscription(HISTORY_TYPE);
     }
 
+    /**
+     * 當WebSocket連接成功時，此方法將被調用。
+     * 將用戶加入CONNECTIONS中，並將用戶ID加入USER_MAP中，CONNECTIONS中的用戶ID對應的WebSocketSession對象。
+     *
+     * @param session WebSocketSession對象
+     */
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
         User user = (User) session.getAttributes().get("user");
@@ -93,6 +109,15 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         log.info("目前WebSocket連線數量: " + (getTotalActiveSessions(CONNECTIONS) + 1));
     }
 
+    /**
+     * 關閉WebSocket連接時，此方法將被調用。
+     * 從CONNECTIONS中刪除用戶，並從KLINE_SUBSCRIPTIONS中刪除用戶ID。
+     * USER_MAP中刪除用戶ID，SESSION_MAP中刪除WebSocketSession對象。
+     * 並關閉WebSocketSession。
+     *
+     * @param session WebSocketSession對象
+     * @param status  CloseStatus對象
+     */
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         try {
@@ -115,6 +140,21 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 當接收到文本消息時，此方法將被調用。
+     * 將接收到的消息轉換為Long型，並將其作為資產ID。
+     * 從USER_MAP中獲取用戶對象，並從CONNECTIONS中獲取用戶對應的WebSocketSession對象。
+     * 如果CONNECTIONS中的用戶已經訂閱過該資產ID，則關閉先前訂閱。
+     * 將用戶ID與資產ID存入CONNECTIONS中。
+     * 將資產ID與WebSocketSession對象存入KLINE_SUBSCRIPTIONS中。
+     * 從資料庫獲取資產的current Kline資料和history Kline資料。
+     * 如果資料庫中沒有資料，則開始更新資料，使用CompletableFuture異步處理。
+     *
+     * @param session WebSocketSession對象
+     * @param message TextMessage對象
+     *
+     * @throws IOException 如果處理消息時發生錯誤，則拋出異常
+     */
     @Override
     protected void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) throws IOException {
         Long assetId = Long.valueOf(message.getPayload());
@@ -140,7 +180,6 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-
         CompletableFuture.runAsync(() -> {
             Map<String, Object> currentData = geKlineData(assetId, CURRENT_TYPE);
             Map<String, Object> historyData = geKlineData(assetId, HISTORY_TYPE);
@@ -151,6 +190,14 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
 
     }
 
+    /**
+     * 處理傳輸錯誤訊息。
+     *
+     * @param session   WebSocketSession對象
+     * @param exception Throwable對象
+     *
+     * @throws Exception 如果處理錯誤，則拋出異常
+     */
     @Override
     public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) throws Exception {
         log.error("WebSocket連線出現錯誤: " + session.getId() + " ,用戶: " + session.getAttributes().get("userId"));
@@ -158,6 +205,15 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         super.handleTransportError(session, exception);
     }
 
+    /**
+     * 從資料庫獲取資產的Kline資料，並轉換成FluxTable對象存入Redis緩存。
+     *
+     * @param assetId   資產ID
+     * @param type      資產類型
+     * @param timestamp 時間戳
+     *
+     * @return 資產的Kline資料
+     */
     private Map<String, List<FluxTable>> handleKlineData(Long assetId, String type, String timestamp) {
         log.debug("開始處理資產 type: " + type + " ,timestamp: " + timestamp);
         String status = redisService.getHashValueFromKey(KLINE_PREFIX, String.format("%s_%s:%s", type, assetId, STATUS_SUFFIX));
@@ -174,6 +230,14 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         return tableMap;
     }
 
+    /**
+     * 從Redis獲取資產的Kline資料。並轉換成K線圖格式。
+     *
+     * @param assetId 資產ID
+     * @param type    資產類型
+     *
+     * @return 資產的Kline資料
+     */
     private Map<String, Object> geKlineData(Long assetId, String type) {
         try {
             String hashInnerKey = String.format("%s_%s:", type, assetId);
@@ -186,6 +250,16 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         return null;
     }
 
+    /**
+     * 從Kline轉換格式成K線圖格式。
+     *
+     * @param dataList Redis資料列表字串
+     * @param type     資產類型
+     *
+     * @return K線圖格式資料
+     *
+     * @throws JsonProcessingException 如果格式化錯誤，則拋出異常
+     */
     private Map<String, Object> formatKlineData(List<String> dataList, String type) throws JsonProcessingException {
         ArrayNode mergeArray = objectMapper.createArrayNode();
         Map<String, Object> resultMap = new HashMap<>();
@@ -205,7 +279,16 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         return resultMap;
     }
 
-
+    /**
+     * 獲取所有活動的連線數量。
+     *
+     * @param map  連線Map
+     * @param <K1> 連線Map的Key1
+     * @param <K2> 連線Map的Key2
+     * @param <V2> 連線Map的Value2
+     *
+     * @return 連線數量
+     */
     private <K1, K2, V2> int getTotalActiveSessions(Map<K1, Map<K2, V2>> map) {
         int count = 0;
         for (Map<K2, V2> innerMap : map.values()) {
@@ -214,6 +297,14 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         return count;
     }
 
+    /**
+     * 初始化以及發送K線圖格式資料。
+     *
+     * @param map     　K線圖格式資料
+     * @param session 　WebSocketSession對象
+     * @param assetId 　資產ID
+     * @param type    　資產類型
+     */
     private void initialOrSendKlineData(Map<String, Object> map, WebSocketSession session, Long assetId, String type) {
         if (map == null) {
             log.debug("沒有緩存資料，開始更新資料");
@@ -226,6 +317,16 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 用於更新後續的新資料
+     * 對於每個連線ID，從資料庫獲取新資料，格式化後發送給用戶。
+     * 並在過程中加入用戶的偏好幣種匯率，以便用戶在前端顯示轉換後價值。
+     *
+     * @param sessions      連線ID集合
+     * @param assetId       資產ID
+     * @param type          資產類型
+     * @param lastTimestamp 最後更新時間
+     */
     private void updateData(Set<String> sessions, Long assetId, String type, String lastTimestamp) {
         log.debug("開始更新資料 type: " + type + " ,assetId: " + assetId + " ,lastTimestamp: " + lastTimestamp);
         CompletableFuture.runAsync(() -> {
@@ -260,6 +361,13 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         });
     }
 
+    /**
+     * 發送消息給用戶。
+     * 此消息為Object類型，將其轉換為JSON格式。
+     * @param object 要發送的消息對象
+     * @param session WebSocketSession對象
+     * @param <T> 泛型類型
+     */
     private <T> void sendMessage(T object, WebSocketSession session) {
         try {
             if (session.isOpen()) {
@@ -272,6 +380,11 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 驗證資產ID是否有效。
+     * @param assetId 資產ID
+     * @return 驗證結果
+     */
     private String validAsset(Long assetId) {
         try {
             Asset asset = assetService.getAssetById(assetId);
@@ -285,6 +398,14 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 定時更新訂閱者的資產資料。
+     * 對於每個資產ID，從KLINE_SUBSCRIPTIONS中獲取對應的連線ID集合。
+     * 如果連線ID集合為空，則從KLINE_SUBSCRIPTIONS中刪除該資產ID。
+     * 從Redis獲取最後更新時間。
+     * 更新資料。
+     * @param historyType 歷史類型
+     */
     private void updateSubscription(String historyType) {
         KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> {
             if (sessions.isEmpty()) {
