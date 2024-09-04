@@ -23,6 +23,9 @@
 	<link rel="stylesheet" href="/static/loading.css">
 	<!-- endinject -->
 	<link rel="shortcut icon" href=/static/favicon.ico/>
+	<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+	<script src="http://cdn.bootcss.com/sockjs-client/1.1.1/sockjs.js"></script>
+	<script src="/static/js/myJavaScript/common.js"></script>
 
 </head>
 <body>
@@ -56,7 +59,8 @@
 				<li class="nav-item">
 					<form class="search-form" action="#">
 						<i class="icon-search"></i>
-						<input id="searchInput" type="search" class="form-control" placeholder="開始搜索" title="開始搜索">
+						<input id="searchInput" type="search" class="form-control" placeholder="開始搜索"
+								title="開始搜索">
 						<div id="searchResults" class="search-results"></div>
 					</form>
 				</li>
@@ -456,6 +460,45 @@
 
 <script>
 	let assetId = getAssetParamFromUrl();
+	var socket = null;
+
+
+	function initWebSocket() {
+		if ('WebSocket' in window) {
+			socket = new WebSocket("ws://localhost:8080/ws/server/kline");
+		} else if ('MozWebSocket' in window) {
+			socket = new MozWebSocket("ws://localhost:8080/ws/server/kline");
+		} else {
+			socket = new SockJS("http://localhost:8080/sockjs/server/kline");
+		}
+
+		socket.onopen = function () {
+			console.log("WebSocket連接已建立");
+			socket.send(assetId);
+		};
+		socket.onclose = function () {
+			console.log("WebSocket連接已關閉，嘗試重新連接...");
+			setTimeout(initWebSocket, 5000);
+		};
+		socket.onerror = function (error) {
+			console.error("WebSocket出錯：", error);
+			socket.close();
+		};
+		socket.onmessage = function (event) {
+			handleIncomingData(event.data);
+		};
+	}
+
+	window.onload = function () {
+		initWebSocket();
+		initKlineChart("history");
+		initKlineChart("current");
+	};
+	window.close = function () {
+		socket.onclose();
+	};
+
+
 	getAssetDetails(assetId);
 	getUserDetails();
 	document.addEventListener("DOMContentLoaded", () => {
@@ -464,9 +507,6 @@
 		const currentPageElement = document.getElementById('currentPage');
 		updateNewsTable(prevPageButton, nextPageButton, currentPageElement, 1, "", assetId);
 	})
-
-	klineChart("history")
-	klineChart("current")
 	searchFunction();
 </script>
 
@@ -474,4 +514,3 @@
 </body>
 
 </html>
-

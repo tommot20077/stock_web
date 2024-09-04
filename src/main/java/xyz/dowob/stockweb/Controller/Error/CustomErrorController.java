@@ -33,7 +33,7 @@ public class CustomErrorController implements ErrorController {
         Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
 
         if (status != null) {
-            logger.error("Error status: " + status);
+            logger.debug("Error status: " + status);
             int statusCode = Integer.parseInt(status.toString());
             if (isApiRequest(request)) {
                 logger.debug("發生錯誤:api類型");
@@ -51,7 +51,7 @@ public class CustomErrorController implements ErrorController {
 
     private boolean isApiRequest(HttpServletRequest request) {
         String acceptHeader = request.getHeader("Accept");
-        logger.error("acceptHeader: " + acceptHeader);
+        logger.debug("acceptHeader: " + acceptHeader);
         return acceptHeader != null && (acceptHeader.contains("application/json"));
     }
 

@@ -1,57 +1,19 @@
-let lastUpdateTimestamp = {};
-let HistoryIsUpdate = false;
-let CurrentIsUpdate = false;
+const charts = {};
 
-async function getAssetKlineChart(assetId, type, method) {
-    toggleLoadingDisplay(type, true);
 
-    if (method === 'handle') {
-        if (((type === 'history') && !HistoryIsUpdate) || (type === 'current' && !CurrentIsUpdate)) {
-            await fetchKlineInfoData(assetId, type, method);
-        }
-        toggleLoadingDisplay(type, true);
-        return;
-    }
-
-    try {
-        let data = await fetchKlineInfoData(assetId, type, method);
-        let jsonData = JSON.parse(data);
-        if (jsonData && jsonData.data && jsonData.data.length > 0) {
-            let newTimestamp = new Date(jsonData.data[jsonData.data.length - 1].timestamp).getTime();
-            if (newTimestamp > (lastUpdateTimestamp[type] || 0)) {
-                updateKlineChart(type, jsonData.data, jsonData.preferCurrencyExrate);
-                toggleLoadingDisplay(type, false);
-                return true;
-            } else {
-                toggleLoadingDisplay(type, true);
-                return false;
-            }
-        }
-    } catch (error) {
-        let errorMessage = typeof error === 'string' ? error : error.message;
-        if (errorMessage.includes("開始處理資產資料") || errorMessage.includes("沒有請求過資產資料")) {
-            toggleLoadingDisplay(type, true);
-            return false;
-        } else if (errorMessage.includes("沒有足夠的資料")) {
-            if (type === 'history') {
-                HistoryIsUpdate = true;
-            } else if (type === 'current') {
-                CurrentIsUpdate = true;
-            }
-        } else {
-            displayError(type, error);
-            toggleLoadingDisplay(type, false);
-            return false;
-        }
-
-    }
+function disableLoading(type) {
+    let elementId = type === "current" ? "current-loader" : "history-loader"
+    document.getElementById(elementId).style.display = 'none'
 }
 
-function displayError(type, error) {
+function displayError(type, message) {
     let errorTextId = type === 'history' ? 'history-error-text' : 'current-error-text';
     let errorTextElement = document.getElementById(errorTextId);
-    errorTextElement.innerText = error.message;
+    errorTextElement.innerText = message;
     errorTextElement.style.display = 'block';
+    disableLoading(type)
+
+
 }
 
 function toggleLoadingDisplay(type, shouldDisplay) {
@@ -62,57 +24,6 @@ function toggleLoadingDisplay(type, shouldDisplay) {
     } else {
         console.error('找不到元素: ' + loaderId);
     }
-}
-
-async function klineChart(type) {
-    await getAssetKlineChart(assetId, type, "get")
-        .then(async () => {
-            return getAssetKlineChart(assetId, type, "handle");
-        })
-        .then(() => {
-            async function updateChart() {
-                let updated = await getAssetKlineChart(assetId, type, "get");
-                if (updated) {
-                    clearInterval(interval);
-                } else {
-                    let loader = type === "history" ? 'history-loader' : 'current-loader';
-                    showFlexById(loader);
-                }
-            }
-
-            let count = 0;
-            let interval = setInterval(async function () {
-                count++;
-                if (count > 5) {
-                    clearInterval(interval);
-                    return;
-                }
-                await updateChart();
-            }, 10000);
-        });
-}
-
-function updateKlineChart(type, data, preferCurrencyExrate) {
-    let chartContainerId = type === 'history' ? 'historyKlineChart' : 'currentKlineChart';
-    let chartContainer = document.getElementById(chartContainerId);
-    chartContainer.innerHTML = '';
-    let exrate = parseFloat(preferCurrencyExrate)
-
-    let kData = data.map(d => ({
-        timestamp: new Date(d.timestamp).getTime(),
-        open: +d.open * exrate,
-        high: +d.high * exrate,
-        low: +d.low * exrate,
-        close: +d.close * exrate,
-        volume: Math.ceil(+d.volume),
-    }));
-
-    let chart = klinecharts.init(chartContainer);
-    chart.applyNewData(kData);
-    chart.createIndicator('VOL');
-
-    let lastData = kData[kData.length - 1];
-    lastUpdateTimestamp[type] = new Date(lastData.timestamp).getTime();
 }
 
 async function getAssetDetails(assetId) {
@@ -149,9 +60,7 @@ async function getAssetDetails(assetId) {
 }
 
 function formatDetailToFloatString(input) {
-    console.log("Input: " + input);
     let Value = Number(input);
-    console.log("Value: " + Value);
     if (!isNaN(Value) && Value >= 0) {
         return Value < 1 ? Value.toFixed(6) : Value.toFixed(2);
     } else {
@@ -159,3 +68,76 @@ function formatDetailToFloatString(input) {
     }
 }
 
+
+function handleIncomingData(rawData) {
+    try {
+        const jsonData = JSON.parse(rawData);
+        const {data, preferCurrencyExrate, type} = jsonData;
+
+        if (data && data.length > 0) {
+            const formattedData = formatKlineData(data, preferCurrencyExrate);
+            updateKlineChart(type, formattedData);
+        } else {
+            console.warn("接收到的資料為空");
+        }
+    } catch (error) {
+        console.error("處理接收到的資料時出錯：", error);
+        if (error instanceof SyntaxError && typeof rawData === 'string') {
+            console.log("rawData" + rawData)
+            displayError("history", rawData)
+            displayError("current", rawData)
+        }
+    }
+}
+
+function formatKlineData(data, exrate = 1) {
+    const formattedData = [];
+
+    data.forEach(item => {
+        Object.values(item).forEach(kline => {
+            formattedData.push({
+                timestamp: new Date(kline.timestamp).getTime(),
+                open: parseFloat(kline.open) * exrate,
+                high: parseFloat(kline.high) * exrate,
+                low: parseFloat(kline.low) * exrate,
+                close: parseFloat(kline.close) * exrate,
+                volume: parseFloat(kline.volume)
+            });
+        });
+    });
+
+    formattedData.sort((a, b) => a.timestamp - b.timestamp);
+
+    return formattedData;
+}
+
+function initKlineChart(type) {
+    const chartContainerId = type === 'history' ? 'historyKlineChart' : 'currentKlineChart';
+    const chartContainer = document.getElementById(chartContainerId);
+
+    if (!chartContainer) {
+        console.error(`未找到ID為${chartContainerId}的元素`);
+        return;
+    }
+    const chart = klinecharts.init(chartContainer);
+    chart.createIndicator('VOL');
+    charts[type] = chart;
+
+
+}
+function updateKlineChart(type, data) {
+    const chart = charts[type];
+    if (!chart) {
+        console.error(`類型為${type}的圖表尚未初始化`);
+        return;
+    }
+    const existingData = chart.getDataList();
+    if (existingData.length === 0) {
+        disableLoading(type)
+        chart.applyNewData(data);
+    } else {
+        data.forEach(item => {
+            chart.updateData(item);
+        });
+    }
+}

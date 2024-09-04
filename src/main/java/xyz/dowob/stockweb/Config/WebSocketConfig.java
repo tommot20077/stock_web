@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Config;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -12,7 +11,6 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-import xyz.dowob.stockweb.Component.Handler.ChatWebSocketHandler;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Component.Handler.KlineWebSocketHandler;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
@@ -97,22 +95,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(chatWebSocketHandler(), "/ws/server/chat").setAllowedOrigins("*").addInterceptors(webSocketHandleInterceptor());
-        registry.addHandler(chatWebSocketHandler(), "/sockjs/server/chat")
-                .setAllowedOrigins("*")
-                .addInterceptors(webSocketHandleInterceptor())
-                .withSockJS();
-
         registry.addHandler(klineWebSocketHandler(), "/ws/server/kline").setAllowedOrigins("*").addInterceptors(webSocketHandleInterceptor());
         registry.addHandler(klineWebSocketHandler(), "/sockjs/server/kline")
                 .setAllowedOrigins("*")
                 .addInterceptors(webSocketHandleInterceptor())
                 .withSockJS();
-    }
-
-    @Bean
-    public ChatWebSocketHandler chatWebSocketHandler() {
-        return new ChatWebSocketHandler();
     }
 
     @Bean

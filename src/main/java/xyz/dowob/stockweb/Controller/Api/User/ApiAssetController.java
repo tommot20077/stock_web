@@ -8,21 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Component.Method.AssetTrie.Trie;
 import xyz.dowob.stockweb.Model.Common.Asset;
-import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
-import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * 這是一個用於處理資產相關請求的控制器
@@ -57,97 +50,6 @@ public class ApiAssetController {
     }
 
 
-    /**
-     * 處理資產資料, 並存入Redis
-     *
-     * @param assetId 資產ID
-     * @param type    查詢類型 current 或 history
-     *
-     * @return ResponseEntity
-     */
-    /*
-    @PostMapping("/handleKlineInfo/{assetId}")
-    public ResponseEntity<?> handleAssetInfo(
-            @PathVariable Long assetId, @RequestParam(name = "type",
-                                                      defaultValue = "current") String type) {
-        type = type.toLowerCase();
-        try {
-            if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("錯誤的查詢類型"));
-            }
-            String hashInnerKey = String.format("%s_%s:", type, assetId);
-            String listKey = String.format("kline_%s", hashInnerKey);
-
-            Asset asset = assetService.getAssetById(assetId);
-            if (asset instanceof CryptoTradingPair cryptoTradingPair && !cryptoTradingPair.isHasAnySubscribed()) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("此資產尚未有任何訂閱，請先訂閱後再做請求"));
-            } else if (asset instanceof StockTw stockTw && !stockTw.isHasAnySubscribed()) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("此資產尚未有任何訂閱，請先訂閱後再做請求"));
-            }
-
-            List<String> dataList = redisService.getCacheListValueFromKey(listKey + "data");
-            if ("processing".equals(redisService.getHashValueFromKey("kline", hashInnerKey + "status"))) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("資產資料已經在處理中"));
-            }
-            if (!dataList.isEmpty()) {
-                String lastTimestamp = redisService.getHashValueFromKey("kline", hashInnerKey + "last_timestamp");
-                Instant lastInstant = Instant.parse(lastTimestamp);
-                Instant offsetInstant = lastInstant.plus(Duration.ofMillis(1));
-                String offsetTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-                                                          .format(offsetInstant.atZone(ZoneOffset.UTC));
-                assetService.getAssetHistoryInfo(asset, type, offsetTimestamp);
-            } else {
-                assetService.getAssetHistoryInfo(asset, type, null);
-            }
-            return ResponseEntity.ok().body(objectMapper.writeValueAsString("開始處理資產資料，稍後用/getAssetInfo/assetId取得結果"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-    */
-
-    /**
-     * 取得資產資料 (K線圖)
-     *
-     * @param assetId 資產ID
-     * @param type    查詢類型 current 或 history
-     *
-     * @return ResponseEntity
-     */
-    /*
-    @GetMapping("/getKlineInfo/{assetId}")
-    public ResponseEntity<?> getKlineInfo(
-            @PathVariable Long assetId, @RequestParam(name = "type",
-                                                      defaultValue = "current") String type, HttpSession session) {
-        type = type.toLowerCase();
-        if (!Objects.equals(type, "current") && !Objects.equals(type, "history")) {
-            return ResponseEntity.badRequest().body("錯誤的查詢類型");
-        }
-        String hashInnerKey = String.format("%s_%s:", type, assetId);
-        String listKey = String.format("kline_%s", hashInnerKey);
-        try {
-            String status = redisService.getHashValueFromKey("kline", hashInnerKey + "status");
-
-            if ("processing".equals(status)) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("資產資料已經在處理中"));
-            } else if (status == null) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("沒有請求過資產資料"));
-            } else if ("error".equals(status)) {
-                return ResponseEntity.badRequest()
-                                     .body(objectMapper.writeValueAsString("資產資料處理錯誤，請重新使用/handleAssetInfo/[assetId]處理資產資料"));
-            } else if ("no_data".equals(status)) {
-                return ResponseEntity.badRequest().body(objectMapper.writeValueAsString("無此資產的價格圖"));
-            }
-
-            User user = userService.getUserFromJwtTokenOrSession(session);
-            String json = assetService.formatRedisAssetKlineCacheToJson(type, listKey, hashInnerKey, user);
-            return ResponseEntity.ok().body(json);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("錯誤: " + e.getMessage());
-        }
-    }
-
-     */
     /**
      * 取得資產資訊, 並存入Redis
      *

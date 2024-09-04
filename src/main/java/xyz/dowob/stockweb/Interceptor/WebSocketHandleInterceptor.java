@@ -1,7 +1,5 @@
 package xyz.dowob.stockweb.Interceptor;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
@@ -12,7 +10,6 @@ import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor;
-import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.User.UserRepository;
 
 import java.util.Map;
@@ -26,6 +23,7 @@ import java.util.Map;
  * @Version 1.0
  **/
 @Log4j2
+@Component
 public class WebSocketHandleInterceptor extends HttpSessionHandshakeInterceptor {
     @Autowired
     private UserRepository userRepository;
@@ -34,13 +32,11 @@ public class WebSocketHandleInterceptor extends HttpSessionHandshakeInterceptor 
     @Override
     public boolean beforeHandshake(@NotNull ServerHttpRequest request, @NotNull ServerHttpResponse response, @NotNull WebSocketHandler wsHandler, @NotNull Map<String, Object> attributes) throws Exception {
         log.debug("攔截器前置觸發");
-        if (request instanceof ServletServerHttpRequest servletRequest) {
-            HttpSession session = servletRequest.getServletRequest().getSession();
-            userRepository.findById((Long) session.getAttribute("currentUserId")).ifPresent(user ->{
-                attributes.put("user", user);
-            });
-            log.debug("當前請求用戶Id: " + session.getAttribute("currentUserId"));
-        }
+
+        HttpSession session = ((ServletServerHttpRequest) request).getServletRequest().getSession();
+        userRepository.findById((Long) session.getAttribute("currentUserId")).ifPresent(user -> attributes.put("user", user));
+        log.debug("當前請求用戶Id: " + session.getAttribute("currentUserId"));
+
         return super.beforeHandshake(request, response, wsHandler, attributes);
     }
 
