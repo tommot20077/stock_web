@@ -69,14 +69,8 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
         }
-        log.debug("KLINE_SUBSCRIPTIONS: " + KLINE_SUBSCRIPTIONS);
-        log.info("開始更新current Kline資料");
-        KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> {
-            String listKey = String.format("%s_%s:", CURRENT_TYPE, assetId);
-            String lastTimestamp = redisService.getHashValueFromKey(KLINE_PREFIX, listKey + LAST_TIMESTAMP_SUFFIX);
-            log.info("最後更新時間: " + lastTimestamp);
-            updateData(sessions, assetId, CURRENT_TYPE, lastTimestamp);
-        });
+        log.debug("開始更新current Kline資料");
+        updateSubscription(CURRENT_TYPE);
     }
 
     @Scheduled(cron = "0 0 */24 * * *")
@@ -84,15 +78,9 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
         }
-        log.info("開始更新history Kline資料");
-        KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> {
-            String listKey = String.format("%s_%s:", CURRENT_TYPE, assetId);
-            String lastTimestamp = redisService.getHashValueFromKey(KLINE_PREFIX, listKey + LAST_TIMESTAMP_SUFFIX);
-            log.info("最後更新時間: " + lastTimestamp);
-            updateData(sessions, assetId, HISTORY_TYPE, lastTimestamp);
-        });
+        log.debug("開始更新history Kline資料");
+        updateSubscription(HISTORY_TYPE);
     }
-
 
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
@@ -232,6 +220,8 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             updateData(Set.of(session.getId()), assetId, type, null);
         } else {
             log.debug("發送緩存資料");
+            User user = USER_MAP.get(session.getId());
+            map.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
             sendMessage(map, session);
         }
     }
@@ -285,7 +275,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     private String validAsset(Long assetId) {
         try {
             Asset asset = assetService.getAssetById(assetId);
-            if ((asset instanceof CryptoTradingPair crypto && !crypto.isHasAnySubscribed()) || (asset instanceof StockTw stockTw && !stockTw.isHasAnySubscribed())){
+            if ((asset instanceof CryptoTradingPair crypto && !crypto.isHasAnySubscribed()) || (asset instanceof StockTw stockTw && !stockTw.isHasAnySubscribed())) {
                 return "此資產ID尚未訂閱: " + assetId;
             }
             return "";
@@ -293,5 +283,18 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             log.error("無效的資產ID: " + assetId);
             return "無效的資產ID:" + assetId;
         }
+    }
+
+    private void updateSubscription(String historyType) {
+        KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> {
+            if (sessions.isEmpty()) {
+                KLINE_SUBSCRIPTIONS.remove(assetId);
+                return;
+            }
+            String listKey = String.format("%s_%s:", CURRENT_TYPE, assetId);
+            String lastTimestamp = redisService.getHashValueFromKey(KLINE_PREFIX, listKey + LAST_TIMESTAMP_SUFFIX);
+            log.info("最後更新時間: " + lastTimestamp);
+            updateData(sessions, assetId, historyType, lastTimestamp);
+        });
     }
 }

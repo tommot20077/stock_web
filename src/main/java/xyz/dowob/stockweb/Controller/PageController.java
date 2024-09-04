@@ -259,9 +259,4 @@ public class PageController {
         }
         return "serverManage";
     }
-
-    @GetMapping("/testws/{id}")
-    public String testws(@PathVariable String id) {
-        return "testws";
-    }
 }
