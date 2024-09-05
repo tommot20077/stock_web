@@ -5,12 +5,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationListener;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import xyz.dowob.stockweb.Component.Event.Asset.ImmediateDataUpdateEvent;
 import xyz.dowob.stockweb.Component.Method.CrontabMethod;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
@@ -32,22 +30,22 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Version 1.0
  **/
 @Log4j2
-public class ImmediateDataHandler extends TextWebSocketHandler implements ApplicationListener<ImmediateDataUpdateEvent> {
+public class ImmediateDataHandler extends TextWebSocketHandler {
     @Autowired
     private CryptoService cryptoService;
 
     @Autowired
     private CrontabMethod crontabMethod;
 
-    private static final Map<String, Boolean> STATUS = new ConcurrentHashMap<>();
+    public static final Map<String, Boolean> STATUS = new ConcurrentHashMap<>();
 
-    private static final Map<String, WebSocketSession> SESSION_MAP = new ConcurrentHashMap<>();
+    public static final Map<String, WebSocketSession> SESSION_MAP = new ConcurrentHashMap<>();
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private static final String STOCK_TW_STATUS = "isStockTwOpen";
+    public static final String STOCK_TW_STATUS = "isStockTwOpen";
 
-    private static final String CRYPTO_STATUS = "isCryptoOpen";
+    public static final String CRYPTO_STATUS = "isCryptoOpen";
 
     /**
      * 初始化方法，用於初始化STATUS。
@@ -114,32 +112,15 @@ public class ImmediateDataHandler extends TextWebSocketHandler implements Applic
      *
      * @param session WebSocketSession對象
      */
-    private void sendMessage(WebSocketSession session) {
+    public static void sendMessage(WebSocketSession session) {
         try {
             if (session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(STATUS)));
+                session.sendMessage(new TextMessage(OBJECT_MAPPER.writeValueAsString(STATUS)));
             } else {
                 log.info("發送消息時發生錯誤: 連線已經關閉");
             }
         } catch (IOException e) {
             log.error("發送消息時發生錯誤: " + e.getMessage());
         }
-    }
-
-    /**
-     * 當接收ImmediateDataUpdateEvent事件時，此方法將被調用。
-     * 根據事件的類型，更新STATUS。
-     *
-     * @param event ImmediateDataUpdateEvent事件對象
-     */
-    @Override
-    public void onApplicationEvent(@NotNull ImmediateDataUpdateEvent event) {
-        switch (event.getType()) {
-            case CRYPTO -> STATUS.put(CRYPTO_STATUS, event.getIsOpen());
-            case STOCK_TW -> STATUS.put(STOCK_TW_STATUS, event.getIsOpen());
-            default -> {
-            }
-        }
-        SESSION_MAP.forEach((sessionId, session) -> sendMessage(session));
     }
 }

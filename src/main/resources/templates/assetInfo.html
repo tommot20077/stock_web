@@ -463,13 +463,18 @@
 	let socket = null;
 
 
-	function initWebSocket() {
+	function initWebSocket(retryCount = 0) {
+		let protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+		let host = window.location.host;
+		let path = "/ws/server/kline";
+
 		if ('WebSocket' in window) {
-			socket = new WebSocket("ws://localhost:8080/ws/server/kline");
+			socket = new WebSocket(protocol + host + path);
 		} else if ('MozWebSocket' in window) {
-			socket = new MozWebSocket("ws://localhost:8080/ws/server/kline");
+			socket = new MozWebSocket(protocol + host + path);
 		} else {
-			socket = new SockJS("http://localhost:8080/sockjs/server/kline");
+			let sockjsProtocol = window.location.protocol === 'https:' ? 'https://' : 'http://';
+			socket = new SockJS(sockjsProtocol + host + '/sockjs/server/immediate');
 		}
 
 		socket.onopen = function () {
@@ -478,7 +483,11 @@
 		};
 		socket.onclose = function () {
 			console.log("WebSocket連接已關閉，嘗試重新連接...");
-			setTimeout(initWebSocket, 5000);
+			if (retryCount < 5) {
+				setTimeout(() => initWebSocket(retryCount + 1), 5000);
+			} else {
+				console.log("已達到最大重試次數，停止重試");
+			}
 		};
 		socket.onerror = function (error) {
 			console.error("WebSocket出錯：", error);
