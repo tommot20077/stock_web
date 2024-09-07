@@ -8,6 +8,7 @@ import com.influxdb.query.FluxTable;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -65,6 +66,9 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Value("${common.kafka.enable:false}")
+    private boolean kafkaEnable;
+
     /**
      * 每分鐘更新一次current Kline資料。
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
@@ -76,7 +80,11 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         log.debug("開始更新current Kline資料");
-        updateSubscription(CURRENT_TYPE);
+        if (kafkaEnable){
+
+        } else {
+            updateSubscription(CURRENT_TYPE);
+        }
     }
 
     /**
@@ -89,7 +97,11 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         log.debug("開始更新history Kline資料");
-        updateSubscription(HISTORY_TYPE);
+        if (kafkaEnable){
+
+        } else {
+            updateSubscription(HISTORY_TYPE);
+        }
     }
 
     /**

@@ -21,13 +21,17 @@ import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
 import xyz.dowob.stockweb.Model.Common.Task;
+import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Subscribe;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.Common.TaskRepository;
+import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 import xyz.dowob.stockweb.Repository.StockTW.StockTwRepository;
 import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,6 +50,8 @@ public class StockTwService {
     private final SubscribeRepository subscribeRepository;
 
     private final StockTwInfluxService stockTwInfluxService;
+
+    private final CurrencyRepository currencyRepository;
 
     private final TaskRepository taskRepository;
 
@@ -85,10 +91,11 @@ public class StockTwService {
      * @param kafkaProducerMethod       Kafka生產者方法
      */
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, TaskRepository taskRepository, Optional<KafkaProducerMethod> kafkaProducerMethod, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, CurrencyRepository currencyRepository, TaskRepository taskRepository, Optional<KafkaProducerMethod> kafkaProducerMethod, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
         this.stockTwInfluxService = stockTwInfluxService;
+        this.currencyRepository = currencyRepository;
         this.taskRepository = taskRepository;
         this.kafkaProducerMethod = kafkaProducerMethod;
         this.objectMapper = objectMapper;
@@ -254,14 +261,15 @@ public class StockTwService {
         JsonNode rootNode = getJsonNodeByUrl(inquireUrl.toString());
         JsonNode msgArray = rootNode.path("msgArray");
         if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
+            Map<String, Map<String, String>> klineData = formatStockTwDataToKline(msgArray);
             if (kafkaProducerMethod.isPresent()) {
-                logger.debug("開始寫入到Kafka");
-                kafkaProducerMethod.get().sendMessage("stock_tw_kline", msgArray);
-                logger.debug("寫入Kafka完成");
+                logger.debug("開始寫入Kafka");;
+                kafkaProducerMethod.get().sendMessage("stock_tw_kline", klineData);
+                logger.debug("寫入Kafka成功");
             } else {
-                logger.debug("開始寫入到Influxdb");
-                stockTwInfluxService.writeStockTwToInflux(msgArray);
-                logger.debug("寫入Influx完成");
+                logger.debug("開始寫入InfluxDB");
+                stockTwInfluxService.writeToInflux(klineData);
+                logger.debug("寫入InfluxDB成功");
             }
         }
     }
@@ -438,6 +446,51 @@ public class StockTwService {
             logger.error("Json轉換失敗", e);
             throw new RuntimeException("Json轉換失敗", e);
         }
+    }
 
+    /**
+     * 格式化股票資料為Kline格式
+     * @param msgArray 股票資料，請求資料為多檔股票，每檔股票為一個JsonNode
+     *
+     * @return HashMap<String, Map<String, String>> 股票代碼與Kline資料
+     */
+    private HashMap<String, Map<String,String>> formatStockTwDataToKline(JsonNode msgArray) {
+        logger.debug("msgArray: " + msgArray);
+        HashMap<String, Map<String,String>> klineData = new HashMap<>();
+        Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
+        BigDecimal twdToUsd = twdCurrency.getExchangeRate();
+        for (JsonNode msgNode : msgArray) {
+            if (Objects.equals(msgNode.path("z").asText(), "-") || Objects.equals(msgNode.path("z").asText(), "--") || Objects.equals(
+                    msgNode.path("h").asText(),
+                    "--") || Objects.equals(msgNode.path("o").asText(), "--") || Objects.equals(msgNode.path("l").asText(), "--")) {
+                continue;
+            }
+
+            logger.debug("z = " + Double.parseDouble(msgNode.path("z").asText()) + ", c = " + msgNode.path("c")
+                                                                                                     .asText() + ", tlong = " + msgNode.path(
+                    "tlong").asText() + ", o = " + Double.parseDouble(msgNode.path("o")
+                                                                             .asText()) + ", h = " + Double.parseDouble(msgNode.path("h")
+                                                                                                                               .asText()) + ", l = " + Double.parseDouble(
+                    msgNode.path("l").asText()) + ", v = " + Double.parseDouble(msgNode.path("v").asText()));
+
+            BigDecimal priceUsd = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal highUsd = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal openUsd = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+            BigDecimal lowUsd = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+
+            HashMap<String, String> innerMap = new HashMap<>();
+            innerMap.put("time", msgNode.path("tlong").asText());
+            innerMap.put("close", priceUsd.toPlainString());
+            innerMap.put("high", highUsd.toPlainString());
+            innerMap.put("open", openUsd.toPlainString());
+            innerMap.put("low", lowUsd.toPlainString());
+            innerMap.put("volume", msgNode.path("v").asText());
+
+            String stockId =  msgNode.path("c").asText();
+            klineData.put(stockId, innerMap);
+
+            logger.debug("股票代碼: " + stockId + ", 資料: " + innerMap);
+        }
+        return klineData;
     }
 }

@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -77,55 +78,26 @@ public class StockTwInfluxService {
      *
      * @param msgArray kline數據
      */
-    public void writeStockTwToInflux(JsonNode msgArray) {
-        logger.debug("讀取即時股價數據");
-        Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
-        BigDecimal twdToUsd = twdCurrency.getExchangeRate();
-        for (JsonNode msgNode : msgArray) {
-            logger.debug(msgNode.toString());
-            if (Objects.equals(msgNode.path("z").asText(), "-")) {
-                continue;
-            }
-            logger.debug("z = " + Double.parseDouble(msgNode.path("z").asText()) + ", c = " + msgNode.path("c")
-                                                                                                     .asText() + ", tlong = " + msgNode.path(
-                    "tlong").asText() + ", o = " + Double.parseDouble(msgNode.path("o")
-                                                                             .asText()) + ", h = " + Double.parseDouble(msgNode.path("h")
-                                                                                                                               .asText()) + ", l = " + Double.parseDouble(
-                    msgNode.path("l").asText()) + ", v = " + Double.parseDouble(msgNode.path("v").asText()));
+    public void writeToInflux(Map<String, Map<String, String>> msgArray) {
+        for (Map.Entry<String, Map<String,String>> dataMap : msgArray.entrySet()) {
+            String stockId = dataMap.getKey();
+            Map<String, String> data = dataMap.getValue();
+            String time = data.get("time");
+            Double closeDouble = Double.parseDouble(data.get("close"));
+            Double highDouble = Double.parseDouble(data.get("high"));
+            Double openDouble = Double.parseDouble(data.get("open"));
+            Double lowDouble = Double.parseDouble(data.get("low"));
+            Double volumeDouble = Double.parseDouble(data.get("volume"));
 
-            BigDecimal priceUsd = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal highUsd = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal openUsd = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal lowUsd = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-
-            logger.debug("(轉換後) z = " + priceUsd + ", c = " + msgNode.path("c").asText() + ", tlong = " + msgNode.path("tlong")
-                                                                                                                    .asText() + ", o = " + openUsd + ", h = " + highUsd + ", l = " + lowUsd + ", v = " + msgNode.path(
-                    "v").asText());
-
-            Double priceDouble = priceUsd.doubleValue();
-            Double highDouble = highUsd.doubleValue();
-            Double openDouble = openUsd.doubleValue();
-            Double lowDouble = lowUsd.doubleValue();
-            Double volumeDouble = Double.parseDouble(msgNode.path("v").asText());
-            String time = msgNode.path("tlong").asText();
-            String stockId = msgNode.path("c").asText();
-
-
-            if (Objects.equals(msgNode.path("z").asText(), "--") || Objects.equals(msgNode.path("h").asText(), "--") || Objects.equals(
-                    msgNode.path("o").asText(),
-                    "--") || Objects.equals(msgNode.path("l").asText(), "--")) {
-                continue;
-            }
-
+            logger.debug("price = " + closeDouble + ", high = " + highDouble + ", low = " + lowDouble + ", open = " + openDouble + ", volume = " + volumeDouble);
             Point point = Point.measurement("kline_data")
                                .addTag("stock_tw", stockId)
-                               .addField("close", priceDouble)
+                               .addField("open", openDouble)
+                               .addField("close", closeDouble)
                                .addField("high", highDouble)
                                .addField("low", lowDouble)
-                               .addField("open", openDouble)
                                .addField("volume", volumeDouble)
                                .time(Long.parseLong(time), WritePrecision.MS);
-            logger.debug("建立InfluxDB Point");
             assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, point);
         }
     }
@@ -182,7 +154,6 @@ public class StockTwInfluxService {
                 "--")) {
             return;
         }
-
         writeKlineDataPoint(todayLongTime, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
     }
 

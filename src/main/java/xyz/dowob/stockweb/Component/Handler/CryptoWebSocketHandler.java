@@ -34,10 +34,7 @@ import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -238,13 +235,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     Map<String, Object> kline = (Map<String, Object>) dataMap.get("k");
                     logger.debug("轉換的kline: " + kline);
                     if (kline != null) {
-                        if (kafkaProducerMethod !=null && kafkaProducerMethod.isPresent()) {
+                        Map<String, String> formattedKline = formatCryptoDataToKline(kline);
+                        if (kafkaProducerMethod != null && kafkaProducerMethod.isPresent()) {
                             logger.debug("開始寫入Kafka");
-                            kafkaProducerMethod.get().sendMessage("crypto_kline", kline);
+                            kafkaProducerMethod.get().sendMessage("crypto_kline", formattedKline);
                             logger.debug("寫入Kafka成功");
                         } else {
                             logger.debug("開始寫入InfluxDB");
-                            cryptoInfluxService.writeToInflux(kline);
+                            cryptoInfluxService.writeToInflux(formattedKline);
                             logger.debug("寫入InfluxDB成功");
                         }
                     } else {
@@ -475,6 +473,20 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         } catch (IOException e) {
             logger.error("釋放資源時發生錯誤", e);
         }
+    }
+
+    private Map<String, String> formatCryptoDataToKline(Map<String, Object> dataMap) {
+        HashMap<String, String> kline = new HashMap<>();
+        kline.put("time", dataMap.get("t").toString());
+        kline.put("open", dataMap.get("o").toString());
+        kline.put("high", dataMap.get("h").toString());
+        kline.put("low", dataMap.get("l").toString());
+        kline.put("close", dataMap.get("c").toString());
+        kline.put("volume", dataMap.get("v").toString());
+
+        kline.put("asset", dataMap.get("s").toString());
+        logger.debug("格式化的kline: " + kline);
+        return kline;
     }
 }
 

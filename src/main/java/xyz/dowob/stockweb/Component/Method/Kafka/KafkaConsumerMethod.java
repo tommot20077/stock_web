@@ -28,4 +28,4 @@ public class KafkaConsumerMethod {
         log.info("Received StockTw Kline Data: " + klineData);
     }
 }
-
+//todo 處理kafka轉存influxdb與websocket推送

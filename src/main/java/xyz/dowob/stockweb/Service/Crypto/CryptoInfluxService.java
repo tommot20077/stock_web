@@ -71,26 +71,22 @@ public class CryptoInfluxService {
      *
      * @param kline kline數據
      */
-    public void writeToInflux(Map<String, Object> kline) {
-        logger.debug("讀取kline數據");
-        logger.debug(kline.toString());
-        String time = kline.get("t").toString();
-        Double open = Double.parseDouble(kline.get("o").toString());
-        Double close = Double.parseDouble(kline.get("c").toString());
-        Double high = Double.parseDouble(kline.get("h").toString());
-        Double low = Double.parseDouble(kline.get("l").toString());
-        Double volume = Double.parseDouble(kline.get("v").toString());
+    public void writeToInflux(Map<String, String> kline) {
+        logger.debug("讀取kline數據" + kline.toString());
+        Double open = Double.parseDouble(kline.get("open"));
+        Double close = Double.parseDouble(kline.get("close"));
+        Double high = Double.parseDouble(kline.get("high"));
+        Double low = Double.parseDouble(kline.get("low"));
+        Double volume = Double.parseDouble(kline.get("volume"));
 
         Point point = Point.measurement("kline_data")
-                           .addTag("tradingPair", kline.get("s").toString())
+                           .addTag("tradingPair", kline.get("tradingPair"))
                            .addField("open", open)
                            .addField("close", close)
                            .addField("high", high)
                            .addField("low", low)
                            .addField("volume", volume)
-                           .time(Long.parseLong(time), WritePrecision.MS);
-        logger.debug("建立InfluxDB Point");
-
+                           .time(Long.parseLong(kline.get("time")), WritePrecision.MS);
         assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
     }
 
