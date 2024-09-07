@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import xyz.dowob.stockweb.Component.Event.Asset.AssetHistoryDataFetchCompleteEvent;
+import xyz.dowob.stockweb.Component.Method.Kafka.KafkaProducerMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
@@ -48,6 +49,8 @@ public class StockTwService {
 
     private final TaskRepository taskRepository;
 
+    private final Optional<KafkaProducerMethod> kafkaProducerMethod;
+
     private final ObjectMapper objectMapper;
 
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -64,6 +67,9 @@ public class StockTwService {
     @Value(value = "${db.influxdb.bucket.stock_tw_history.dateline:20110101}")
     private String stockTwHistoryDateline;
 
+    @Value(value = "${common.kafka.enable:false}")
+    private boolean enableKafka;
+
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
 
     /**
@@ -76,13 +82,15 @@ public class StockTwService {
      * @param objectMapper              Json轉換
      * @param applicationEventPublisher 事件發布
      * @param subscribeMethod           訂閱方法
+     * @param kafkaProducerMethod       Kafka生產者方法
      */
     @Autowired
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, TaskRepository taskRepository, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
+    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, TaskRepository taskRepository, Optional<KafkaProducerMethod> kafkaProducerMethod, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
         this.stockTwInfluxService = stockTwInfluxService;
         this.taskRepository = taskRepository;
+        this.kafkaProducerMethod = kafkaProducerMethod;
         this.objectMapper = objectMapper;
         this.applicationEventPublisher = applicationEventPublisher;
         this.subscribeMethod = subscribeMethod;
@@ -246,8 +254,15 @@ public class StockTwService {
         JsonNode rootNode = getJsonNodeByUrl(inquireUrl.toString());
         JsonNode msgArray = rootNode.path("msgArray");
         if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
-            logger.debug("開始寫入到Influxdb");
-            stockTwInfluxService.writeStockTwToInflux(msgArray);
+            if (kafkaProducerMethod.isPresent()) {
+                logger.debug("開始寫入到Kafka");
+                kafkaProducerMethod.get().sendMessage("stock_tw_kline", msgArray);
+                logger.debug("寫入Kafka完成");
+            } else {
+                logger.debug("開始寫入到Influxdb");
+                stockTwInfluxService.writeStockTwToInflux(msgArray);
+                logger.debug("寫入Influx完成");
+            }
         }
     }
 

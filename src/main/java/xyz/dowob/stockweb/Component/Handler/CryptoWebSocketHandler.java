@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -16,11 +17,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.client.WebSocketClient;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import xyz.dowob.stockweb.Component.Event.Crypto.WebSocketConnectionStatusEvent;
+import xyz.dowob.stockweb.Component.Method.Kafka.KafkaProducerMethod;
 import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Exception.RetryException;
@@ -36,6 +37,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +69,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     @NotNull
     private final ApplicationEventPublisher eventPublisher;
 
+    private final Optional<KafkaProducerMethod> kafkaProducerMethod;
+
     @NotNull
     private final RetryTemplate retryTemplate;
 
@@ -85,6 +89,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     @Getter
     boolean isRunning = false;
 
+    @Value("${common.kafka.enable:false}")
+    private boolean kafkaEnable;
+
 
     /**
      * 創建CryptoWebSocketHandler的構造函數。
@@ -97,12 +104,13 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      * @param retryTemplate       重試模板
      */
     @Autowired
-    public CryptoWebSocketHandler(@NotNull CryptoInfluxService cryptoInfluxService, @NotNull SubscribeMethod subscribeMethod, @NotNull CryptoRepository cryptoRepository, @NotNull ApplicationEventPublisher eventPublisher, @NotNull SubscribeRepository subscribeRepository, @NotNull RetryTemplate retryTemplate) {
+    public CryptoWebSocketHandler(@NotNull CryptoInfluxService cryptoInfluxService, @NotNull SubscribeMethod subscribeMethod, @NotNull CryptoRepository cryptoRepository, @NotNull ApplicationEventPublisher eventPublisher, @NotNull SubscribeRepository subscribeRepository, Optional<KafkaProducerMethod> kafkaProducerMethod, @NotNull RetryTemplate retryTemplate) {
         this.cryptoInfluxService = cryptoInfluxService;
         this.subscribeMethod = subscribeMethod;
         this.cryptoRepository = cryptoRepository;
         this.eventPublisher = eventPublisher;
         this.subscribeRepository = subscribeRepository;
+        this.kafkaProducerMethod = kafkaProducerMethod;
         this.retryTemplate = retryTemplate;
     }
 
@@ -230,9 +238,15 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     Map<String, Object> kline = (Map<String, Object>) dataMap.get("k");
                     logger.debug("轉換的kline: " + kline);
                     if (kline != null) {
-                        logger.debug("開始寫入InfluxDB");
-                        cryptoInfluxService.writeToInflux(kline);
-                        logger.debug("寫入InfluxDB成功");
+                        if (kafkaProducerMethod !=null && kafkaProducerMethod.isPresent()) {
+                            logger.debug("開始寫入Kafka");
+                            kafkaProducerMethod.get().sendMessage("crypto_kline", kline);
+                            logger.debug("寫入Kafka成功");
+                        } else {
+                            logger.debug("開始寫入InfluxDB");
+                            cryptoInfluxService.writeToInflux(kline);
+                            logger.debug("寫入InfluxDB成功");
+                        }
                     } else {
                         logger.debug("kline為null");
                     }
