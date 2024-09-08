@@ -73,9 +73,6 @@ public class StockTwService {
     @Value(value = "${db.influxdb.bucket.stock_tw_history.dateline:20110101}")
     private String stockTwHistoryDateline;
 
-    @Value(value = "${common.kafka.enable:false}")
-    private boolean enableKafka;
-
     private final Logger logger = LoggerFactory.getLogger(StockTwService.class);
 
     /**
@@ -263,11 +260,9 @@ public class StockTwService {
         if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
             Map<String, Map<String, String>> klineData = formatStockTwDataToKline(msgArray);
             if (kafkaProducerMethod.isPresent()) {
-                logger.debug("開始寫入Kafka");;
                 kafkaProducerMethod.get().sendMessage("stock_tw_kline", klineData);
-                logger.debug("寫入Kafka成功");
+                logger.debug("Kafka發布成功");
             } else {
-                logger.debug("開始寫入InfluxDB");
                 stockTwInfluxService.writeToInflux(klineData);
                 logger.debug("寫入InfluxDB成功");
             }

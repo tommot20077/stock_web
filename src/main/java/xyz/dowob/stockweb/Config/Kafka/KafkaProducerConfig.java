@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Config.Kafka;
 
+import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,7 @@ import java.util.Map;
  * @create 2024-09-06 00:45
  * @Version 1.0
  **/
+@Log4j2
 @Configuration
 @ConditionalOnProperty(name = "common.kafka.enable",
                        havingValue = "true")

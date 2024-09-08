@@ -14,8 +14,7 @@ import org.springframework.stereotype.Component;
  * @Version 1.0
  **/
 @Component
-@ConditionalOnProperty(name = "common.kafka.enable",
-                       havingValue = "true")
+@ConditionalOnProperty(name = "common.kafka.enable", havingValue = "true")
 public class KafkaProducerMethod {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 

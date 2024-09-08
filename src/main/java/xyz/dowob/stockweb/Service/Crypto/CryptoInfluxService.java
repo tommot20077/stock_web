@@ -69,25 +69,27 @@ public class CryptoInfluxService {
     /**
      * WebSocket的kline數據寫入InfluxDB
      *
-     * @param kline kline數據
+     * @param klineData kline數據
      */
-    public void writeToInflux(Map<String, String> kline) {
-        logger.debug("讀取kline數據" + kline.toString());
-        Double open = Double.parseDouble(kline.get("open"));
-        Double close = Double.parseDouble(kline.get("close"));
-        Double high = Double.parseDouble(kline.get("high"));
-        Double low = Double.parseDouble(kline.get("low"));
-        Double volume = Double.parseDouble(kline.get("volume"));
+    public void writeToInflux(Map<String, Map<String, String>> klineData) {
+        logger.debug("讀取kline數據: {}", klineData.toString());
+        for (Map.Entry<String, Map<String, String>> entry : klineData.entrySet()) {
+            Double open = Double.parseDouble(entry.getValue().get("open"));
+            Double close = Double.parseDouble(entry.getValue().get("close"));
+            Double high = Double.parseDouble(entry.getValue().get("high"));
+            Double low = Double.parseDouble(entry.getValue().get("low"));
+            Double volume = Double.parseDouble(entry.getValue().get("volume"));
 
-        Point point = Point.measurement("kline_data")
-                           .addTag("tradingPair", kline.get("tradingPair"))
-                           .addField("open", open)
-                           .addField("close", close)
-                           .addField("high", high)
-                           .addField("low", low)
-                           .addField("volume", volume)
-                           .time(Long.parseLong(kline.get("time")), WritePrecision.MS);
-        assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
+            Point point = Point.measurement("kline_data")
+                               .addTag("tradingPair", entry.getKey())
+                               .addField("open", open)
+                               .addField("close", close)
+                               .addField("high", high)
+                               .addField("low", low)
+                               .addField("volume", volume)
+                               .time(Long.parseLong(entry.getValue().get("time")), WritePrecision.MS);
+            assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
+        }
     }
 
     /**

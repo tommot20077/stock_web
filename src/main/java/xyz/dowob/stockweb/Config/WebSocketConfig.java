@@ -2,7 +2,6 @@ package xyz.dowob.stockweb.Config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -14,15 +13,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
 import xyz.dowob.stockweb.Component.Handler.ImmediateDataHandler;
 import xyz.dowob.stockweb.Component.Handler.KlineWebSocketHandler;
-import xyz.dowob.stockweb.Component.Method.Kafka.KafkaProducerMethod;
-import xyz.dowob.stockweb.Component.Method.SubscribeMethod;
-import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Interceptor.WebSocketHandleInterceptor;
-import xyz.dowob.stockweb.Repository.Crypto.CryptoRepository;
-import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
-import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
-
-import java.util.Optional;
 
 /**
  * 虛擬貨幣WebSocket配置
@@ -78,25 +69,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     /**
      * 創建CryptoWebSocketHandler
      *
-     * @param cryptoInfluxService CryptoInfluxService
-     * @param cryptoRepository    CryptoRepository
-     * @param eventPublisher      ApplicationEventPublisher
-     * @param subscribeRepository SubscribeRepository
-     * @param retryTemplate       RetryTemplate
-     * @param kafkaProducerMethod KafkaProducerMethod
-     *
      * @return CryptoWebSocketHandler
      */
     @Bean
-    public CryptoWebSocketHandler cryptoWebSocketHandler(
-            CryptoInfluxService cryptoInfluxService, SubscribeMethod subscribeMethod, CryptoRepository cryptoRepository, ApplicationEventPublisher eventPublisher, SubscribeRepository subscribeRepository, RetryTemplate retryTemplate, Optional<KafkaProducerMethod> kafkaProducerMethod) {
-        return new CryptoWebSocketHandler(cryptoInfluxService,
-                                          subscribeMethod,
-                                          cryptoRepository,
-                                          eventPublisher,
-                                          subscribeRepository,
-                                          kafkaProducerMethod,
-                                          retryTemplate);
+    public CryptoWebSocketHandler cryptoWebSocketHandler() {
+        return new CryptoWebSocketHandler();
     }
 
     /**

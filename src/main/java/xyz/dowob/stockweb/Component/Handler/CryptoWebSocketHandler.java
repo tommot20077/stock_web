@@ -9,7 +9,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -51,25 +50,26 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
-    @NotNull
-    private final CryptoInfluxService cryptoInfluxService;
+    @Autowired
+    private CryptoInfluxService cryptoInfluxService;
 
-    @NotNull
-    private final SubscribeMethod subscribeMethod;
+    @Autowired
+    private SubscribeMethod subscribeMethod;
 
-    @NotNull
-    private final CryptoRepository cryptoRepository;
+    @Autowired
+    private CryptoRepository cryptoRepository;
 
-    @NotNull
-    private final SubscribeRepository subscribeRepository;
+    @Autowired
+    private SubscribeRepository subscribeRepository;
 
-    @NotNull
-    private final ApplicationEventPublisher eventPublisher;
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
-    private final Optional<KafkaProducerMethod> kafkaProducerMethod;
+    @Autowired
+    private Optional<KafkaProducerMethod> kafkaProducerMethod;
 
-    @NotNull
-    private final RetryTemplate retryTemplate;
+    @Autowired
+    private RetryTemplate retryTemplate;
 
     private final Logger logger = LoggerFactory.getLogger(CryptoWebSocketHandler.class);
 
@@ -85,31 +85,6 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
 
     @Getter
     boolean isRunning = false;
-
-    @Value("${common.kafka.enable:false}")
-    private boolean kafkaEnable;
-
-
-    /**
-     * 創建CryptoWebSocketHandler的構造函數。
-     *
-     * @param cryptoInfluxService 虛擬貨幣相關服務方法
-     * @param subscribeMethod     用戶訂閱管理相關方法
-     * @param cryptoRepository    虛擬貨幣資料庫
-     * @param eventPublisher      事件發布者
-     * @param subscribeRepository 用戶訂閱資料庫
-     * @param retryTemplate       重試模板
-     */
-    @Autowired
-    public CryptoWebSocketHandler(@NotNull CryptoInfluxService cryptoInfluxService, @NotNull SubscribeMethod subscribeMethod, @NotNull CryptoRepository cryptoRepository, @NotNull ApplicationEventPublisher eventPublisher, @NotNull SubscribeRepository subscribeRepository, Optional<KafkaProducerMethod> kafkaProducerMethod, @NotNull RetryTemplate retryTemplate) {
-        this.cryptoInfluxService = cryptoInfluxService;
-        this.subscribeMethod = subscribeMethod;
-        this.cryptoRepository = cryptoRepository;
-        this.eventPublisher = eventPublisher;
-        this.subscribeRepository = subscribeRepository;
-        this.kafkaProducerMethod = kafkaProducerMethod;
-        this.retryTemplate = retryTemplate;
-    }
 
     /**
      * 設定ThreadPoolTaskScheduler。
@@ -220,30 +195,24 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
      */
     @Override
     @Async
+    @SuppressWarnings("unchecked")
     public void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) throws JsonProcessingException {
         TypeReference<Map<String, Object>> typeRef = new TypeReference<>() {};
         logger.debug("收到的消息: " + message.getPayload());
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> jsonMap = objectMapper.readValue(message.getPayload(), typeRef);
-        logger.debug("轉換的JSON: " + jsonMap);
-
         try {
             if (jsonMap.containsKey("data")) {
                 Map<String, Object> dataMap = (Map<String, Object>) jsonMap.get("data");
-                logger.debug("WebSocket收到資料: " + dataMap);
                 if (dataMap != null && dataMap.containsKey("k")) {
                     Map<String, Object> kline = (Map<String, Object>) dataMap.get("k");
-                    logger.debug("轉換的kline: " + kline);
                     if (kline != null) {
-                        Map<String, String> formattedKline = formatCryptoDataToKline(kline);
+                        Map<String, Map<String, String>> formattedKline = formatCryptoDataToKline(kline);
                         if (kafkaProducerMethod != null && kafkaProducerMethod.isPresent()) {
-                            logger.debug("開始寫入Kafka");
                             kafkaProducerMethod.get().sendMessage("crypto_kline", formattedKline);
-                            logger.debug("寫入Kafka成功");
+                            logger.debug("Kafka發布成功");
                         } else {
-                            logger.debug("開始寫入InfluxDB");
                             cryptoInfluxService.writeToInflux(formattedKline);
-                            logger.debug("寫入InfluxDB成功");
                         }
                     } else {
                         logger.debug("kline為null");
@@ -475,8 +444,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private Map<String, String> formatCryptoDataToKline(Map<String, Object> dataMap) {
+    private Map<String, Map<String, String>> formatCryptoDataToKline(Map<String, Object> dataMap) {
         HashMap<String, String> kline = new HashMap<>();
+        HashMap<String, Map<String, String>> result = new HashMap<>();
         kline.put("time", dataMap.get("t").toString());
         kline.put("open", dataMap.get("o").toString());
         kline.put("high", dataMap.get("h").toString());
@@ -484,9 +454,8 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         kline.put("close", dataMap.get("c").toString());
         kline.put("volume", dataMap.get("v").toString());
 
-        kline.put("asset", dataMap.get("s").toString());
-        logger.debug("格式化的kline: " + kline);
-        return kline;
+        result.put(dataMap.get("s").toString(), kline);
+        return result;
     }
 }
 

@@ -8,7 +8,7 @@ import com.influxdb.query.FluxTable;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -65,44 +65,37 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     private AssetService assetService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Value("${common.kafka.enable:false}")
-    private boolean kafkaEnable;
-
     /**
      * 每分鐘更新一次current Kline資料。
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
+     * 僅在不開啟Kafka時執行。
      */
 
     @Scheduled(cron = "0 */1 * * * *")
+    @ConditionalOnProperty(name = "common.kafka.enable", havingValue = "false")
     public void updateCurrentKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
         }
         log.debug("開始更新current Kline資料");
-        if (kafkaEnable){
-
-        } else {
-            updateSubscription(CURRENT_TYPE);
-        }
+        updateSubscription(CURRENT_TYPE);
     }
 
     /**
      * 每24小時更新一次history Kline資料。
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
+     * 僅在不開啟Kafka時執行。
      */
     @Scheduled(cron = "0 0 */24 * * *")
+    @ConditionalOnProperty(name = "common.kafka.enable", havingValue = "false")
     public void updateHistoryKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
         }
         log.debug("開始更新history Kline資料");
-        if (kafkaEnable){
-
-        } else {
-            updateSubscription(HISTORY_TYPE);
-        }
+        updateSubscription(HISTORY_TYPE);
     }
+
 
     /**
      * 當WebSocket連接成功時，此方法將被調用。
@@ -312,20 +305,20 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     /**
      * 初始化以及發送K線圖格式資料。
      *
-     * @param map     　K線圖格式資料
+     * @param dataMap     　K線圖格式資料
      * @param session 　WebSocketSession對象
      * @param assetId 　資產ID
      * @param type    　資產類型
      */
-    private void initialOrSendKlineData(Map<String, Object> map, WebSocketSession session, Long assetId, String type) {
-        if (map == null) {
+    private void initialOrSendKlineData(Map<String, Object> dataMap, WebSocketSession session, Long assetId, String type) {
+        if (dataMap == null) {
             log.debug("沒有緩存資料，開始更新資料");
             updateData(Set.of(session.getId()), assetId, type, null);
         } else {
             log.debug("發送緩存資料");
             User user = USER_MAP.get(session.getId());
-            map.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
-            sendMessage(map, session);
+            dataMap.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
+            sendMessage(dataMap, session);
         }
     }
 
