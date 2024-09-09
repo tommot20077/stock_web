@@ -115,7 +115,7 @@ public class AssetService {
     @Value("${common.global_page_size:100}")
     private int pageSize;
 
-    public Map<String, List<FluxTable>> getAssetKlineData (Long assetId, String type, String timestamp) {
+    public Map<String, List<FluxTable>> getAssetKlineData(Long assetId, String type, String timestamp) {
         Asset asset = getAssetById(assetId);
         Map<String, List<FluxTable>> tableMap = assetInfluxMethod.queryByAsset(asset, "history".equals(type), timestamp);
         logger.debug("資產K線數據: " + tableMap.toString());
@@ -127,9 +127,9 @@ public class AssetService {
      * 當資產沒有數據時，設定緩存狀態為no_data
      * 當資產有數據時，設定緩存狀態為success
      *
-     * @param assetId        資產Id
-     * @param type         查詢類型
-     * @param tableMap     資料表
+     * @param assetId  資產Id
+     * @param type     查詢類型
+     * @param tableMap 資料表
      *
      * @return 是否有數據
      */
@@ -172,7 +172,7 @@ public class AssetService {
         }
     }
 
-    public List<String> formatKlineTableByTime(Map<String,List<FluxTable>> tableMap) throws JsonProcessingException {
+    public List<String> formatKlineTableByTime(Map<String, List<FluxTable>> tableMap) throws JsonProcessingException {
         String lastTimePoint = null;
         Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
@@ -380,6 +380,7 @@ public class AssetService {
             throw new RuntimeException("資產資料處理錯誤: ", e);
         }
     }
+
     /**
      * 獲取具有訂閱資產的資產列表
      *
@@ -865,6 +866,19 @@ public class AssetService {
             logger.error("資產列表搜索錯誤: ", e);
             throw new RuntimeException("資產列表搜索錯誤: ", e);
         }
+    }
+
+    public Asset getAssetByAssetName(String assetName) {
+        Optional<CryptoTradingPair> crypto = cryptoRepository.findByTradingPair(assetName);
+        if (crypto.isPresent()) {
+            return crypto.get();
+        }
+        Optional<StockTw> stockTw = stockTwRepository.findByStockCode(assetName);
+        if (stockTw.isPresent()) {
+            return stockTw.get();
+        }
+        Optional<Currency> currency = currencyRepository.findByCurrency(assetName);
+        return currency.orElse(null);
     }
 }
 

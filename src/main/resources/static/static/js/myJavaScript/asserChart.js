@@ -94,15 +94,13 @@ function formatKlineData(data, exrate = 1) {
     const formattedData = [];
 
     data.forEach(item => {
-        Object.values(item).forEach(kline => {
-            formattedData.push({
-                timestamp: new Date(kline.timestamp).getTime(),
-                open: parseFloat(kline.open) * exrate,
-                high: parseFloat(kline.high) * exrate,
-                low: parseFloat(kline.low) * exrate,
-                close: parseFloat(kline.close) * exrate,
-                volume: parseFloat(kline.volume)
-            });
+        formattedData.push({
+            timestamp: new Date(kline.timestamp).getTime(),
+            open: parseFloat(kline.open) * exrate,
+            high: parseFloat(kline.high) * exrate,
+            low: parseFloat(kline.low) * exrate,
+            close: parseFloat(kline.close) * exrate,
+            volume: parseFloat(kline.volume)
         });
     });
 

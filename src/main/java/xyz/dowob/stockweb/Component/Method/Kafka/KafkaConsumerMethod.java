@@ -8,12 +8,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Handler.KlineWebSocketHandler;
+import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
+import xyz.dowob.stockweb.Dto.Common.KafkaWebsocketDto;
+import xyz.dowob.stockweb.Model.Common.Asset;
+import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Crypto.CryptoInfluxService;
 import xyz.dowob.stockweb.Service.Stock.StockTwInfluxService;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author yuan
@@ -33,14 +40,17 @@ public class KafkaConsumerMethod {
 
     private final KlineWebSocketHandler klineWebSocketHandler;
 
+    private final AssetService assetService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     Logger log = LoggerFactory.getLogger(KafkaConsumerMethod.class);
 
-    public KafkaConsumerMethod(CryptoInfluxService cryptoInfluxService, StockTwInfluxService stockTwInfluxService, KlineWebSocketHandler klineWebSocketHandler) {
+    public KafkaConsumerMethod(CryptoInfluxService cryptoInfluxService, StockTwInfluxService stockTwInfluxService, KlineWebSocketHandler klineWebSocketHandler, AssetService assetService) {
         this.cryptoInfluxService = cryptoInfluxService;
         this.stockTwInfluxService = stockTwInfluxService;
         this.klineWebSocketHandler = klineWebSocketHandler;
+        this.assetService = assetService;
     }
 
 
@@ -55,12 +65,6 @@ public class KafkaConsumerMethod {
         }
     }
 
-    @KafkaListener(topics = "crypto_kline",
-                   groupId = "websocket")
-    public void consumeCryptoKlineDataByWebsocket(ConsumerRecord<String, Object> klineData) {
-        Map<String, Map<String, String>> klineDataMap = formatConsumerRecordToMap(klineData);
-    }
-
     @KafkaListener(topics = "stock_tw_kline",
                    groupId = "influxdb")
     public void consumeStockTwKlineDataByInfluxdb(ConsumerRecord<String, Object> klineData) {
@@ -72,10 +76,33 @@ public class KafkaConsumerMethod {
         }
     }
 
+
+    @KafkaListener(topics = "crypto_kline",
+                   groupId = "websocket")
     @KafkaListener(topics = "stock_tw_kline",
                    groupId = "websocket")
-    public void consumeStockTwKlineDataByWebsocket(ConsumerRecord<String, Object> klineData) {
+    public void consumeKlineDataByWebsocket(@Header(KafkaHeaders.RECEIVED_TOPIC) String topic, ConsumerRecord<String, Object> klineData) {
         Map<String, Map<String, String>> klineDataMap = formatConsumerRecordToMap(klineData);
+        if (klineDataMap != null) {
+            for (Map.Entry<String, Map<String, String>> entry : klineDataMap.entrySet()) {
+                String assetName = entry.getKey();
+                Asset asset = assetService.getAssetByAssetName(assetName);
+                if (asset == null) {
+                    log.error("找不到名為{}的資產", entry.getKey());
+                    continue;
+                }
+                KafkaWebsocketDto kafkaWebsocketDto = new KafkaWebsocketDto();
+                Map<String, String> assetData = entry.getValue();
+                AssetKlineDataDto assetKlineDataDto = formatMapToAssetKlineDataDto(assetData);
+                kafkaWebsocketDto.setAssetId(asset.getId());
+                kafkaWebsocketDto.setAssetType(asset.getAssetType());
+                kafkaWebsocketDto.setAssetName(assetName);
+                kafkaWebsocketDto.setData(assetKlineDataDto);
+                CompletableFuture.runAsync(() -> klineWebSocketHandler.sendKlineDataByKafka(kafkaWebsocketDto));
+            }
+        } else {
+            log.debug("{}即時K線資料為空", "crypto_kline".equals(topic) ? "虛擬貨幣" : "台灣股票");
+        }
     }
 
 
@@ -91,6 +118,17 @@ public class KafkaConsumerMethod {
             log.error("Kafka在轉換台灣股票K線資料時發生錯誤 {}", e.getMessage());
             return null;
         }
+    }
+
+    private AssetKlineDataDto formatMapToAssetKlineDataDto(Map<String, String> assetData) {
+        AssetKlineDataDto assetKlineDataDto = new AssetKlineDataDto();
+        assetKlineDataDto.setTimestamp(assetData.get("time"));
+        assetKlineDataDto.setOpen(assetData.get("open"));
+        assetKlineDataDto.setHigh(assetData.get("high"));
+        assetKlineDataDto.setLow(assetData.get("low"));
+        assetKlineDataDto.setClose(assetData.get("close"));
+        assetKlineDataDto.setVolume(assetData.get("volume"));
+        return assetKlineDataDto;
     }
 }
 // todo 處理kafka轉存influxdb與websocket推送

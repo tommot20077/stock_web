@@ -14,6 +14,8 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
+import xyz.dowob.stockweb.Dto.Common.KafkaWebsocketDto;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Stock.StockTw;
@@ -22,6 +24,9 @@ import xyz.dowob.stockweb.Service.Common.AssetService;
 import xyz.dowob.stockweb.Service.Common.RedisService;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +70,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     private AssetService assetService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
     /**
      * 每分鐘更新一次current Kline資料。
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
@@ -72,7 +78,8 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      */
 
     @Scheduled(cron = "0 */1 * * * *")
-    @ConditionalOnProperty(name = "common.kafka.enable", havingValue = "false")
+    @ConditionalOnProperty(name = "common.kafka.enable",
+                           havingValue = "false")
     public void updateCurrentKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
@@ -87,7 +94,8 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      * 僅在不開啟Kafka時執行。
      */
     @Scheduled(cron = "0 0 */24 * * *")
-    @ConditionalOnProperty(name = "common.kafka.enable", havingValue = "false")
+    @ConditionalOnProperty(name = "common.kafka.enable",
+                           havingValue = "false")
     public void updateHistoryKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
@@ -265,6 +273,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      *
      * @throws JsonProcessingException 如果格式化錯誤，則拋出異常
      */
+    //todo 修改格式
     private Map<String, Object> formatKlineData(List<String> dataList, String type) throws JsonProcessingException {
         ArrayNode mergeArray = objectMapper.createArrayNode();
         Map<String, Object> resultMap = new HashMap<>();
@@ -305,7 +314,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     /**
      * 初始化以及發送K線圖格式資料。
      *
-     * @param dataMap     　K線圖格式資料
+     * @param dataMap 　K線圖格式資料
      * @param session 　WebSocketSession對象
      * @param assetId 　資產ID
      * @param type    　資產類型
@@ -369,9 +378,10 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     /**
      * 發送消息給用戶。
      * 此消息為Object類型，將其轉換為JSON格式。
-     * @param object 要發送的消息對象
+     *
+     * @param object  要發送的消息對象
      * @param session WebSocketSession對象
-     * @param <T> 泛型類型
+     * @param <T>     泛型類型
      */
     private <T> void sendMessage(T object, WebSocketSession session) {
         try {
@@ -387,7 +397,9 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * 驗證資產ID是否有效。
+     *
      * @param assetId 資產ID
+     *
      * @return 驗證結果
      */
     private String validAsset(Long assetId) {
@@ -409,6 +421,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      * 如果連線ID集合為空，則從KLINE_SUBSCRIPTIONS中刪除該資產ID。
      * 從Redis獲取最後更新時間。
      * 更新資料。
+     *
      * @param historyType 歷史類型
      */
     private void updateSubscription(String historyType) {
@@ -422,5 +435,42 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             log.info("最後更新時間: " + lastTimestamp);
             updateData(sessions, assetId, historyType, lastTimestamp);
         });
+    }
+
+    public void sendKlineDataByKafka(KafkaWebsocketDto klineData) {
+        Long assetId = klineData.getAssetId();
+        Set<String> sessions = KLINE_SUBSCRIPTIONS.get(assetId);
+        if (sessions == null) {
+            return;
+        }
+        Map<String, Object> result = new HashMap<>();
+        Map<String, String> data = new HashMap<>();
+        result.put("type", "current");
+        result.put("data", new ArrayList<Map<String, String>>());
+
+        AssetKlineDataDto assetData = klineData.getData();
+
+        long timeLong = Long.parseLong(assetData.getTimestamp());
+        Instant instant = Instant.ofEpochMilli(timeLong);
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
+        String timestamp = formatter.format(instant);
+
+        data.put("timestamp", timestamp);
+        data.put("open", assetData.getOpen());
+        data.put("high", assetData.getHigh());
+        data.put("low", assetData.getLow());
+        data.put("close", assetData.getClose());
+        data.put("volume", assetData.getVolume());
+        result.put("data", List.of(data));
+        for (String sessionId : sessions) {
+            WebSocketSession session = SESSION_MAP.get(sessionId);
+            User user = USER_MAP.get(sessionId);
+            if (user == null) {
+                KLINE_SUBSCRIPTIONS.get(assetId).remove(sessionId);
+            } else {
+                result.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
+                sendMessage(result, session);
+            }
+        }
     }
 }
