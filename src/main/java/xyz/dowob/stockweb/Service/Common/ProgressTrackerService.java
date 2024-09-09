@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Service.Common;
 
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit;
  * 實現DisposableBean接口，用於關閉線程池
  */
 @Service
+@Log4j2
 public class ProgressTrackerService implements DisposableBean {
     private final TaskRepository taskRepository;
 
@@ -50,6 +52,7 @@ public class ProgressTrackerService implements DisposableBean {
     public String createAndTrackNewTask(int totalTask, String name) {
         String taskId = UUID.randomUUID().toString();
         progressMap.put(taskId, new Progress(totalTask, name));
+        log.debug("本次任務Id: {}", taskId);
         return taskId;
     }
 

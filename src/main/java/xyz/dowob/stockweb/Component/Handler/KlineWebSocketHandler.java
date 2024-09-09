@@ -94,11 +94,10 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     /**
      * 每24小時更新一次history Kline資料。
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
-     * 僅在不開啟Kafka時執行。
      */
-    @Scheduled(cron = "0 0 */24 * * *")
+    @Scheduled(cron = "0 0 4 * * *")
     public void updateHistoryKlineData() {
-        if (KLINE_SUBSCRIPTIONS.isEmpty() || kafkaEnable) {
+        if (KLINE_SUBSCRIPTIONS.isEmpty()) {
             return;
         }
         log.debug("開始更新history Kline資料");
@@ -115,13 +114,13 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
         User user = (User) session.getAttributes().get("user");
-        log.info("新的WebSocket連線建立: {} ,用戶: {}", session.getId(), user.getEmail());
+        log.debug("新的WebSocket連線建立: {} ,用戶: {}", session.getId(), user.getEmail());
 
         CONNECTIONS.computeIfAbsent(user, k -> new ConcurrentHashMap<>());
         USER_MAP.put(session.getId(), user);
         SESSION_MAP.put(session.getId(), session);
         INITIALIZATION_STATUS.put(session.getId(), false);
-        log.info("目前WebSocket連線數量: {}", getTotalActiveSessions(CONNECTIONS) + 1);
+        log.debug("目前WebSocket連線數量: {}", getTotalActiveSessions(CONNECTIONS) + 1);
     }
 
     /**
@@ -137,7 +136,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         try {
             User user = USER_MAP.get(session.getId());
-            log.info("WebSocket連線關閉: {} ,用戶: {}", session.getId(), user.getEmail());
+            log.debug("WebSocket連線關閉: {} ,用戶: {}", session.getId(), user.getEmail());
             Map<Long, String> userConnections = CONNECTIONS.get(user);
             if (userConnections != null) {
                 userConnections.entrySet().removeIf(entry -> entry.getValue().equals(session.getId()));
@@ -150,7 +149,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             INITIALIZATION_STATUS.remove(session.getId());
             SESSION_MAP.remove(session.getId()).close();
             session.close();
-            log.info("目前WebSocket連線數量: {}", getTotalActiveSessions(CONNECTIONS));
+            log.debug("目前WebSocket連線數量: {}", getTotalActiveSessions(CONNECTIONS));
         } catch (IOException e) {
             log.error("關閉WebSocket連線時發生錯誤: {}", e.getMessage());
         }
@@ -176,7 +175,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         String payload = message.getPayload();
         long assetId;
         String action;
-        log.info("收到來自用戶: {} 的消息: {}", USER_MAP.get(session.getId()).getEmail(), payload);
+        log.debug("收到來自用戶: {} 的消息: {}", USER_MAP.get(session.getId()).getEmail(), payload);
         try {
             JsonNode jsonNode = objectMapper.readTree(payload);
             action = jsonNode.get("action").asText();
@@ -202,7 +201,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         User user = USER_MAP.get(session.getId());
 
         if (CONNECTIONS.get(user).containsKey(assetId)) {
-            log.info("用戶: {} 已經訂閱過: {} 關閉先前訂閱", user.getEmail(), assetId);
+            log.debug("用戶: {} 已經訂閱過: {} 關閉先前訂閱", user.getEmail(), assetId);
             WebSocketSession preAssetSession = SESSION_MAP.get(CONNECTIONS.get(user).get(assetId));
             preAssetSession.sendMessage(new TextMessage("關閉先前重複訂閱"));
             USER_MAP.remove(preAssetSession.getId());
@@ -212,7 +211,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         }
         CONNECTIONS.get(user).put(assetId, session.getId());
         KLINE_SUBSCRIPTIONS.computeIfAbsent(assetId, k -> new HashSet<>()).add(session.getId());
-        log.info("目前用戶: {} 的訂閱數量: {}", user.getEmail(), CONNECTIONS.get(user).size());
+        log.debug("目前用戶: {} 的訂閱數量: {}", user.getEmail(), CONNECTIONS.get(user).size());
 
         String validCheck = validAsset(assetId);
         if (!validCheck.isEmpty()) {
@@ -415,7 +414,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             if (session.isOpen()) {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(object)));
             } else {
-                log.info("發送消息時發生錯誤: 連線已經關閉");
+                log.error("發送消息時發生錯誤: 連線已經關閉");
             }
         } catch (IOException e) {
             log.error("發送消息時發生錯誤: {}", e.getMessage());
@@ -459,7 +458,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             }
             String listKey = String.format("%s_%s:", CURRENT_TYPE, assetId);
             String lastTimestamp = redisService.getHashValueFromKey(KLINE_PREFIX, listKey + LAST_TIMESTAMP_SUFFIX);
-            log.info("最後更新時間: {}", lastTimestamp);
+            log.debug("最後更新時間: {}", lastTimestamp);
             updateData(sessions, assetId, historyType, lastTimestamp);
         });
     }

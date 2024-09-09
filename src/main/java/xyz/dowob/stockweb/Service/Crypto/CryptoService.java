@@ -381,7 +381,6 @@ public class CryptoService {
 
         logger.debug("總計需取得: {}筆資料", trackDaysZip + trackMonthsZip);
         String taskId = progressTrackerService.createAndTrackNewTask(trackDaysZip + trackMonthsZip, cryptoTradingPair.getTradingPair());
-        logger.debug("本次任務Id: {}", taskId);
         Task task = new Task(taskId, "獲取: " + cryptoTradingPair.getTradingPair() + " 的歷史價格", trackDaysZip + trackMonthsZip);
         taskRepository.save(task);
 
@@ -468,6 +467,7 @@ public class CryptoService {
      *
      * @throws RuntimeException 當更新失敗時拋出
      */
+    //todo 是否需要刪除redis緩存
     @Async
     public void trackCryptoHistoryPricesWithUpdateDaily() {
         Set<String> needToUpdateTradingPairs = cryptoRepository.findAllTradingPairBySubscribers();
@@ -478,14 +478,14 @@ public class CryptoService {
             logger.debug("沒有要更新的交易對");
             return;
         }
-        LocalDate startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
-        LocalDate expectedLastUpdateDate = startDate.minusDays(1);
-        String formatGetDailyDate = startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDate endDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1);
+        String formatEndDate = endDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDate expectedLastUpdateDate = endDate.minusDays(1);
+
 
         ExecutorService executorService = dynamicThreadPoolService.getExecutorService();
-        logger.debug("總計需取得: {}筆資料", needToUpdateTradingPairs.size());
+        logger.debug("總計需取得: {}種虛擬貨幣資料", needToUpdateTradingPairs.size());
         String taskId = progressTrackerService.createAndTrackNewTask(needToUpdateTradingPairs.size(), "dailyUpdateCryptoHistoryPrices");
-        logger.debug("本次任務Id: {}", taskId);
         Task task = new Task(taskId, "更新每日虛擬貨幣的最新價格", needToUpdateTradingPairs.size());
         taskRepository.save(task);
         try {
@@ -496,7 +496,7 @@ public class CryptoService {
                     hadTrackHistoryData.put(tradingPair, lastUpdateDate);
                 }
 
-                String fileName = String.format("%s-%s-%s.zip", tradingPair, frequency, formatGetDailyDate);
+                String fileName = String.format("%s-%s-%s.zip", tradingPair, frequency, formatEndDate);
                 String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "daily", tradingPair, frequency, fileName);
                 logger.debug("要追蹤歷史價格的交易對: {}", tradingPair);
                 logger.debug("歷史價格資料網址: {}", dailyUrl);
@@ -505,16 +505,13 @@ public class CryptoService {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     dynamicThreadPoolService.onTaskStart();
                     rateLimiter.acquire();
-                    try {
-                        List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dailyUrl, fileName);
-                        if (csvData != null) {
-                            logger.debug("歷史價格資料讀取完成");
-                            cryptoInfluxService.writeCryptoHistoryToInflux(csvData, tradingPair);
-                            logger.debug("抓取{}的資料完成", fileName);
-                        }
-                    } finally {
-                        progressTrackerService.incrementProgress(taskId);
+                    List<String[]> csvData = fileService.downloadFileAndUnzipAndRead(dailyUrl, fileName);
+                    if (csvData != null) {
+                        logger.debug("歷史價格資料讀取完成");
+                        cryptoInfluxService.writeCryptoHistoryToInflux(csvData, tradingPair);
+                        logger.debug("抓取{}的資料完成", fileName);
                     }
+                    progressTrackerService.incrementProgress(taskId);
                 }, executorService).handle((result, throwable) -> {
                     dynamicThreadPoolService.onTaskComplete();
                     if (throwable != null) {
@@ -543,7 +540,7 @@ public class CryptoService {
                     for (Map.Entry<String, LocalDate> entry : hadTrackHistoryData.entrySet()) {
                         LocalDate lastUpdateDate = entry.getValue();
                         LocalDate trackStartDate = lastUpdateDate.plusDays(1);
-                        totalBackFillCount += Period.between(trackStartDate, startDate).getDays();
+                        totalBackFillCount += Period.between(trackStartDate, endDate).getDays();
                     }
                     logger.debug("總計需取得: {}筆資料", totalBackFillCount);
                     String trackBackTaskId = progressTrackerService.createAndTrackNewTask(totalBackFillCount, "trackMissHistoryPriceData");

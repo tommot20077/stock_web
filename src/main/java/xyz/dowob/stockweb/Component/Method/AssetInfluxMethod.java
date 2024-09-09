@@ -303,6 +303,7 @@ public class AssetInfluxMethod {
             List<FluxTable> tables;
         };
         Object[] bucketAndClient = getBucketAndClient(asset, isHistory);
+        //todo 考慮將即時資料時間範圍調到-7d，或是實現分段傳輸
         DateTimeFormatter outFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'00:00:00'Z'");
         DateTimeFormatter cryptoAndStockTwFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
         String start;

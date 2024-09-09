@@ -161,13 +161,13 @@ public class CryptoInfluxService {
         var ref = new Object() {
             FluxTable result;
         };
-        String query = String.format("from(bucket: \"%s\") |> range(start: -14d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"kline_data\")" + " |> filter(fn: (r) => r[\"tradingPair\"] == \"%s\")" + " |> last()",
+        String query = String.format("from(bucket: \"%s\") |> range(start: -365d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"kline_data\")" + " |> filter(fn: (r) => r[\"tradingPair\"] == \"%s\")" + " |> last()",
                                      cryptoHistoryBucket,
                                      tradingPair);
         try {
             retryTemplate.doWithRetry(() -> ref.result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast());
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
+            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage());
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
 

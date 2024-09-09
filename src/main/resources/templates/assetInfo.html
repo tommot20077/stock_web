@@ -485,12 +485,15 @@
 			}));
 		};
 		socket.onclose = function () {
-			console.log("WebSocket連接已關閉，嘗試重新連接...");
-			if (retryCount < 5) {
+			console.log("WebSocket連接已關閉");
+			/*
+			if (retryCount < 3) {
 				setTimeout(() => initWebSocket(retryCount + 1), 5000);
 			} else {
 				console.log("已達到最大重試次數，停止重試");
 			}
+
+			 */
 		};
 		socket.onerror = function (error) {
 			console.error("WebSocket出錯：", error);

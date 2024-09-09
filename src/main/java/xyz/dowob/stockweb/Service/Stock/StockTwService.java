@@ -321,7 +321,7 @@ public class StockTwService {
             logger.debug("任務用時: {}", task.getTaskUsageTime());
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, true, stockTw));
         } catch (Exception e) {
-            logger.error("獲取{}歷史股價時發生錯誤: {}",stockTw.getStockCode(), e.getMessage());
+            logger.error("獲取{}歷史股價時發生錯誤: {}", stockTw.getStockCode(), e.getMessage());
             task.completeTask(TaskStatusType.FAILED, "獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, stockTw));
         }
@@ -340,7 +340,7 @@ public class StockTwService {
             logger.debug("沒有要更新的股票");
             return;
         }
-        Task task = new Task(UUID.randomUUID().toString(), "更新每日最新價格", 1);
+        Task task = new Task(UUID.randomUUID().toString(), "更新台灣股票每日最新價格", 1);
         taskRepository.save(task);
         LocalDateTime dateTime = LocalDate.now(ZoneId.of("Asia/Taipei")).atTime(16, 30);
         Instant instant = dateTime.atZone(ZoneId.of("Asia/Taipei")).toInstant();
