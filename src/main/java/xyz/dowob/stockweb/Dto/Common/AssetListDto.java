@@ -8,6 +8,9 @@ import java.io.Serializable;
 /**
  * @author yuan
  * 儲存資產清單的資料傳輸物件，因為需要將物件轉換成字串流傳輸，所以需要實作 Serializable
+ * 1. assetId: 資產ID
+ * 2. assetName: 資產名稱
+ * 3. isSubscribe: 是否訂閱
  */
 @Data
 public class AssetListDto implements Serializable {
@@ -25,6 +28,7 @@ public class AssetListDto implements Serializable {
      *
      * @param assetId   資產ID
      * @param assetName 資產名稱
+     * @param isSubscribe 是否訂閱
      */
     public AssetListDto(Long assetId, String assetName, boolean isSubscribe) {
         this.assetId = assetId;

@@ -133,7 +133,7 @@ public class CrontabMethod {
      */
     @PostConstruct
     public void init() {
-        logger.info("自動連線台股即時更新: " + isStockTwAutoStart);
+        logger.info("自動連線台股即時更新: {}", isStockTwAutoStart);
         if (isStockTwAutoStart) {
             immediatelyUpdateStockTw = true;
         }
@@ -228,7 +228,7 @@ public class CrontabMethod {
                 try {
                     checkSubscriptions();
                 } catch (JsonProcessingException e) {
-                    logger.error("無法獲取列表: " + e.getMessage());
+                    logger.error("無法獲取列表: {}", e.getMessage());
                 }
             }
         }
@@ -279,11 +279,11 @@ public class CrontabMethod {
         logger.debug(String.valueOf(users));
         try {
             for (User user : users) {
-                logger.debug("正在記錄使用者 " + user.getUsername() + " 的資產總價");
+                logger.debug("正在記錄使用者 {} 的資產總價", user.getUsername());
                 List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(user, false);
                 if (getAllPropertiesDtoList == null) {
-                    logger.debug("用戶:" + user.getUsername() + "沒有資產可以記錄");
-                    logger.info("重製用戶 " + user.getUsername() + " 的influx資產資料庫");
+                    logger.debug("用戶:{}沒有資產可以記錄", user.getUsername());
+                    logger.info("重製用戶 {} 的influx資產資料庫", user.getUsername());
                     propertyService.resetUserPropertySummary(user);
                     logger.info("重製用戶資料完成");
                     continue;
@@ -407,7 +407,7 @@ public class CrontabMethod {
                                                                         newsAutoupdateStockTw,
                                                                         newsAutoupdateCurrency);
         for (Asset asset : subscribeAsset) {
-            logger.debug("正在更新 " + asset.getId() + " 的新聞");
+            logger.debug("正在更新 {} 的新聞", asset.getId());
             newsService.sendNewsRequest(false, 1, null, asset);
         }
         newsService.sendNewsRequest(false, 1, "DEBT", null);
@@ -428,7 +428,7 @@ public class CrontabMethod {
             for (String key : keys) {
                 int totalPage = assetService.findAssetTotalPage(key, pageSize);
                 for (int page = 1; page <= totalPage; page++) {
-                    logger.debug("正在更新 " + key + " 的第 " + page + " 頁資產列表緩存");
+                    logger.debug("正在更新 {} 的第 {} 頁資產列表緩存", key, page);
                     String innerKey = keys + "_page_" + page;
                     List<Asset> assetsList = assetService.findAssetPageByType(key, page, false);
                     assetService.formatStringAssetListToFrontendType(assetsList, innerKey);
@@ -457,7 +457,7 @@ public class CrontabMethod {
      */
     public void operateStockTwTrack(boolean isOpen) {
         immediatelyUpdateStockTw = isOpen;
-        logger.info("已獲取股票台灣自動更新狀態 " + isOpen);
+        logger.info("已獲取股票台灣自動更新狀態 {}", isOpen);
         applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, isOpen, AssetType.STOCK_TW));
     }
 

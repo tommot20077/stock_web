@@ -3,7 +3,6 @@ package xyz.dowob.stockweb.Service.User;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,7 +109,7 @@ public class TokenService {
             user.setRole(Role.VERIFIED_USER);
             user.getToken().setEmailApiToken(null);
             userRepository.save(user);
-            logger.warn("用戶 " + user.getEmail() + " 完成驗證");
+            logger.warn("用戶 {} 完成驗證", user.getEmail());
 
         }
     }
@@ -141,13 +140,13 @@ public class TokenService {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("找不到用戶: " + email));
         String confirmToken = new String(Base64.getDecoder().decode(user.getToken().getEmailApiToken()), StandardCharsets.UTF_8);
         if (!confirmToken.equals(token)) {
-            logger.warn(user.getEmail() + " 重置密碼的驗證碼不正確");
+            logger.warn("{} 重置密碼的驗證碼不正確", user.getEmail());
             throw new RuntimeException("驗證碼不正確");
         }
         userService.validatePassword(newPassword);
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
-        logger.info("用戶 " + user.getEmail() + " 重置密碼成功");
+        logger.info("用戶 {} 重置密碼成功", user.getEmail());
     }
 
 
@@ -282,7 +281,7 @@ public class TokenService {
                 }
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }

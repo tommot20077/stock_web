@@ -121,12 +121,11 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         eventPublisher.publishEvent(new WebSocketConnectionStatusEvent(this, false, null));
-        logger.info("WebSocket連線關閉: Session " + session.getId());
+        logger.info("WebSocket連線關閉: Session {}", session.getId());
         scheduler.shutdownNow();
         try {
             if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
                 scheduler.shutdownNow();
-                logger.info("WebSocket連線關閉: 已強制關閉");
             }
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
@@ -155,7 +154,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
             if (lifeTime > connectMaxLiftTime) {
                 reconnectAndResubscribe();
             } else {
-                logger.info("WebSocket連線正常，目前已存活時間: " + lifeTime + "秒");
+                logger.info("WebSocket連線正常，目前已存活時間: {}秒", lifeTime);
             }
 
         }, 1, 1, TimeUnit.HOURS);
@@ -198,7 +197,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     @SuppressWarnings("unchecked")
     public void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) throws JsonProcessingException {
         TypeReference<Map<String, Object>> typeRef = new TypeReference<>() {};
-        logger.debug("收到的消息: " + message.getPayload());
+        logger.debug("收到的消息: {}", message.getPayload());
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> jsonMap = objectMapper.readValue(message.getPayload(), typeRef);
         try {
@@ -221,10 +220,10 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     logger.debug("dataMap為null");
                 }
             } else if (jsonMap.containsKey("result")) {
-                logger.debug("WebSocket收到" + jsonMap);
-                logger.debug("訂閱結果: " + jsonMap.get("result"));
+                logger.debug("WebSocket收到{}", jsonMap);
+                logger.debug("訂閱結果: {}", jsonMap.get("result"));
             } else {
-                logger.warn("未知的消息: " + jsonMap);
+                logger.warn("未知的消息: {}", jsonMap);
             }
         } catch (Exception e) {
             logger.error("處理ws的消息時發生錯誤", e);
@@ -254,15 +253,15 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     public void subscribeTradingPair(String tradingPair, String channel, User user) throws Exception {
         CryptoTradingPair cryptoTradingPairSymbol = findTradingPair(tradingPair);
         if (cryptoTradingPairSymbol == null) {
-            logger.warn("沒有找到" + tradingPair + "的交易對");
+            logger.warn("沒有找到{}的交易對", tradingPair);
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
             if (subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(), cryptoTradingPairSymbol.getId(), channel).isPresent()) {
-                logger.warn("已訂閱過" + tradingPair + channel + "交易對");
+                logger.warn("已訂閱過{}{}交易對", tradingPair, channel);
                 throw new Exception("已訂閱過" + tradingPair + channel + "交易對");
             } else {
                 if (cryptoTradingPairSymbol.checkUserIsSubscriber(user)) {
-                    logger.warn(user.getUsername() + "已訂閱過" + tradingPair + channel + "交易對，不進行訂閱");
+                    logger.warn("{}已訂閱過{}{}交易對，不進行訂閱", user.getUsername(), tradingPair, channel);
                 } else {
                     logger.debug("用戶主動訂閱，此訂閱設定可刪除");
                     Subscribe subscribe = new Subscribe();
@@ -272,7 +271,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     subscribe.setUserSubscribed(true);
                     subscribe.setRemoveAble(true);
                     subscribeRepository.save(subscribe);
-                    logger.info("已訂閱" + tradingPair + channel + "交易對");
+                    logger.info("已訂閱{}{}交易對", tradingPair, channel);
                     subscribeMethod.addSubscriberToCryptoTradingPair(cryptoTradingPairSymbol, user.getId());
                 }
             }
@@ -292,14 +291,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
     public void unsubscribeTradingPair(String tradingPair, String channel, User user) throws Exception {
         CryptoTradingPair cryptoTradingPairSymbol = findTradingPair(tradingPair);
         if (cryptoTradingPairSymbol == null) {
-            logger.warn("沒有找到" + tradingPair + "的交易對");
+            logger.warn("沒有找到{}的交易對", tradingPair);
             throw new Exception("沒有找到" + tradingPair + "的交易對");
         } else {
             Subscribe subscribe = subscribeRepository.findByUserIdAndAssetIdAndChannel(user.getId(),
                                                                                        cryptoTradingPairSymbol.getId(),
                                                                                        channel).orElse(null);
             if (subscribe == null) {
-                logger.warn("尚未訂閱過" + tradingPair + channel + "交易對");
+                logger.warn("尚未訂閱過{}{}交易對", tradingPair, channel);
                 throw new Exception("尚未訂閱過" + tradingPair + channel + "交易對");
             } else if (subscribe.isRemoveAble()) {
                 subscribeRepository.delete(subscribe);
@@ -308,9 +307,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 }
                 if (cryptoRepository.countCryptoSubscribersNumber(cryptoTradingPairSymbol) == 0 && webSocketSession != null && webSocketSession.isOpen()) {
                     String message = "{\"method\":\"UNSUBSCRIBE\", \"params\":[" + "\"" + tradingPair.toLowerCase() + channel.toLowerCase() + "\"]" + ", \"id\": null}";
-                    logger.debug("取消訂閱訊息: " + message);
+                    logger.debug("取消訂閱訊息: {}", message);
                     webSocketSession.sendMessage(new TextMessage(message));
-                    logger.info("已取消訂閱" + tradingPair + channel + "交易對");
+                    logger.info("已取消訂閱{}{}交易對", tradingPair, channel);
                     int allSubscribeNumber = cryptoRepository.countAllSubscribeNumber();
                     if (allSubscribeNumber == 0) {
                         logger.warn("目前沒有交易對的訂閱");
@@ -322,7 +321,7 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                     }
                 }
             } else {
-                logger.warn("此訂閱: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+                logger.warn("此訂閱: {}@kline_1m 為用戶: {}現在所持有的資產，不可刪除訂閱", tradingPair, user.getUsername());
                 throw new Exception("此資產: " + tradingPair + "@kline_1m 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
             }
         }
@@ -400,9 +399,9 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
                 logger.info("沒有訂閱記錄");
             } else {
                 logger.info("重新訂閱之前的所有記錄");
-                logger.debug("訂閱參數: " + tradingPairList);
+                logger.debug("訂閱參數: {}", tradingPairList);
                 String message = "{\"method\":\"SUBSCRIBE\", \"params\":" + tradingPairList + ", \"id\": null}";
-                logger.debug("訂閱訊息: " + message);
+                logger.debug("訂閱訊息: {}", message);
                 webSocketSession.sendMessage(new TextMessage(message));
                 logger.info("重新訂閱成功");
                 isRunning = true;
@@ -444,6 +443,14 @@ public class CryptoWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 這個方法用於將加密貨幣數據格式化為K線數據。
+     * 以虛擬貨幣名稱為key，K線數據為value。
+     *
+     * @param dataMap 加密貨幣數據
+     *
+     * @return Map<String, Map < String, String>>
+     */
     private Map<String, Map<String, String>> formatCryptoDataToKline(Map<String, Object> dataMap) {
         HashMap<String, String> kline = new HashMap<>();
         HashMap<String, Map<String, String>> result = new HashMap<>();

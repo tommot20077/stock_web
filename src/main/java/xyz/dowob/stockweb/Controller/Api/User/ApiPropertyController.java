@@ -15,7 +15,6 @@ import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Service.Common.Property.PropertyService;
 import xyz.dowob.stockweb.Service.User.UserService;
 
-import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,13 +64,13 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
 
             Map<String, String> failureModify = new HashMap<>();
             for (PropertyListDto.PropertyDto stockTw : propertyListDto.getPropertyList()) {
                 try {
-                    logger.debug("修改: " + stockTw.getId() + " 的股票");
-                    logger.debug("來源資料: " + stockTw);
+                    logger.debug("修改: {} 的股票", stockTw.getId());
+                    logger.debug("來源資料: {}", stockTw);
                     propertyService.modifyStock(user, stockTw);
                 } catch (RuntimeException e) {
                     if (stockTw.getSymbol() != null) {
@@ -113,13 +112,13 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
 
             Map<String, String> failureModify = new HashMap<>();
             for (PropertyListDto.PropertyDto currency : propertyListDto.getPropertyList()) {
                 try {
-                    logger.debug("修改: " + currency.getId() + " 的貨幣");
-                    logger.debug("來源資料: " + currency);
+                    logger.debug("修改: {} 的貨幣", currency.getId());
+                    logger.debug("來源資料: {}", currency);
                     propertyService.modifyCurrency(user, currency);
                 } catch (RuntimeException e) {
                     if (currency.getSymbol() != null) {
@@ -160,13 +159,13 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
 
             Map<String, String> failureModify = new HashMap<>();
             for (PropertyListDto.PropertyDto crypto : propertyListDto.getPropertyList()) {
                 try {
-                    logger.debug("修改: " + crypto.getId() + " 的加密貨幣");
-                    logger.debug("來源資料: " + crypto);
+                    logger.debug("修改: {} 的加密貨幣", crypto.getId());
+                    logger.debug("來源資料: {}", crypto);
                     propertyService.modifyCrypto(user, crypto);
                 } catch (RuntimeException e) {
                     if (crypto.getSymbol() != null) {
@@ -202,7 +201,7 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
             List<PropertyListDto.getAllPropertiesDto> allProperties = propertyService.getUserAllProperties(user, true);
             if (allProperties == null) {
                 return ResponseEntity.status(445).body("沒有資產");
@@ -262,7 +261,7 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
             String json = propertyService.getPropertyOverview(user);
             return ResponseEntity.ok().body(json);
         } catch (Exception ex) {
@@ -285,7 +284,7 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
             String json = propertyService.getUserPropertyOverview(user);
             return ResponseEntity.ok().body(json);
         } catch (Exception ex) {
@@ -307,7 +306,7 @@ public class ApiPropertyController {
             if (user == null) {
                 return ResponseEntity.status(401).body("請先登入");
             }
-            logger.debug("獲取: " + user.getUsername() + " 的使用者");
+            logger.debug("獲取: {} 的使用者", user.getUsername());
             Map<String, Object> result = propertyService.getRoiStatistic(user);
             Map<String, Map<String, String>> sharpRatio = Map.of("sharp_ratio", propertyService.getSharpRatio(user));
             Map<String, Map<String, Map<String, Map<String, Object>>>> drawDown = Map.of("draw_down", propertyService.getDrawDown(user));

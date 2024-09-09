@@ -68,7 +68,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("郵件地址不能為空");
         }
         User user = userRepository.findByEmail(mail).orElse(null);
-        logger.debug("找到用戶為 : " + user);
+        logger.debug("找到用戶為 : {}", user);
 
         if (user == null) {
             throw new RuntimeException("找不到用戶mail為 : " + mail);

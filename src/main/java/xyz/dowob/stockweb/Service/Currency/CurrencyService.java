@@ -108,31 +108,31 @@ public class CurrencyService {
 
                 Optional<Currency> existingData = currencyRepository.findByCurrency(currency);
                 if (existingData.isPresent()) {
-                    logger.debug(currency + "的匯率資料已存在");
+                    logger.debug("{}的匯率資料已存在", currency);
                     Currency data = existingData.get();
                     if (data.getExchangeRate().compareTo(exRate) != 0) {
-                        logger.debug("開始更新" + currency + "的匯率資料");
+                        logger.debug("開始更新{}的匯率資料", currency);
                         data.setExchangeRate(exRate);
                         data.setUpdateTime(updateTime);
                         currencyRepository.save(data);
-                        logger.debug(currency + "的匯率資料更新完成");
+                        logger.debug("{}的匯率資料更新完成", currency);
                     } else {
-                        logger.debug(currency + "的匯率資料無需更新");
+                        logger.debug("{}的匯率資料無需更新", currency);
                     }
                 } else {
-                    logger.debug(currency + "的匯率資料不存在，新增資料中");
+                    logger.debug("{}的匯率資料不存在，新增資料中", currency);
                     Currency currencyData = new Currency();
                     currencyData.setCurrency(currency);
                     currencyData.setExchangeRate(exRate);
                     currencyData.setUpdateTime(updateTime);
                     currencyData.setAssetType(AssetType.CURRENCY);
                     currencyRepository.save(currencyData);
-                    logger.debug(currency + "的匯率資料新增完成");
+                    logger.debug("{}的匯率資料新增完成", currency);
                 }
             });
             logger.info("匯率資料新增完成");
         } catch (Exception e) {
-            logger.error("轉換匯率資料失敗: " + e.getMessage());
+            logger.error("轉換匯率資料失敗: {}", e.getMessage());
             throw new RuntimeException("轉換匯率資料失敗: " + e.getMessage());
         }
     }
@@ -180,7 +180,7 @@ public class CurrencyService {
                 rates.put("USD" + currency, currencyData.getExchangeRate());
             } else {
                 rates.put("USD" + currency, BigDecimal.ZERO);
-                logger.warn("無法取得" + currency + "的匯率資料");
+                logger.warn("無法取得{}的匯率資料", currency);
             }
         }
         return rates;
@@ -218,7 +218,7 @@ public class CurrencyService {
         subscribe.setUserSubscribed(true);
         subscribe.setRemoveAble(true);
         subscribeRepository.save(subscribe);
-        logger.info(user.getUsername() + "訂閱" + from + "  ⇄  " + to);
+        logger.info("{}訂閱{}  ⇄  {}", user.getUsername(), from, to);
 
     }
 
@@ -244,9 +244,12 @@ public class CurrencyService {
         }
         if (subscribe.isRemoveAble()) {
             subscribeRepository.delete(subscribe);
-            logger.info(user.getUsername() + "取消訂閱" + from + "  ⇄  " + to);
+            logger.info("{}取消訂閱{}  ⇄  {}", user.getUsername(), from, to);
         } else {
-            logger.warn("此訂閱: " + fromCurrency.getCurrency() + "  ⇄  " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+            logger.warn("此訂閱: {}  ⇄  {} 為用戶: {}現在所持有的資產，不可刪除訂閱",
+                        fromCurrency.getCurrency(),
+                        toCurrency.getCurrency(),
+                        user.getUsername());
             throw new Exception("此訂閱: " + fromCurrency.getCurrency() + "  ⇄  " + toCurrency.getCurrency() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
         }
     }

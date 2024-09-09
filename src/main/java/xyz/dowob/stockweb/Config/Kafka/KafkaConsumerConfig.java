@@ -16,6 +16,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * 這是一個Kafka消費者配置類，用於配置Kafka消費者。
+ * 當設定檔案中的common.kafka.enable為true時，啟用Kafka消費者。
+ *
  * @author yuan
  * @program Stock-Web
  * @ClassName KafkaConsumerConfig
@@ -28,11 +31,14 @@ import java.util.Map;
 @ConditionalOnProperty(name = "common.kafka.enable",
                        havingValue = "true")
 public class KafkaConsumerConfig {
-    @Value("${spring.kafka.bootstrap-servers}")
+    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
-
-
+    /**
+     * 配置Kafka消費者的工廠
+     *
+     * @return 消費者工廠
+     */
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
         Map<String, Object> configProps = new HashMap<>();
@@ -42,12 +48,15 @@ public class KafkaConsumerConfig {
         return new DefaultKafkaConsumerFactory<>(configProps);
     }
 
+    /**
+     * 配置Kafka消費者的容器工廠
+     *
+     * @return 容器工廠
+     */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         return factory;
     }
-
-
 }

@@ -6,6 +6,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
+ * 用於Kafka生產者的方法。
+ * 當設定檔中的common.kafka.enable為true時，此類別將被實例化。
+ *
  * @author yuan
  * @program Stock-Web
  * @ClassName KafkaProducerMethod
@@ -14,7 +17,8 @@ import org.springframework.stereotype.Component;
  * @Version 1.0
  **/
 @Component
-@ConditionalOnProperty(name = "common.kafka.enable", havingValue = "true")
+@ConditionalOnProperty(name = "common.kafka.enable",
+                       havingValue = "true")
 public class KafkaProducerMethod {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -23,6 +27,12 @@ public class KafkaProducerMethod {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    /**
+     * 發送消息到指定的主題。
+     *
+     * @param topic   主題名稱
+     * @param message 消息對象
+     */
     public void sendMessage(String topic, Object message) {
         kafkaTemplate.send(topic, message);
     }

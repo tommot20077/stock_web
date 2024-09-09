@@ -1,5 +1,6 @@
 package xyz.dowob.stockweb.Service.Common;
 
+import com.google.common.annotations.Beta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +65,7 @@ public class RedisService {
      * @param values         新的数据值
      * @param expirationTime 過期时间，以小時為单位
      */
+    @Beta
     public void saveListToCache(String key, List<String> values, long expirationTime) {
         redisTemplate.delete(key);
         if (!values.isEmpty()) {
@@ -107,7 +109,7 @@ public class RedisService {
         try {
             return redisTemplate.opsForList().range(key, 0, -1);
         } catch (Exception e) {
-            logger.error("讀取redis時發生錯誤: " + e.getMessage());
+            logger.error("讀取redis時發生錯誤: {}", e.getMessage());
             throw new RuntimeException("讀取redis時發生錯誤" + e.getMessage());
         }
     }
@@ -149,7 +151,7 @@ public class RedisService {
                 redisTemplate.delete(keysToDelete);
             }
         } catch (Exception e) {
-            logger.error("刪除redis時發生錯誤: " + e.getMessage());
+            logger.error("刪除redis時發生錯誤: {}", e.getMessage());
             throw new RuntimeException("刪除redis時發生錯誤: " + e.getMessage());
         }
 

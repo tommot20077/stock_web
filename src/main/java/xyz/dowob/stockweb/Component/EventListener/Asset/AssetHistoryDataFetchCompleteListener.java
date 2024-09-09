@@ -97,7 +97,7 @@ public class AssetHistoryDataFetchCompleteListener implements ApplicationListene
             });
         } catch (RetryException e) {
             Exception lastException = e.getLastException();
-            logger.error("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
+            logger.error("重試失敗，最後一次錯誤信息：{}", lastException.getMessage(), lastException);
             throw new RuntimeException("操作失敗: " + lastException.getMessage(), lastException);
         }
     }

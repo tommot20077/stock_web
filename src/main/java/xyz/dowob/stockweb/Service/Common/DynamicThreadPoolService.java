@@ -63,7 +63,7 @@ public class DynamicThreadPoolService {
             this.executorService.setCorePoolSize(Math.max(corePoolSize - 1, 1));
             logger.debug("線程池減少一個線程");
         }
-        logger.debug("線程池現在有" + activeTaskCount + "個線程");
+        logger.debug("線程池現在有{}個線程", activeTaskCount);
     }
 
     /**
@@ -72,7 +72,7 @@ public class DynamicThreadPoolService {
     public void onTaskStart() {
         activeTasks.incrementAndGet();
         adjustThreadPoolBasedOnLoad();
-        logger.debug("現在有" + activeTasks + "個任務");
+        logger.debug("現在有{}個任務", activeTasks);
     }
 
     /**
@@ -81,7 +81,7 @@ public class DynamicThreadPoolService {
     public void onTaskComplete() {
         activeTasks.decrementAndGet();
         adjustThreadPoolBasedOnLoad();
-        logger.debug("現在有" + activeTasks + "個任務");
+        logger.debug("現在有{}個任務", activeTasks);
     }
 
     /**
@@ -106,7 +106,7 @@ public class DynamicThreadPoolService {
             if (!executorService.awaitTermination(timeout, unit)) {
                 List<Runnable> tasks = executorService.shutdownNow();
                 logger.warn("任務關閉超過預定時間，強制關閉");
-                logger.info("剩餘任務: " + tasks.size());
+                logger.info("剩餘任務: {}", tasks.size());
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

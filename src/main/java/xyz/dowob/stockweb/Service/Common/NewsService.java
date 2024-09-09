@@ -124,7 +124,7 @@ public class NewsService {
         }
         inquiryUrl.append("pageSize=").append(pageSize).append("&");
         inquiryUrl.append("page=").append(page);
-        logger.debug("查詢Url: " + inquiryUrl);
+        logger.debug("查詢Url: {}", inquiryUrl);
         return inquiryUrl.toString();
     }
 
@@ -152,18 +152,18 @@ public class NewsService {
         try {
             ResponseEntity<String> response = restTemplate.exchange(requestEntity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                logger.debug("請求成功: " + response.getBody());
+                logger.debug("請求成功: {}", response.getBody());
                 handleResponse(response.getBody(), isHeadline, page, keyword, asset);
             } else {
-                logger.error("請求失敗: " + response.getBody());
+                logger.error("請求失敗: {}", response.getBody());
                 throw new RuntimeException("請求失敗: " + response.getBody());
             }
         } catch (HttpStatusCodeException e) {
-            logger.error("請求失敗: " + e.getStatusCode());
-            logger.error("錯誤內容: " + e.getResponseBodyAsString());
+            logger.error("請求失敗: {}", e.getStatusCode());
+            logger.error("錯誤內容: {}", e.getResponseBodyAsString());
             throw new RuntimeException("請求失敗: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            logger.error("請求時發生錯誤: " + e.getMessage());
+            logger.error("請求時發生錯誤: {}", e.getMessage());
             throw new RuntimeException("請求時發生錯誤: " + e.getMessage());
         }
     }
@@ -185,7 +185,7 @@ public class NewsService {
 
         List<String> titleList = newsRepository.getAllNewsWithPublishedAtAndTitle();
 
-        logger.info("總筆數: " + totalResults);
+        logger.info("總筆數: {}", totalResults);
         if (totalResults == 0) {
             logger.info("無資料");
             return;
@@ -201,7 +201,7 @@ public class NewsService {
 
 
             if (titleList.contains(title)) {
-                logger.info("重複新聞: " + title);
+                logger.info("重複新聞: {}", title);
                 continue;
             }
             news.setTitle(title);
@@ -292,7 +292,7 @@ public class NewsService {
             PageRequest pageRequest = PageRequest.of(page - 1, 50);
             return newsRepository.findAllByNewsTypeOrderByPublishedAtDesc(type, pageRequest);
         } catch (IllegalArgumentException e) {
-            logger.error("錯誤的類型: " + categoryString);
+            logger.error("錯誤的類型: {}", categoryString);
             throw new RuntimeException("錯誤的類型: " + categoryString);
         }
     }
@@ -319,7 +319,7 @@ public class NewsService {
      * @return Json格式的新聞列表
      */
     public String formatNewsListToJson(Page<News> newsList) {
-        logger.debug("newsList: " + newsList);
+        logger.debug("newsList: {}", newsList);
         if (newsList == null || newsList.isEmpty()) {
             return null;
         }

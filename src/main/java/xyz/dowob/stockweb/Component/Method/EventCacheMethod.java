@@ -1,17 +1,9 @@
 package xyz.dowob.stockweb.Component.Method;
 
-import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import xyz.dowob.stockweb.Component.Event.Crypto.CryptoHistoryDataChangeEvent;
-import xyz.dowob.stockweb.Component.Event.StockTw.StockTwHistoryDataChangeEvent;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.EventCache;
-import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
-import xyz.dowob.stockweb.Model.Stock.StockTw;
 import xyz.dowob.stockweb.Model.User.Property;
 import xyz.dowob.stockweb.Repository.Common.EventCacheRepository;
 

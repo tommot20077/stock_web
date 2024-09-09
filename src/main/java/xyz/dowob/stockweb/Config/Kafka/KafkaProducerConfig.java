@@ -16,6 +16,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * 這是一個Kafka生產者配置類，用於配置Kafka生產者。
+ * 當設定檔案中的common.kafka.enable為true時，啟用Kafka生產者。
+ *
  * @author yuan
  * @program Stock-Web
  * @ClassName KafkaConfig
@@ -29,9 +32,14 @@ import java.util.Map;
                        havingValue = "true")
 public class KafkaProducerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
+    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
+    /**
+     * 配置Kafka生產者的工廠
+     *
+     * @return 生產者工廠
+     */
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
@@ -41,6 +49,11 @@ public class KafkaProducerConfig {
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
+    /**
+     * 配置Kafka生產者的模板
+     *
+     * @return 生產者模板
+     */
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());

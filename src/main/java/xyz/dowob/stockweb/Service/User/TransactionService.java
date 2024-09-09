@@ -10,7 +10,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
@@ -112,7 +111,7 @@ public class TransactionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void operation(User user, TransactionListDto.TransactionDto transaction) {
-        logger.debug("User: " + user);
+        logger.debug("User: {}", user);
         logger.debug("紀錄交易: {}", transaction);
         String symbol = transaction.getSymbol().toUpperCase();
         String unit = transaction.getUnit().toUpperCase();
@@ -254,9 +253,8 @@ public class TransactionService {
 
                     if (userSymbolProperty.getQuantity().compareTo(transaction.formatQuantityAsBigDecimal()) == 0) {
 
-                        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                            propertyInfluxService.writeNetFlowToInflux(netFlow.negate(), user);
-                        });
+                        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> propertyInfluxService.writeNetFlowToInflux(netFlow.negate(),
+                                                                                                                                     user));
                         Property finalUserSymbolProperty = userSymbolProperty;
                         future.whenComplete((f, e) -> {
                             if (e != null) {
@@ -347,14 +345,12 @@ public class TransactionService {
                         if (cryptoTradingPair.isHasAnySubscribed()) {
                             logger.debug("寫入 InfluxDB");
                             propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), cryptoTradingPair);
-                            logger.debug("發布更新用戶資產事件");
-                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         } else {
                             logger.debug("等待事件監聽器回傳，存入事件緩存");
                             eventCacheMethod.addEventCache(userSymbolProperty, transaction.formatQuantityAsBigDecimal());
-                            logger.debug("發布更新用戶資產事件");
-                            eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                         }
+                        logger.debug("發布更新用戶資產事件");
+                        eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                     }
                     case Currency currency -> {
                         propertyInfluxService.calculateNetFlow(transaction.formatQuantityAsBigDecimal(), currency);

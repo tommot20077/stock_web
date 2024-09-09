@@ -57,41 +57,34 @@ public class ChartMethod {
         chartData.put("latest", new ArrayList<>());
         BigDecimal exchangeRate = preferCurrency.getExchangeRate();
 
-        userSummary.forEach((key, tables) -> {
-            tables.forEach(table -> {
-                table.getRecords().forEach(record -> {
-                    String field = (String) record.getValueByKey("_field");
-                    List<Map<String, Object>> dataPoints = chartData.get(field);
-                    if (dataPoints != null) {
-                        Map<String, Object> dataPoint = new HashMap<>();
-                        Instant time = (Instant) record.getValueByKey("_time");
-                        dataPoint.put("field", field);
-                        dataPoint.put("date_instant", time);
-                        dataPoint.put("date_Format", formatDate(time));
+        userSummary.forEach((key, tables) -> tables.forEach(table -> table.getRecords().forEach(record -> {
+            String field = (String) record.getValueByKey("_field");
+            List<Map<String, Object>> dataPoints = chartData.get(field);
+            if (dataPoints != null) {
+                Map<String, Object> dataPoint = new HashMap<>();
+                Instant time = (Instant) record.getValueByKey("_time");
+                dataPoint.put("field", field);
+                dataPoint.put("date_instant", time);
+                dataPoint.put("date_Format", formatDate(time));
 
 
-                        Double value = (Double) record.getValueByKey("_value");
-                        if (value != null) {
-                            BigDecimal exchangeValue = new BigDecimal(value).multiply(exchangeRate).setScale(6, RoundingMode.HALF_UP);
-                            dataPoint.put("value", exchangeValue);
-                        } else {
-                            dataPoint.put("value", record.getValueByKey("_value"));
-                        }
+                Double value = (Double) record.getValueByKey("_value");
+                if (value != null) {
+                    BigDecimal exchangeValue = new BigDecimal(value).multiply(exchangeRate).setScale(6, RoundingMode.HALF_UP);
+                    dataPoint.put("value", exchangeValue);
+                } else {
+                    dataPoint.put("value", record.getValueByKey("_value"));
+                }
 
-                        dataPoints.add(dataPoint);
+                dataPoints.add(dataPoint);
 
-                        if (!latestRecord.containsKey(field) || Objects.requireNonNull(time)
-                                                                       .compareTo((Instant) latestRecord.get(field)
-                                                                                                        .get("date_instant")) > 0) {
-                            latestRecord.put(field, dataPoint);
-                        }
-                    }
-                });
-            });
-        });
-        latestRecord.forEach((field, dataPoint) -> {
-            chartData.get("latest").add(dataPoint);
-        });
+                if (!latestRecord.containsKey(field) || Objects.requireNonNull(time)
+                                                               .compareTo((Instant) latestRecord.get(field).get("date_instant")) > 0) {
+                    latestRecord.put(field, dataPoint);
+                }
+            }
+        })));
+        latestRecord.forEach((field, dataPoint) -> chartData.get("latest").add(dataPoint));
         return chartData;
     }
 
@@ -106,16 +99,14 @@ public class ChartMethod {
      */
     public List<Map<String, Object>> formatDailyRoiToChartData(List<FluxTable> dailyRoiDataTables) {
         List<Map<String, Object>> chartData = new ArrayList<>();
-        dailyRoiDataTables.forEach(table -> {
-            table.getRecords().forEach(record -> {
-                Map<String, Object> dataPoint = new HashMap<>();
-                Instant time = (Instant) record.getValueByKey("_time");
-                dataPoint.put("date_instant", time);
-                dataPoint.put("date_Format", formatDate(time));
-                dataPoint.put("value", record.getValueByKey("_value"));
-                chartData.add(dataPoint);
-            });
-        });
+        dailyRoiDataTables.forEach(table -> table.getRecords().forEach(record -> {
+            Map<String, Object> dataPoint = new HashMap<>();
+            Instant time = (Instant) record.getValueByKey("_time");
+            dataPoint.put("date_instant", time);
+            dataPoint.put("date_Format", formatDate(time));
+            dataPoint.put("value", record.getValueByKey("_value"));
+            chartData.add(dataPoint);
+        }));
         return chartData;
     }
 }

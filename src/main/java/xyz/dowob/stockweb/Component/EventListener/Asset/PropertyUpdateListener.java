@@ -69,8 +69,8 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
                     List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(event.getUser(),
                                                                                                                              false);
                     if (getAllPropertiesDtoList == null || getAllPropertiesDtoList.isEmpty()) {
-                        logger.debug("沒有用戶資產，停止紀錄用戶:" + event.getUser().getUsername());
-                        logger.info("重製用戶 " + event.getUser().getUsername() + " 的influx資產資料庫");
+                        logger.debug("沒有用戶資產，停止紀錄用戶:{}", event.getUser().getUsername());
+                        logger.info("重製用戶 {} 的influx資產資料庫", event.getUser().getUsername());
                         propertyService.resetUserPropertySummary(event.getUser());
                         logger.debug("重製用戶資料完成");
                         return;

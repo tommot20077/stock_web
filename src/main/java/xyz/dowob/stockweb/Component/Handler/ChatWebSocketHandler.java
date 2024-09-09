@@ -1,6 +1,7 @@
 package xyz.dowob.stockweb.Component.Handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.Beta;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.web.socket.CloseStatus;
@@ -23,22 +24,23 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Version 1.0
  **/
 @Log4j2
+@Beta
 public class ChatWebSocketHandler extends TextWebSocketHandler {
     private static final Map<String, WebSocketSession> CONNECTIONS = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
-        log.info("新的WebSocket連線建立: " + session.getId() + " ,用戶: " + session.getAttributes().get("userId"));
+        log.info("新的WebSocket連線建立: {} ,用戶: {}", session.getId(), session.getAttributes().get("userId"));
         CONNECTIONS.put(session.getId(), session);
-        log.info("目前WebSocket連線數量: " + CONNECTIONS.size());
+        log.info("目前WebSocket連線數量: {}", CONNECTIONS.size());
     }
 
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws IOException {
-        log.info("WebSocket連線關閉: " + session.getId() + " ,用戶: " + session.getAttributes().get("userId"));
+        log.info("WebSocket連線關閉: {} ,用戶: {}", session.getId(), session.getAttributes().get("userId"));
         WebSocketSession webSocketSession = Objects.requireNonNull(CONNECTIONS.remove(session.getId()));
         webSocketSession.close();
-        log.info("目前WebSocket連線數量: " + CONNECTIONS.size());
+        log.info("目前WebSocket連線數量: {}", CONNECTIONS.size());
     }
 
     @Override
@@ -59,21 +61,21 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     session.sendMessage(new TextMessage(json));
                 }
             } catch (IOException e) {
-                log.error("發送消息失敗: " + e.getMessage());
+                log.error("發送消息失敗: {}", e.getMessage());
             }
         }
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        log.info("收到消息: " + message.getPayload());
+        log.info("收到消息: {}", message.getPayload());
         this.sendMessage(session.getAttributes().get("username").toString(), message.getPayload());
     }
 
     @Override
     public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) throws Exception {
-        log.error("WebSocket連線出現錯誤: " + session.getId() + " ,用戶: " + session.getAttributes().get("userId"));
-        log.error("錯誤訊息: " + exception.getMessage());
+        log.error("WebSocket連線出現錯誤: {} ,用戶: {}", session.getId(), session.getAttributes().get("userId"));
+        log.error("錯誤訊息: {}", exception.getMessage());
         super.handleTransportError(session, exception);
     }
 

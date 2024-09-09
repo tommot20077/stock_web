@@ -50,14 +50,14 @@ public class FileService {
         if (resource != null) {
             File dir = new File(downloadPath);
             if (!dir.exists() && !dir.mkdirs()) {
-                logger.error("無法創建目錄: " + dir.getAbsolutePath());
+                logger.error("無法創建目錄: {}", dir.getAbsolutePath());
                 return null;
             }
             File zipFile = new File(dir, fileName);
             try {
                 ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, null, byte[].class);
-                logger.debug("HTTP響應狀態碼: " + response.getStatusCode());
-                logger.debug("檔案大小: " + response.getHeaders().getContentLength());
+                logger.debug("HTTP響應狀態碼: {}", response.getStatusCode());
+                logger.debug("檔案大小: {}", response.getHeaders().getContentLength());
 
                 if (response.getStatusCode() == HttpStatus.OK) {
                     byte[] fileBytes = response.getBody();
@@ -68,9 +68,9 @@ public class FileService {
 
                     try (OutputStream outputStream = new FileOutputStream(zipFile)) {
                         outputStream.write(fileBytes);
-                        logger.debug("檔案下載成功: " + zipFile.getAbsolutePath());
+                        logger.debug("檔案下載成功: {}", zipFile.getAbsolutePath());
                     } catch (IOException e) {
-                        logger.error("檔案保存失敗: " + e.getMessage());
+                        logger.error("檔案保存失敗: {}", e.getMessage());
                         return null;
                     }
                     if (zipFile.length() != response.getHeaders().getContentLength()) {
@@ -78,11 +78,11 @@ public class FileService {
                         return null;
                     }
                 } else {
-                    logger.error("HTTP響應狀態碼: " + response.getStatusCode());
+                    logger.error("HTTP響應狀態碼: {}", response.getStatusCode());
                     return null;
                 }
             } catch (RestClientException e) {
-                logger.error("請求失敗: " + e.getMessage());
+                logger.error("請求失敗: {}", e.getMessage());
                 return null;
             }
 
@@ -90,7 +90,7 @@ public class FileService {
                 ZipEntry zipEntry = zis.getNextEntry();
                 while (zipEntry != null) {
                     File csvFile = new File(dir, zipEntry.getName());
-                    logger.debug("解壓縮檔案: " + csvFile.getAbsolutePath());
+                    logger.debug("解壓縮檔案: {}", csvFile.getAbsolutePath());
                     try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(csvFile))) {
                         int bytesRead;
                         while ((bytesRead = zis.read(buffer, 0, buffer.length)) != -1) {

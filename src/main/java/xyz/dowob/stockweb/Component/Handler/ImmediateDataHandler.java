@@ -67,9 +67,9 @@ public class ImmediateDataHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
         User user = (User) session.getAttributes().get("user");
-        log.debug("用戶: " + user.getUsername() + "連接成功");
+        log.debug("用戶: {}連接成功", user.getUsername());
         SESSION_MAP.put(session.getId(), session);
-        log.debug("當前連接數量: " + SESSION_MAP.size());
+        log.debug("當前連接數量: {}", SESSION_MAP.size());
         sendMessage(session);
         log.debug("發送消息成功");
     }
@@ -86,10 +86,10 @@ public class ImmediateDataHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws IOException {
         User user = (User) session.getAttributes().get("user");
-        log.debug("用戶: " + user.getUsername() + "連接關閉");
+        log.debug("用戶: {}連接關閉", user.getUsername());
         SESSION_MAP.remove(session.getId()).close();
         session.close();
-        log.debug("當前連接數量: " + SESSION_MAP.size());
+        log.debug("當前連接數量: {}", SESSION_MAP.size());
     }
 
     /**
@@ -102,8 +102,8 @@ public class ImmediateDataHandler extends TextWebSocketHandler {
      */
     @Override
     public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) throws Exception {
-        log.error("WebSocket連線出現錯誤: " + session.getId() + " ,用戶ID: " + session.getAttributes().get("userId"));
-        log.error("錯誤訊息: " + exception.getMessage());
+        log.error("WebSocket連線出現錯誤: {} ,用戶ID: {}", session.getId(), session.getAttributes().get("userId"));
+        log.error("錯誤訊息: {}", exception.getMessage());
         super.handleTransportError(session, exception);
     }
 
@@ -120,7 +120,7 @@ public class ImmediateDataHandler extends TextWebSocketHandler {
                 log.info("發送消息時發生錯誤: 連線已經關閉");
             }
         } catch (IOException e) {
-            log.error("發送消息時發生錯誤: " + e.getMessage());
+            log.error("發送消息時發生錯誤: {}", e.getMessage());
         }
     }
 }

@@ -65,7 +65,7 @@ public class SubscribeMethod {
      */
     @Transactional(rollbackFor = Exception.class)
     public void subscribeProperty(Property property, User user) {
-        logger.debug("訂閱資產ID: " + property.getId());
+        logger.debug("訂閱資產ID: {}", property.getId());
         Subscribe subscribe;
         if (property.getAsset().getAssetType() == AssetType.CURRENCY) {
             logger.debug("訂閱貨幣匯率");
@@ -83,7 +83,7 @@ public class SubscribeMethod {
             subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), property.getAsset().getId()).orElse(null);
         }
 
-        logger.debug("取得用戶訂閱表: " + subscribe);
+        logger.debug("取得用戶訂閱表: {}", subscribe);
         if (subscribe != null) {
             if (!subscribe.isUserSubscribed()) {
                 subscribe.setUserSubscribed(true);
@@ -100,17 +100,17 @@ public class SubscribeMethod {
             subscribe.setUserSubscribed(true);
             subscribe.setRemoveAble(false);
             logger.debug("用戶訂閱數量加 1");
-            logger.debug("訂閱資產類型: " + property.getAsset().getAssetType());
+            logger.debug("訂閱資產類型: {}", property.getAsset().getAssetType());
             switch (property.getAsset()) {
                 case StockTw stockTw -> {
-                    logger.debug("訂閱股票: " + stockTw.getStockCode());
+                    logger.debug("訂閱股票: {}", stockTw.getStockCode());
                     if (!stockTw.checkUserIsSubscriber(user)) {
                         addSubscriberToStockTw(stockTw, user.getId());
                         logger.debug("用戶訂閱此股票數不為 0，股票訂閱數加 1");
                     }
                 }
                 case CryptoTradingPair crypto -> {
-                    logger.debug("訂閱加密貨幣: " + crypto.getBaseAsset());
+                    logger.debug("訂閱加密貨幣: {}", crypto.getBaseAsset());
                     subscribe.setChannel("@kline_1m");
                     if (!crypto.checkUserIsSubscriber(user)) {
                         addSubscriberToCryptoTradingPair(crypto, user.getId());
@@ -122,7 +122,7 @@ public class SubscribeMethod {
                         logger.debug("此資產為預設幣別，不須訂閱");
                         return;
                     }
-                    logger.debug("訂閱匯率: " + currency.getCurrency() + "-" + user.getPreferredCurrency());
+                    logger.debug("訂閱匯率: {}-{}", currency.getCurrency(), user.getPreferredCurrency());
                     subscribe.setChannel(user.getPreferredCurrency().getCurrency());
                 }
                 case null, default -> logger.warn("錯誤的資產類型");
@@ -142,7 +142,7 @@ public class SubscribeMethod {
 
     @Transactional(rollbackFor = Exception.class)
     public void unsubscribeProperty(Property property, User user) {
-        logger.debug("取消訂閱資產ID: " + property.getId());
+        logger.debug("取消訂閱資產ID: {}", property.getId());
         Subscribe subscribe;
         if (property.getAsset().getAssetType() == AssetType.CURRENCY) {
             logger.debug("取消訂閱貨幣匯率");
@@ -159,7 +159,7 @@ public class SubscribeMethod {
             logger.debug("取消訂閱其他匯率");
             subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), property.getAsset().getId()).orElse(null);
         }
-        logger.debug("取得用戶資產訂閱表: " + subscribe);
+        logger.debug("取得用戶資產訂閱表: {}", subscribe);
         if (subscribe != null && subscribe.isUserSubscribed()) {
             logger.debug("用戶有此資產訂閱");
             subscribeRepository.delete(subscribe);
@@ -238,13 +238,13 @@ public class SubscribeMethod {
         Set<Asset> userSubscribed = subscribeRepository.findAllAsset();
         for (Asset asset : userSubscribed) {
             if (asset instanceof StockTw stockTw && !stockTw.isHasAnySubscribed()) {
-                logger.debug("資產" + asset.getId() + "有訂閱但無歷史資料，重新抓取資料");
+                logger.debug("資產{}有訂閱但無歷史資料，重新抓取資料", asset.getId());
                 eventPublisher.publishEvent(new StockTwHistoryDataChangeEvent(this, stockTw, "add"));
             } else if (asset instanceof CryptoTradingPair cryptoTradingPair && !cryptoTradingPair.isHasAnySubscribed()) {
-                logger.debug("資產" + asset.getId() + "有訂閱但無歷史資料，重新抓取資料");
+                logger.debug("資產{}有訂閱但無歷史資料，重新抓取資料", asset.getId());
                 eventPublisher.publishEvent(new CryptoHistoryDataChangeEvent(this, cryptoTradingPair, "add"));
             } else {
-                logger.debug("資產" + asset.getId() + "有訂閱且有歷史資料，不須重新抓取資料");
+                logger.debug("資產{}有訂閱且有歷史資料，不須重新抓取資料", asset.getId());
             }
         }
     }

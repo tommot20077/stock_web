@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,22 +30,18 @@ public class ApiAssetController {
 
     private final UserService userService;
 
-    private final ObjectMapper objectMapper;
-
     /**
      * 這是一個構造函數，用於注入AssetService, RedisService, UserService, ObjectMapper
      *
      * @param assetService 資產相關服務
      * @param redisService 緩存服務
      * @param userService  用戶服務
-     * @param objectMapper 序列化工具
      */
     @Autowired
-    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService, ObjectMapper objectMapper) {
+    public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService) {
         this.assetService = assetService;
         this.redisService = redisService;
         this.userService = userService;
-        this.objectMapper = objectMapper;
     }
 
 

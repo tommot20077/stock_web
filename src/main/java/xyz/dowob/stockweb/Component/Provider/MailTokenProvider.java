@@ -80,7 +80,7 @@ public class MailTokenProvider {
             message.setSubject("請驗證您的電子郵件");
             message.setText("請點擊以下鏈接完成驗證\n" + verificationLink + "\n(此鏈接在發送後" + expirationMinute + "分鐘內有效)");
             javaMailSender.send(message);
-            logger.info("發送驗證信到用戶" + user.getEmail());
+            logger.info("發送驗證信到用戶{}", user.getEmail());
         } else {
             throw new RuntimeException("目前已到達每小時發送電子郵件的限制，請稍後再試。");
         }
@@ -108,7 +108,7 @@ public class MailTokenProvider {
             message.setSubject("重設密碼驗證");
             message.setText("這是你的驗證碼\n" + verificationCode + "\n(此驗證碼在發送後" + expirationMinute + "分鐘內有效)");
             javaMailSender.send(message);
-            logger.info("發送驗證信到用戶" + user.getEmail());
+            logger.info("發送驗證信到用戶{}", user.getEmail());
         } else {
             throw new RuntimeException("目前已到達每小時發送電子郵件的限制，請稍後再試。");
         }

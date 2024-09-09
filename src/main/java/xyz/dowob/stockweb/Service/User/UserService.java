@@ -115,7 +115,7 @@ public class UserService {
         }
         userRepository.save(user);
 
-        logger.info("用戶 " + user.getEmail() + " 註冊成功");
+        logger.info("用戶 {} 註冊成功", user.getEmail());
         Token token = new Token();
         token.setUser(user);
         tokenRepository.save(token);
@@ -177,7 +177,7 @@ public class UserService {
             if (userInfo.get("newPassword") != null && !userInfo.get("newPassword").isBlank()) {
                 validatePassword(userInfo.get("newPassword"));
                 user.setPassword(passwordEncoder.encode(userInfo.get("newPassword")));
-                logger.warn("用戶 " + user.getEmail() + " 更改密碼");
+                logger.warn("用戶 {} 更改密碼", user.getEmail());
             }
 
             user.setFirstName(userInfo.get("firstName"));
@@ -192,7 +192,7 @@ public class UserService {
                 user.setUsername(user.extractUsernameFromEmail(userInfo.get("email")));
 
                 mailTokenProvider.sendVerificationEmail(user);
-                logger.warn("用戶 " + user.getEmail() + " 更改信箱");
+                logger.warn("用戶 {} 更改信箱", user.getEmail());
             }
 
 
@@ -214,7 +214,7 @@ public class UserService {
             if (currency != null && !currency.getCurrency().equals(user.getPreferredCurrency().getCurrency())) {
                 try {
                     user.setPreferredCurrency(currency);
-                    logger.warn("用戶 " + user.getEmail() + " 更改預設幣別");
+                    logger.warn("用戶 {} 更改預設幣別", user.getEmail());
                     subscribeRepository.findAllByUserAndAssetAssetType(user, AssetType.CURRENCY).forEach(subscribe -> {
                         subscribe.setChannel(currency.getCurrency());
                         subscribeRepository.save(subscribe);
@@ -222,7 +222,7 @@ public class UserService {
                 } catch (Exception e) {
                     user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
                                                             .orElseThrow(() -> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
-                    logger.warn("用戶 " + user.getEmail() + " 更改預設幣別失敗，使用預設幣別：USD");
+                    logger.warn("用戶 {} 更改預設幣別失敗，使用預設幣別：USD", user.getEmail());
                 }
             }
             userRepository.save(user);

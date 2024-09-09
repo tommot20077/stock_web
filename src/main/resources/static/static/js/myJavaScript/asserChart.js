@@ -93,7 +93,7 @@ function handleIncomingData(rawData) {
 function formatKlineData(data, exrate = 1) {
     const formattedData = [];
 
-    data.forEach(item => {
+    data.forEach(kline => {
         formattedData.push({
             timestamp: new Date(kline.timestamp).getTime(),
             open: parseFloat(kline.open) * exrate,
@@ -133,6 +133,12 @@ function updateKlineChart(type, data) {
     if (existingData.length === 0) {
         disableLoading(type)
         chart.applyNewData(data);
+        if (type === "current") {
+            socket.send(JSON.stringify({
+                "action": 'chartInitializedDone',
+                "assetId": assetId
+            }));
+        }
     } else {
         data.forEach(item => {
             chart.updateData(item);

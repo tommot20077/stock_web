@@ -146,7 +146,7 @@ public class StockTwService {
                     subscribeMethod.removeSubscriberFromStockTw(stock, user.getId());
                 }
             } else {
-                logger.warn("此訂閱: " + stock.getStockCode() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
+                logger.warn("此訂閱: {} 為用戶: {}現在所持有的資產，不可刪除訂閱", stock.getStockCode(), user.getUsername());
                 throw new RuntimeException("此訂閱: " + stock.getStockCode() + " 為用戶: " + user.getUsername() + "現在所持有的資產，不可刪除訂閱");
             }
             subscribeRepository.delete(subscribe);
@@ -164,17 +164,17 @@ public class StockTwService {
         String url = stockListUrl + "dataset=TaiwanStockInfo&stock_id=&token=" + finMindToken;
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-        logger.debug("更新股票列表: " + response.getBody());
+        logger.debug("更新股票列表: {}", response.getBody());
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             try {
                 JsonNode jsonNode = objectMapper.readTree(response.getBody());
                 JsonNode dataArray = jsonNode.get("data");
-                logger.debug("股票數量: " + dataArray.size());
+                logger.debug("股票數量: {}", dataArray.size());
                 if (dataArray.isArray()) {
-                    logger.debug("陣列資料: " + dataArray);
+                    logger.debug("陣列資料: {}", dataArray);
                     for (JsonNode stockNode : dataArray) {
                         stock = stockTwRepository.findByStockCode(stockNode.get("stock_id").asText()).orElse(new StockTw());
-                        logger.debug("更新股票: " + stockNode.get("stock_id").asText());
+                        logger.debug("更新股票: {}", stockNode.get("stock_id").asText());
                         stock.setStockCode(stockNode.get("stock_id").asText());
                         stock.setStockName(stockNode.get("stock_name").asText());
                         stock.setIndustryCategory(stockNode.get("industry_category").asText());
@@ -216,11 +216,11 @@ public class StockTwService {
                 inquiry = "otc_" + stockCode + ".tw";
                 url = stockCurrentPriceUrl + inquiry;
             } else {
-                logger.warn("暫時不支援此類型: " + stockCode + "-" + stockType);
+                logger.warn("暫時不支援此類型: {}-{}", stockCode, stockType);
                 return;
             }
-            logger.debug("查詢股票: " + stockCode + " " + stockType);
-            logger.debug("查詢股票網址: " + url);
+            logger.debug("查詢股票: {} {}", stockCode, stockType);
+            logger.debug("查詢股票網址: {}", url);
 
             JsonNode rootNode = getJsonNodeByUrl(url);
             JsonNode msgArray = rootNode.path("msgArray");
@@ -252,9 +252,9 @@ public class StockTwService {
     @Async
     public void trackStockNowPrices(List<String> stockInquiryList) {
         final StringBuilder inquireUrl = new StringBuilder(stockCurrentPriceUrl);
-        logger.debug("要追蹤價格的股票: " + stockInquiryList);
+        logger.debug("要追蹤價格的股票: {}", stockInquiryList);
         stockInquiryList.forEach(stockInquiry -> inquireUrl.append(stockInquiry).append("|"));
-        logger.debug("拼接查詢網址: " + inquireUrl);
+        logger.debug("拼接查詢網址: {}", inquireUrl);
         JsonNode rootNode = getJsonNodeByUrl(inquireUrl.toString());
         JsonNode msgArray = rootNode.path("msgArray");
         if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
@@ -290,20 +290,20 @@ public class StockTwService {
                 String url = String.format("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=%s&stockNo=%s",
                                            formattedDate,
                                            stockTw.getStockCode());
-                logger.debug("要追蹤價格的股票: " + stockTw.getStockCode());
-                logger.debug("查詢網址: " + url);
+                logger.debug("要追蹤價格的股票: {}", stockTw.getStockCode());
+                logger.debug("查詢網址: {}", url);
 
                 rateLimiter.acquire();
                 JsonNode rootNode = getJsonNodeByUrl(url);
                 int total = rootNode.path("total").asInt();
                 if (total > 0) {
-                    logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") + " 有資料，開始處理資料");
+                    logger.debug("股票:{} 在時間: {} 有資料，開始處理資料", stockTw.getStockCode(), rootNode.path("date"));
                     ArrayNode dataArray = (ArrayNode) rootNode.path("data");
                     stockTwInfluxService.writeStockTwHistoryToInflux(dataArray, stockTw.getStockCode());
                     date = date.minusMonths(1);
                     neverHasData = false;
                 } else {
-                    logger.debug("股票:" + stockTw.getStockCode() + " 在時間: " + rootNode.path("date") + " 沒有資料");
+                    logger.debug("股票:{} 在時間: {} 沒有資料", stockTw.getStockCode(), rootNode.path("date"));
                     if (neverHasData && !rollbackChance) {
                         throw new Exception("股票:" + stockTw.getStockCode() + " 沒有資料");
                     } else if (rollbackChance) {
@@ -314,14 +314,14 @@ public class StockTwService {
                     }
                 }
             }
-            logger.debug("完成獲取歷史股價: " + stockTw.getStockCode());
+            logger.debug("完成獲取歷史股價: {}", stockTw.getStockCode());
             task.completeTask(TaskStatusType.SUCCESS, "完成獲取歷史股價: " + stockTw.getStockCode());
             stockTw.setHasAnySubscribed(true);
             stockTwRepository.save(stockTw);
-            logger.debug("任務用時: " + task.getTaskUsageTime());
+            logger.debug("任務用時: {}", task.getTaskUsageTime());
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, true, stockTw));
         } catch (Exception e) {
-            logger.error("獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
+            logger.error("獲取{}歷史股價時發生錯誤: {}",stockTw.getStockCode(), e.getMessage());
             task.completeTask(TaskStatusType.FAILED, "獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, stockTw));
         }
@@ -335,7 +335,7 @@ public class StockTwService {
     @Async
     public void trackStockHistoryPricesWithUpdateDaily() {
         Set<String> needToUpdateStockCodes = stockTwRepository.findAllStockCodeBySubscribers();
-        logger.debug("要更新每日最新價格的股票: " + needToUpdateStockCodes);
+        logger.debug("要更新每日最新價格的股票: {}", needToUpdateStockCodes);
         if (needToUpdateStockCodes.isEmpty()) {
             logger.debug("沒有要更新的股票");
             return;
@@ -345,7 +345,7 @@ public class StockTwService {
         LocalDateTime dateTime = LocalDate.now(ZoneId.of("Asia/Taipei")).atTime(16, 30);
         Instant instant = dateTime.atZone(ZoneId.of("Asia/Taipei")).toInstant();
         long tLongForToday = instant.toEpochMilli();
-        logger.debug("更新時間設定為每日16:30，本次設定時間: " + dateTime);
+        logger.debug("更新時間設定為每日16:30，本次設定時間: {}", dateTime);
 
         try {
             String url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
@@ -354,10 +354,10 @@ public class StockTwService {
                 for (JsonNode node : rootNode) {
                     String stockCode = node.path("Code").asText();
                     if (!needToUpdateStockCodes.contains(stockCode)) {
-                        logger.debug("沒有要更新的股票: " + stockCode + " , 跳過");
+                        logger.debug("沒有要更新的股票: {} , 跳過", stockCode);
                         continue;
                     }
-                    logger.debug("查詢到需要更新的股票代號: " + stockCode);
+                    logger.debug("查詢到需要更新的股票代號: {}", stockCode);
                     stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(node, tLongForToday);
                 }
                 logger.debug("更新每日最新價格的股票完成");
@@ -379,7 +379,7 @@ public class StockTwService {
      */
     public void removeStockTwPricesDataByStockCode(String stockCode) throws RuntimeException {
         try {
-            logger.debug("要刪除的股票資料代號: " + stockCode);
+            logger.debug("要刪除的股票資料代號: {}", stockCode);
             stockTwInfluxService.deleteDataByStockCode(stockCode);
             logger.debug("刪除股票資料完成");
         } catch (Exception e) {
@@ -435,7 +435,7 @@ public class StockTwService {
         try {
             RestTemplate restTemplate = new RestTemplate();
             String response = restTemplate.getForObject(url, String.class);
-            logger.debug("查詢結果: " + response);
+            logger.debug("查詢結果: {}", response);
             return objectMapper.readTree(response);
         } catch (JsonProcessingException e) {
             logger.error("Json轉換失敗", e);
@@ -445,13 +445,14 @@ public class StockTwService {
 
     /**
      * 格式化股票資料為Kline格式
+     *
      * @param msgArray 股票資料，請求資料為多檔股票，每檔股票為一個JsonNode
      *
-     * @return HashMap<String, Map<String, String>> 股票代碼與Kline資料
+     * @return HashMap<String, Map < String, String>> 股票代碼與Kline資料
      */
-    private HashMap<String, Map<String,String>> formatStockTwDataToKline(JsonNode msgArray) {
-        logger.debug("msgArray: " + msgArray);
-        HashMap<String, Map<String,String>> klineData = new HashMap<>();
+    private HashMap<String, Map<String, String>> formatStockTwDataToKline(JsonNode msgArray) {
+        logger.debug("msgArray: {}", msgArray);
+        HashMap<String, Map<String, String>> klineData = new HashMap<>();
         Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
         for (JsonNode msgNode : msgArray) {
@@ -461,12 +462,14 @@ public class StockTwService {
                 continue;
             }
 
-            logger.debug("z = " + Double.parseDouble(msgNode.path("z").asText()) + ", c = " + msgNode.path("c")
-                                                                                                     .asText() + ", tlong = " + msgNode.path(
-                    "tlong").asText() + ", o = " + Double.parseDouble(msgNode.path("o")
-                                                                             .asText()) + ", h = " + Double.parseDouble(msgNode.path("h")
-                                                                                                                               .asText()) + ", l = " + Double.parseDouble(
-                    msgNode.path("l").asText()) + ", v = " + Double.parseDouble(msgNode.path("v").asText()));
+            logger.debug("z = {}, c = {}, tlong = {}, o = {}, h = {}, l = {}, v = {}",
+                         Double.parseDouble(msgNode.path("z").asText()),
+                         msgNode.path("c").asText(),
+                         msgNode.path("tlong").asText(),
+                         Double.parseDouble(msgNode.path("o").asText()),
+                         Double.parseDouble(msgNode.path("h").asText()),
+                         Double.parseDouble(msgNode.path("l").asText()),
+                         Double.parseDouble(msgNode.path("v").asText()));
 
             BigDecimal priceUsd = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
             BigDecimal highUsd = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
@@ -481,10 +484,10 @@ public class StockTwService {
             innerMap.put("low", lowUsd.toPlainString());
             innerMap.put("volume", msgNode.path("v").asText());
 
-            String stockId =  msgNode.path("c").asText();
+            String stockId = msgNode.path("c").asText();
             klineData.put(stockId, innerMap);
 
-            logger.debug("股票代碼: " + stockId + ", 資料: " + innerMap);
+            logger.debug("股票代碼: {}, 資料: {}", stockId, innerMap);
         }
         return klineData;
     }

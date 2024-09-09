@@ -106,7 +106,7 @@ public class CryptoInfluxService {
             Double low = Double.parseDouble(record[3]);
             Double close = Double.parseDouble(record[4]);
             Double volume = Double.parseDouble(record[5]);
-            logger.debug("time = " + time + ", open = " + open + ", high = " + high + ", low = " + low + ", close = " + close + ", volume = " + volume);
+            logger.debug("time = {}, open = {}, high = {}, low = {}, close = {}, volume = {}", time, open, high, low, close, volume);
 
             Point point = Point.measurement("kline_data")
                                .addTag("tradingPair", tradingPair)
@@ -131,7 +131,7 @@ public class CryptoInfluxService {
      */
     public void deleteDataByTradingPair(String tradingPair) {
         String predicate = String.format("_measurement=\"kline_data\" AND tradingPair=\"%s\"", tradingPair);
-        logger.warn("刪除" + tradingPair + "的歷史資料");
+        logger.warn("刪除{}的歷史資料", tradingPair);
         try {
             retryTemplate.doWithRetry(() -> {
                 try {
@@ -140,12 +140,12 @@ public class CryptoInfluxService {
                     cryptoHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, cryptoHistoryBucket, org);
                     logger.info("刪除資料成功");
                 } catch (Exception e) {
-                    logger.error("刪除資料時發生錯誤: " + e.getMessage());
+                    logger.error("刪除資料時發生錯誤: {}", e.getMessage());
                     throw new RuntimeException("刪除資料時發生錯誤: " + e.getMessage());
                 }
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
@@ -165,11 +165,9 @@ public class CryptoInfluxService {
                                      cryptoHistoryBucket,
                                      tradingPair);
         try {
-            retryTemplate.doWithRetry(() -> {
-                ref.result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast();
-            });
+            retryTemplate.doWithRetry(() -> ref.result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast());
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
+            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
 

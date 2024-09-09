@@ -479,7 +479,10 @@
 
 		socket.onopen = function () {
 			console.log("WebSocket連接已建立");
-			socket.send(assetId);
+			socket.send(JSON.stringify({
+				"assetId": assetId,
+				"action": "subscribe"
+			}));
 		};
 		socket.onclose = function () {
 			console.log("WebSocket連接已關閉，嘗試重新連接...");

@@ -87,7 +87,7 @@ public class JwtTokenProvider {
             return tokenVersionInDb.equals(tokenVersionInToken);
 
         } catch (SignatureException | IllegalArgumentException | UnsupportedJwtException | ExpiredJwtException | MalformedJwtException ex) {
-            logger.error("不合法的Jwt Token: " + ex.getMessage());
+            logger.error("不合法的Jwt Token: {}", ex.getMessage());
             throw new RuntimeException(ex.getMessage());
         }
     }

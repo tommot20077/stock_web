@@ -118,7 +118,7 @@ public class AssetService {
     public Map<String, List<FluxTable>> getAssetKlineData(Long assetId, String type, String timestamp) {
         Asset asset = getAssetById(assetId);
         Map<String, List<FluxTable>> tableMap = assetInfluxMethod.queryByAsset(asset, "history".equals(type), timestamp);
-        logger.debug("資產K線數據: " + tableMap.toString());
+        logger.debug("資產K線數據: {}", tableMap.toString());
         return tableMap;
     }
 
@@ -174,7 +174,7 @@ public class AssetService {
 
     public List<String> formatKlineTableByTime(Map<String, List<FluxTable>> tableMap) throws JsonProcessingException {
         String lastTimePoint = null;
-        Map<String, AssetKlineDataDto> klineDataMap = new LinkedHashMap<>();
+        List<AssetKlineDataDto> klineDataList = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
         for (Map.Entry<String, List<FluxTable>> entry : tableMap.entrySet()) {
             if (entry.getValue().isEmpty()) {
@@ -199,8 +199,15 @@ public class AssetService {
                         value = BigDecimal.valueOf(doubleValue);
                         formattedValue = String.format("%.6f", value);
                     }
-                    AssetKlineDataDto dataDto = klineDataMap.getOrDefault(timestamp, new AssetKlineDataDto());
-                    dataDto.setTimestamp(timestamp);
+                    AssetKlineDataDto dataDto = klineDataList.stream()
+                                                             .filter(klineDataDto -> klineDataDto.getTimestamp().equals(timestamp))
+                                                             .findFirst()
+                                                             .orElseGet(() -> {
+                                                                 AssetKlineDataDto newDto = new AssetKlineDataDto();
+                                                                 newDto.setTimestamp(timestamp);
+                                                                 klineDataList.add(newDto);
+                                                                 return newDto;
+                                                             });
                     if (value != null && field != null) {
                         {
                             switch (field) {
@@ -231,16 +238,15 @@ public class AssetService {
                             }
                         }
                     }
-                    klineDataMap.put(timestamp, dataDto);
                 }
             }
         }
         objectMapper.registerModule(new JavaTimeModule());
-        String kLineJson = objectMapper.writeValueAsString(klineDataMap);
-        ArrayList<String> klineDataList = new ArrayList<>();
-        klineDataList.add(kLineJson);
-        klineDataList.add(lastTimePoint);
-        return klineDataList;
+        String kLineJson = objectMapper.writeValueAsString(klineDataList);
+        ArrayList<String> result = new ArrayList<>();
+        result.add(kLineJson);
+        result.add(lastTimePoint);
+        return result;
     }
 
     /**
@@ -276,7 +282,7 @@ public class AssetService {
                 select[1] = "exchange_rate";
             }
             default -> {
-                logger.error("無法取得指定資產資料: " + asset);
+                logger.error("無法取得指定資產資料: {}", asset);
                 throw new RuntimeException("無法取得指定資產資料: " + asset);
             }
         }
@@ -291,17 +297,17 @@ public class AssetService {
                                                                                                   false);
         for (Map.Entry<LocalDateTime, List<FluxTable>> entry : queryResultMap.entrySet()) {
             if (entry.getValue().isEmpty() || entry.getValue().getFirst().getRecords().isEmpty()) {
-                logger.debug(entry.getKey() + " 取得指定資產價格資料: " + null);
+                logger.debug("{} 取得指定資產價格資料: " + null, entry.getKey());
                 priceMap.put(entry.getKey(), null);
             } else {
                 for (FluxTable table : entry.getValue()) {
                     for (FluxRecord record : table.getRecords()) {
                         if (record.getValueByKey("_value") instanceof Double doubleValue) {
                             BigDecimal value = BigDecimal.valueOf(doubleValue);
-                            logger.debug(entry.getKey() + " 取得指定資產價格資料: " + value);
+                            logger.debug("{} 取得指定資產價格資料: {}", entry.getKey(), value);
                             priceMap.put(entry.getKey(), String.format("%.6f", value));
                         } else {
-                            logger.debug(entry.getKey() + " 取得指定資產價格資料: " + null);
+                            logger.debug("{} 取得指定資產價格資料: " + null, entry.getKey());
                             priceMap.put(entry.getKey(), null);
                         }
                     }
@@ -310,7 +316,7 @@ public class AssetService {
         }
 
         priceMap.put(localDateList.getFirst(), (assetInfluxMethod.getLatestPrice(asset)).toString());
-        logger.debug("結果資料: " + priceMap);
+        logger.debug("結果資料: {}", priceMap);
         List<String> resultList = new ArrayList<>();
         for (Map.Entry<LocalDateTime, String> entry : priceMap.entrySet()) {
             if (entry.getValue() != null) {
@@ -370,7 +376,7 @@ public class AssetService {
                 case CryptoTradingPair cryptoTradingPair -> resultMap.put("assetName", cryptoTradingPair.getBaseAsset());
                 case Currency currency -> resultMap.put("assetName", currency.getCurrency());
                 default -> {
-                    logger.error("無法取得指定資產資料: " + asset);
+                    logger.error("無法取得指定資產資料: {}", asset);
                     throw new RuntimeException("無法取得指定資產資料: " + asset);
                 }
             }
@@ -441,6 +447,7 @@ public class AssetService {
      *
      * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
      */
+    @SuppressWarnings("unchecked")
     public String formatStringAssetListToFrontendType(List<?> assetList, String innerKey) throws JsonProcessingException {
         List<Map<String, Object>> resultList = new ArrayList<>();
         if (assetList == null || assetList.isEmpty()) {
@@ -465,7 +472,7 @@ public class AssetService {
                         resultMap.put("isSubscribed", true);
                     }
                     default -> {
-                        logger.error("無法取得指定資產資料: " + asset);
+                        logger.error("無法取得指定資產資料: {}", asset);
                         throw new RuntimeException("無法取得指定資產資料: " + asset);
                     }
                 }
@@ -637,13 +644,13 @@ public class AssetService {
                     String yield = row.select("td").get(2).text();
                     if (countryName != null) {
                         bondMap.put(period, new BigDecimal(yield));
-                        logger.debug("政府債券數據: " + countryName + " " + period + " " + yield);
+                        logger.debug("政府債券數據: {} {} {}", countryName, period, yield);
                     }
                 }
                 if (countryName != null) {
                     governmentBondsMap.put(countryName.toString().replace(".", ""), bondMap);
                 } else {
-                    logger.error("政府債券數據解析錯誤: " + table);
+                    logger.error("政府債券數據解析錯誤: {}", table);
                 }
             }
         }
@@ -695,7 +702,7 @@ public class AssetService {
         }
 
         Map<String, Map<String, BigDecimal>> sortedResult = new TreeMap<>(result);
-        logger.debug("政府債券數據排序: " + sortedResult);
+        logger.debug("政府債券數據排序: {}", sortedResult);
         return new LinkedHashMap<>(sortedResult);
     }
 
@@ -719,7 +726,7 @@ public class AssetService {
                                             .distinct()
                                             .toList();
 
-        logger.debug("政府債券數據排序: " + sortedPeriods);
+        logger.debug("政府債券數據排序: {}", sortedPeriods);
         sortedPeriods.forEach(period -> dataMap.forEach((country, bondMap) -> {
             BigDecimal rate = bondMap.get(period);
             if (rate != null) {
@@ -761,6 +768,7 @@ public class AssetService {
      *
      * @return 政府債券數據
      */
+    @SuppressWarnings("unchecked")
     private <T> Map<String, Map<String, BigDecimal>> checkGovernmentBondData(T governmentBondData) {
         if (governmentBondData instanceof String) {
             try {
@@ -868,6 +876,13 @@ public class AssetService {
         }
     }
 
+    /**
+     * 根據資產名稱獲取資產對象，若找不到則返回null
+     *
+     * @param assetName 資產名稱
+     *
+     * @return 資產對象
+     */
     public Asset getAssetByAssetName(String assetName) {
         Optional<CryptoTradingPair> crypto = cryptoRepository.findByTradingPair(assetName);
         if (crypto.isPresent()) {

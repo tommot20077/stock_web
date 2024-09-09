@@ -74,11 +74,11 @@ public class TodoService {
     public void init() {
         logger.info("開始為設定提醒的待辦事項設定提醒任務");
         OffsetDateTime now = OffsetDateTime.now(ZoneId.of("UTC"));
-        logger.debug("現在時間: " + now);
+        logger.debug("現在時間: {}", now);
         List<Todo> todoList = todoListRepository.findAllByReminderAndReminderTimeIsAfter(true, now);
         todoList.forEach(todo -> {
             if (todo.getDueDate().isBefore(now)) {
-                logger.info("待辦事項已過期: " + todo.getId() + "，不發送提醒");
+                logger.info("待辦事項已過期: {}，不發送提醒", todo.getId());
                 return;
             }
             scheduleEmailReminderTask(todo);
@@ -157,11 +157,11 @@ public class TodoService {
      * @param todo 待辦事項
      */
     private void scheduleEmailReminderTask(Todo todo) {
-        logger.debug("設定提醒任務: " + todo.getId());
+        logger.debug("設定提醒任務: {}", todo.getId());
         EmailReminderTask emailReminderTask = new EmailReminderTask(todo, javaMailSender, emailSender);
         ScheduledFuture<?> scheduledFuture = taskScheduler.schedule(emailReminderTask,
                                                                     todo.getReminderTime().atZoneSameInstant(ZoneId.of("UTC")).toInstant());
-        logger.debug("提醒時間: " + todo.getReminderTime().atZoneSameInstant(ZoneId.of("UTC")).toInstant());
+        logger.debug("提醒時間: {}", todo.getReminderTime().atZoneSameInstant(ZoneId.of("UTC")).toInstant());
         scheduledFutureMap.put(todo.getId(), scheduledFuture);
     }
 }
