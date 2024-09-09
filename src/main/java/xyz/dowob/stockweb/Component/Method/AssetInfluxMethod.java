@@ -84,6 +84,12 @@ public class AssetInfluxMethod {
     @Value("${db.influxdb.bucket.stock_tw_history.dateline:20110101}")
     private String stockHistoryDateline;
 
+    @Value("${db.influxdb.bucket.crypto_current.remain_day:14}")
+    private int cryptoCurrentRemainDay;
+
+    @Value("${db.influxdb.bucket.stock_tw_current.remain_day:365}")
+    private int stockTwCurrentRemainDay;
+
     Logger logger = LoggerFactory.getLogger(AssetInfluxMethod.class);
 
     /**
@@ -303,7 +309,7 @@ public class AssetInfluxMethod {
             List<FluxTable> tables;
         };
         Object[] bucketAndClient = getBucketAndClient(asset, isHistory);
-        //todo 考慮將即時資料時間範圍調到-7d，或是實現分段傳輸
+        // todo 考慮即時資料實現分段傳輸
         DateTimeFormatter outFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'00:00:00'Z'");
         DateTimeFormatter cryptoAndStockTwFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
         String start;
@@ -312,11 +318,19 @@ public class AssetInfluxMethod {
             start = timeStamp;
         } else {
             if (asset.getAssetType() == AssetType.CRYPTO) {
-                start = LocalDateTime.from(LocalDate.parse(cryptoHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay())
-                                     .format(outFormatter);
+                if (isHistory) {
+                    start = LocalDateTime.from(LocalDate.parse(cryptoHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay())
+                                         .format(outFormatter);
+                } else {
+                    start = LocalDateTime.now().minusDays(cryptoCurrentRemainDay).format(outFormatter);
+                }
             } else if (asset.getAssetType() == AssetType.STOCK_TW) {
-                start = LocalDateTime.from(LocalDate.parse(stockHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay())
-                                     .format(outFormatter);
+                if (isHistory) {
+                    start = LocalDateTime.from(LocalDate.parse(stockHistoryDateline, cryptoAndStockTwFormatter).atStartOfDay())
+                                         .format(outFormatter);
+                } else {
+                    start = LocalDateTime.now().minusDays(stockTwCurrentRemainDay).format(outFormatter);
+                }
             } else {
                 start = "1970-01-01T00:00:00.000Z";
             }

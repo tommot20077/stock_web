@@ -157,6 +157,7 @@ public class CryptoInfluxService {
      *
      * @return 最後一條數據的日期
      */
+    // todo 實現接口處理指定範圍資料重新抓取 如|> range(start: -365d, stop: -1d)
     public LocalDate getLastDateByTradingPair(String tradingPair) {
         var ref = new Object() {
             FluxTable result;

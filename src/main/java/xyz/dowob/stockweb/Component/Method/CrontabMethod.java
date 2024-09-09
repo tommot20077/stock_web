@@ -325,7 +325,7 @@ public class CrontabMethod {
     @Scheduled(cron = "0 40 */4 * * ? ",
                zone = "UTC")
     public void updateUserRoiData() {
-        logger.info("開始更新使用者的 ROI");
+        logger.info("開始更新使用者的 ROI 資料");
         Long time = Instant.now().toEpochMilli();
         List<User> users = userService.getAllUsers();
         for (User user : users) {
@@ -343,7 +343,7 @@ public class CrontabMethod {
     @Scheduled(cron = "0 45 */4 * * ? ",
                zone = "UTC")
     public void updateUserRoiStatistic() {
-        logger.info("開始更新使用者的 ROI 統計");
+        logger.info("開始更新使用者的 ROI 統計資料");
         List<User> users = userService.getAllUsers();
         for (User user : users) {
             Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);

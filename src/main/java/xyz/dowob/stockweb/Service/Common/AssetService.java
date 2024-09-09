@@ -140,11 +140,11 @@ public class AssetService {
             List<String> listCache = redisService.getCacheListValueFromKey(listKey + "data");
             if (listCache.isEmpty()) {
                 logger.debug("此資產沒有過資料紀錄，設定緩存狀態為no_data");
-                redisService.saveHashToCache("kline", hashInnerKey + "status", "no_data", 168);
+                redisService.saveHashToCache("kline", hashInnerKey + "status", "no_data", 48);
                 return false;
             }
             logger.debug("此資產有資料紀錄，設定緩存狀態為success");
-            redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 168);
+            redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 48);
             return false;
         }
         return true;
@@ -160,14 +160,14 @@ public class AssetService {
      */
     public void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey) {
         try {
-            redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 168);
+            redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 48);
 
             List<String> klineDataMap = formatKlineTableByTime(tableMap);
-            redisService.rPushToCacheList(key + "data", klineDataMap.getFirst(), 168);
-            redisService.saveHashToCache("kline", hashInnerKey + "last_timestamp", klineDataMap.get(1), 168);
-            redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 168);
+            redisService.rPushToCacheList(key + "data", klineDataMap.getFirst(), 24);
+            redisService.saveHashToCache("kline", hashInnerKey + "last_timestamp", klineDataMap.get(1), 48);
+            redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 48);
         } catch (Exception e) {
-            redisService.saveHashToCache("kline", hashInnerKey + "status", "fail", 168);
+            redisService.saveHashToCache("kline", hashInnerKey + "status", "fail", 48);
             throw new RuntimeException("資產資料處理錯誤: ", e);
         }
     }
@@ -671,7 +671,7 @@ public class AssetService {
                                                                          null,
                                                                          null,
                                                                          List.of(now),
-                                                                         168,
+                                                                         48,
                                                                          true,
                                                                          false).get(now);
         for (FluxTable table : tableList) {
@@ -813,7 +813,7 @@ public class AssetService {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(trie);
             String formateString = Base64.getEncoder().encodeToString(bos.toByteArray());
-            redisService.saveValueToCache("assetTrie", formateString, 168);
+            redisService.saveValueToCache("assetTrie", formateString, 48);
         } catch (Exception e) {
             logger.error("資產列表Trie緩存錯誤: ", e);
             throw new RuntimeException("資產列表Trie緩存錯誤: ", e);

@@ -77,15 +77,8 @@ public interface CryptoRepository extends JpaRepository<CryptoTradingPair, Long>
      * 查詢所有虛擬貨幣的交易對名稱列表
      * @return 交易對列表
      */
-    @Query("SELECT DISTINCT c.tradingPair FROM CryptoTradingPair c JOIN c.subscribers subscriber")
-    Set<String> findAllTradingPairBySubscribers();
-
-
-
-
-
-
-
+    @Query("SELECT DISTINCT c FROM CryptoTradingPair c JOIN c.subscribers subscriber")
+    Set<CryptoTradingPair> findAllTradingPairBySubscribers();
 
 
 
