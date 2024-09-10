@@ -87,6 +87,9 @@ public class CryptoService {
     @Value("${crypto.enable_auto_start}")
     private boolean enableAutoStart;
 
+    @Value("${kafka.enable:false}")
+    private boolean isKafkaEnable;
+
     private final String dataUrl = "https://data.binance.vision/data/spot/";
 
     RateLimiter rateLimiter = RateLimiter.create(1.0);
@@ -138,7 +141,7 @@ public class CryptoService {
     @PostConstruct
     public void init() {
         logger.info("啟動自動連線WebSocket: {}", enableAutoStart);
-        if (enableAutoStart) {
+        if (enableAutoStart || isKafkaEnable) {
             openConnection();
             isRunning = true;
         }
@@ -389,9 +392,23 @@ public class CryptoService {
         taskRepository.save(task);
 
         try {
-            processDate(getMonthlyDate, endDate, monthlyFormatter, cryptoTradingPair.getTradingPair(), "monthly", taskId, executorService, futureList);
+            processDate(getMonthlyDate,
+                        endDate,
+                        monthlyFormatter,
+                        cryptoTradingPair.getTradingPair(),
+                        "monthly",
+                        taskId,
+                        executorService,
+                        futureList);
             endDate[0] = todayDate.plusDays(1);
-            processDate(getDailyDate, endDate, dailyFormatter, cryptoTradingPair.getTradingPair(), "daily", taskId, executorService, futureList);
+            processDate(getDailyDate,
+                        endDate,
+                        dailyFormatter,
+                        cryptoTradingPair.getTradingPair(),
+                        "daily",
+                        taskId,
+                        executorService,
+                        futureList);
             logger.debug("歷史價格資料抓取完成");
 
             CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).whenComplete((result, ex) -> {
@@ -420,15 +437,12 @@ public class CryptoService {
         }
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     public void processDate(LocalDate[] startDate, LocalDate[] endDate, DateTimeFormatter dateTimeFormatter, String cryptoTradingPair, String period, String taskId, ExecutorService executorService, List<CompletableFuture<Void>> futureList) {
         while ((startDate[0].isAfter(endDate[0]) || startDate[0].isEqual(endDate[0]))) {
             String formatGetDate = startDate[0].format(dateTimeFormatter);
             String fileName = String.format("%s-%s-%s.zip", cryptoTradingPair, frequency, formatGetDate);
-            String dataFormatUrl = String.format(dataUrl + "%s/klines/%s/%s/%s",
-                                              period,
-                                              cryptoTradingPair,
-                                              frequency,
-                                              fileName);
+            String dataFormatUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", period, cryptoTradingPair, frequency, fileName);
             logger.debug("要追蹤歷史價格的交易對: {}", cryptoTradingPair);
             logger.debug("歷史價格資料網址: {}", dataFormatUrl);
 
@@ -472,6 +486,7 @@ public class CryptoService {
      * @throws RuntimeException 當更新失敗時拋出
      */
     @Async
+    @SuppressWarnings("UnstableApiUsage")
     public void trackCryptoHistoryPricesWithUpdateDaily() {
         Set<CryptoTradingPair> needToUpdateTradingPairs = cryptoRepository.findAllTradingPairBySubscribers();
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
@@ -485,7 +500,6 @@ public class CryptoService {
         String formatEndDate = endDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         LocalDate expectedLastUpdateDate = endDate.minusDays(1);
 
-
         ExecutorService executorService = dynamicThreadPoolService.getExecutorService();
         logger.debug("總計需取得: {}種虛擬貨幣資料", needToUpdateTradingPairs.size());
         String taskId = progressTrackerService.createAndTrackNewTask(needToUpdateTradingPairs.size(), "dailyUpdateCryptoHistoryPrices");
@@ -495,7 +509,9 @@ public class CryptoService {
             needToUpdateTradingPairs.forEach(tradingPair -> {
                 LocalDate lastUpdateDate = cryptoInfluxService.getLastDateByTradingPair(tradingPair.getTradingPair());
                 if (!lastUpdateDate.equals(expectedLastUpdateDate)) {
-                    logger.warn("歷史價格資料交易對: {}, 資料有缺失，最後更新日期: {} 加入到待處理列表", tradingPair.getTradingPair(), lastUpdateDate);
+                    logger.warn("歷史價格資料交易對: {}, 資料有缺失，最後更新日期: {} 加入到待處理列表",
+                                tradingPair.getTradingPair(),
+                                lastUpdateDate);
                     hadTrackHistoryData.put(tradingPair, lastUpdateDate);
                 }
 
@@ -552,13 +568,22 @@ public class CryptoService {
 
                     try {
                         hadTrackHistoryData.forEach((tradingPair, lastUpdateDate) -> {
-                            logger.warn("歷史價格資料交易對: {}, 資料有缺失，最後更新日期: {}", tradingPair.getTradingPair(), lastUpdateDate);
+                            logger.warn("歷史價格資料交易對: {}, 資料有缺失，最後更新日期: {}",
+                                        tradingPair.getTradingPair(),
+                                        lastUpdateDate);
                             LocalDate trackStartDate = lastUpdateDate.plusDays(1);
 
                             while (trackStartDate.isBefore(expectedLastUpdateDate) || trackStartDate.isEqual(expectedLastUpdateDate)) {
                                 String formatTrackStartDate = trackStartDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                                String fileName = String.format("%s-%s-%s.zip", tradingPair.getTradingPair(), frequency, formatTrackStartDate);
-                                String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s", "daily", tradingPair.getTradingPair(), frequency, fileName);
+                                String fileName = String.format("%s-%s-%s.zip",
+                                                                tradingPair.getTradingPair(),
+                                                                frequency,
+                                                                formatTrackStartDate);
+                                String dailyUrl = String.format(dataUrl + "%s/klines/%s/%s/%s",
+                                                                "daily",
+                                                                tradingPair.getTradingPair(),
+                                                                frequency,
+                                                                fileName);
                                 logger.debug("要追蹤歷史價格的交易對: {}", tradingPair.getTradingPair());
                                 logger.debug("歷史價格資料網址: {}", dailyUrl);
                                 dynamicThreadPoolService.onTaskStart();

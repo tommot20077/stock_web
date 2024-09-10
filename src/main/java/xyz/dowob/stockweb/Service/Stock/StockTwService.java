@@ -32,7 +32,6 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -270,7 +269,7 @@ public class StockTwService {
     }
 
     /**
-     * 追蹤股票歷史價格,並處理任務狀態 (每日00:00執行)
+     * 追蹤股票完整歷史價格,並處理任務狀態
      */
 
     @Async
@@ -330,7 +329,7 @@ public class StockTwService {
     }
 
     /**
-     * 追蹤每日股票歷史價格,並處理任務狀態 (每日16:30執行)
+     * 追蹤每日股票歷史價格,並處理任務狀態 (台灣時間週一至週五16:30執行)
      */
     @Async
     public void trackStockHistoryPricesWithUpdateDaily() {
@@ -342,10 +341,8 @@ public class StockTwService {
         }
         Task task = new Task(UUID.randomUUID().toString(), "更新台灣股票每日最新價格", 1);
         taskRepository.save(task);
-        LocalDateTime dateTime = LocalDate.now(ZoneId.of("Asia/Taipei")).atTime(16, 30);
-        Instant instant = dateTime.atZone(ZoneId.of("Asia/Taipei")).toInstant();
-        long tLongForToday = instant.toEpochMilli();
-        logger.debug("更新時間設定為每日16:30，本次設定時間: {}", dateTime);
+        LocalDateTime setDateTime = LocalDate.now(ZoneId.of("Asia/Taipei")).atTime(0 ,0);
+        long timestamp = setDateTime.atZone(ZoneId.of("Asia/Taipei")).toInstant().toEpochMilli();
 
         try {
             String url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
@@ -358,7 +355,7 @@ public class StockTwService {
                         continue;
                     }
                     logger.debug("查詢到需要更新的股票代號: {}", stockCode);
-                    stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(node, tLongForToday);
+                    stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(node, timestamp);
                 }
                 logger.debug("更新每日最新價格的股票完成");
                 task.completeTask(TaskStatusType.SUCCESS, "更新每日最新價格的股票完成");

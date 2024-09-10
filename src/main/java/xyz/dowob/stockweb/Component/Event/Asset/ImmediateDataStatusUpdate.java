@@ -3,9 +3,9 @@ package xyz.dowob.stockweb.Component.Event.Asset;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
-import xyz.dowob.stockweb.Component.Handler.ImmediateDataHandler;
+import xyz.dowob.stockweb.Component.Handler.ImmediateDataStatusHandler;
 
-import static xyz.dowob.stockweb.Component.Handler.ImmediateDataHandler.*;
+import static xyz.dowob.stockweb.Component.Handler.ImmediateDataStatusHandler.*;
 
 /**
  * @author yuan
@@ -33,6 +33,6 @@ public class ImmediateDataStatusUpdate implements ApplicationListener<ImmediateD
             default -> {
             }
         }
-        SESSION_MAP.forEach((sessionId, session) -> ImmediateDataHandler.sendMessage(session));
+        SESSION_MAP.forEach((sessionId, session) -> ImmediateDataStatusHandler.sendMessage(session));
     }
 }

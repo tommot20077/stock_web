@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.influxdb.query.FluxTable;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
@@ -16,6 +17,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
 import xyz.dowob.stockweb.Dto.Common.KafkaWebsocketDto;
+import xyz.dowob.stockweb.Dto.Common.WebsocketChartDto;
 import xyz.dowob.stockweb.Enum.WebsocketAction;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
@@ -82,17 +84,23 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
      * 僅在不開啟Kafka時執行。
      */
+
+    //todo 檢查為甚麼會有重複時間戳的資料寫入緩存
     @Scheduled(cron = "0 */1 * * * *")
     public void updateCurrentKlineData() {
         if (KLINE_SUBSCRIPTIONS.isEmpty() || kafkaEnable) {
             return;
         }
         log.debug("開始更新current Kline資料");
-        updateSubscription(CURRENT_TYPE);
+        KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> CompletableFuture.runAsync(() -> updateSubscription(assetId,
+                                                                                                               sessions,
+                                                                                                               CURRENT_TYPE,
+                                                                                                               false)));
+
     }
 
     /**
-     * 每24小時更新一次history Kline資料。
+     * 每天4點更新history Kline資料。
      * 若KLINE_SUBSCRIPTIONS為空，則不執行。
      */
     @Scheduled(cron = "0 0 4 * * *")
@@ -101,7 +109,10 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         log.debug("開始更新history Kline資料");
-        updateSubscription(HISTORY_TYPE);
+        KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> CompletableFuture.runAsync(() -> updateSubscription(assetId,
+                                                                                                               sessions,
+                                                                                                               HISTORY_TYPE,
+                                                                                                               false)));
     }
 
 
@@ -135,20 +146,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         try {
-            User user = USER_MAP.get(session.getId());
-            log.debug("WebSocket連線關閉: {} ,用戶: {}", session.getId(), user.getEmail());
-            Map<Long, String> userConnections = CONNECTIONS.get(user);
-            if (userConnections != null) {
-                userConnections.entrySet().removeIf(entry -> entry.getValue().equals(session.getId()));
-                if (userConnections.isEmpty()) {
-                    CONNECTIONS.remove(user);
-                }
-            }
-            KLINE_SUBSCRIPTIONS.values().forEach(sessions -> sessions.remove(session.getId()));
-            USER_MAP.remove(session.getId());
-            INITIALIZATION_STATUS.remove(session.getId());
-            SESSION_MAP.remove(session.getId()).close();
-            session.close();
+            removeSession(session);
             log.debug("目前WebSocket連線數量: {}", getTotalActiveSessions(CONNECTIONS));
         } catch (IOException e) {
             log.error("關閉WebSocket連線時發生錯誤: {}", e.getMessage());
@@ -193,7 +191,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         } catch (NumberFormatException | IllegalStateException e) {
             log.error("無效的請求: {}", payload);
             session.sendMessage(new TextMessage("無效的請求: " + payload));
-            session.close();
+            removeSession(session);
         }
     }
 
@@ -204,12 +202,9 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             log.debug("用戶: {} 已經訂閱過: {} 關閉先前訂閱", user.getEmail(), assetId);
             WebSocketSession preAssetSession = SESSION_MAP.get(CONNECTIONS.get(user).get(assetId));
             preAssetSession.sendMessage(new TextMessage("關閉先前重複訂閱"));
-            USER_MAP.remove(preAssetSession.getId());
-            preAssetSession.close();
-            INITIALIZATION_STATUS.remove(preAssetSession.getId());
-            SESSION_MAP.remove(preAssetSession.getId()).close();
+            removeSession(preAssetSession);
         }
-        CONNECTIONS.get(user).put(assetId, session.getId());
+        CONNECTIONS.getOrDefault(user, new HashMap<>()).put(assetId, session.getId());
         KLINE_SUBSCRIPTIONS.computeIfAbsent(assetId, k -> new HashSet<>()).add(session.getId());
         log.debug("目前用戶: {} 的訂閱數量: {}", user.getEmail(), CONNECTIONS.get(user).size());
 
@@ -221,11 +216,25 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
         }
 
         CompletableFuture.runAsync(() -> {
-            Map<String, Object> currentData = geKlineData(assetId, CURRENT_TYPE);
-            Map<String, Object> historyData = geKlineData(assetId, HISTORY_TYPE);
-            initialOrSendKlineData(currentData, session, assetId, CURRENT_TYPE);
-            initialOrSendKlineData(historyData, session, assetId, HISTORY_TYPE);
+            if (kafkaEnable) {
+                updateSubscription(assetId, Set.of(session.getId()), CURRENT_TYPE, true);
+                return;
+            }
+            initialConnect(assetId, session);
         });
+    }
+
+    /**
+     * 初始化圖表資料。
+     *
+     * @param assetId 資產ID
+     * @param session WebSocketSession對象
+     */
+    private void initialConnect(Long assetId, WebSocketSession session) {
+        WebsocketChartDto currentData = geKlineData(assetId, CURRENT_TYPE);
+        WebsocketChartDto historyData = geKlineData(assetId, HISTORY_TYPE);
+        initialOrSendKlineData(currentData, session, assetId, CURRENT_TYPE);
+        initialOrSendKlineData(historyData, session, assetId, HISTORY_TYPE);
     }
 
     /**
@@ -276,7 +285,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      *
      * @return 資產的Kline資料
      */
-    private Map<String, Object> geKlineData(Long assetId, String type) {
+    private WebsocketChartDto geKlineData(Long assetId, String type) {
         try {
             String hashInnerKey = String.format("%s_%s:", type, assetId);
             String listKey = String.format("%s_%s", KLINE_PREFIX, hashInnerKey);
@@ -298,9 +307,8 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      *
      * @throws JsonProcessingException 如果格式化錯誤，則拋出異常
      */
-    private Map<String, Object> formatKlineData(List<String> dataList, String type) throws JsonProcessingException {
+    private WebsocketChartDto formatKlineData(List<String> dataList, String type) throws JsonProcessingException {
         ArrayNode dataArray = objectMapper.createArrayNode();
-        Map<String, Object> resultMap = new HashMap<>();
         if (dataList == null || dataList.isEmpty()) {
             return null;
         }
@@ -314,9 +322,10 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
                 dataArray.add(jsonNode);
             }
         }
-        resultMap.put("data", dataArray);
-        resultMap.put("type", type);
-        return resultMap;
+        WebsocketChartDto websocketChartDto = new WebsocketChartDto();
+        websocketChartDto.setData(dataArray);
+        websocketChartDto.setType(type);
+        return websocketChartDto;
     }
 
     /**
@@ -340,20 +349,20 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     /**
      * 初始化以及發送K線圖格式資料。
      *
-     * @param dataMap 　K線圖格式資料
+     * @param dto     　K線圖格式資料
      * @param session 　WebSocketSession對象
      * @param assetId 　資產ID
      * @param type    　資產類型
      */
-    private void initialOrSendKlineData(Map<String, Object> dataMap, WebSocketSession session, Long assetId, String type) {
-        if (dataMap == null) {
+    private void initialOrSendKlineData(WebsocketChartDto dto, WebSocketSession session, Long assetId, String type) {
+        if (dto == null) {
             log.debug("沒有緩存資料，開始更新資料");
-            updateData(Set.of(session.getId()), assetId, type, null);
+            updateData(Set.of(session.getId()), assetId, type, null, false);
         } else {
             log.debug("發送緩存資料");
             User user = USER_MAP.get(session.getId());
-            dataMap.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
-            sendMessage(dataMap, session);
+            dto.setPreferCurrencyExrate(user.getPreferredCurrency().getExchangeRate());
+            sendMessage(dto, session);
         }
     }
 
@@ -367,54 +376,54 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      * @param type          資產類型
      * @param lastTimestamp 最後更新時間
      */
-    private void updateData(Set<String> sessions, Long assetId, String type, String lastTimestamp) {
+    private void updateData(Set<String> sessions, Long assetId, String type, String lastTimestamp, boolean isInitial) {
         log.debug("開始更新資料 type: {} ,assetId: {} ,lastTimestamp: {}", type, assetId, lastTimestamp);
-        CompletableFuture.runAsync(() -> {
-            Map<String, List<FluxTable>> newAddData = handleKlineData(assetId, type, lastTimestamp);
+        CompletableFuture.supplyAsync(() -> handleKlineData(assetId, type, lastTimestamp)).thenAccept(newAddData -> {
             log.debug("新資料: {}", newAddData);
             if (newAddData != null) {
-                try {
-                    List<String> result = assetService.formatKlineTableByTime(newAddData);
-                    List<String> dataList = List.of(result.getFirst());
-                    Map<String, Object> data = formatKlineData(dataList, type);
-                    if (data != null) {
-                        sessions.forEach(sessionId -> {
-                            User user = USER_MAP.get(sessionId);
-                            if (user == null) {
-                                KLINE_SUBSCRIPTIONS.get(assetId).remove(sessionId);
-                            } else {
-                                data.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
-                                WebSocketSession session = SESSION_MAP.get(sessionId);
-                                sendMessage(data, session);
-                            }
-                        });
-                    } else {
-                        throw new RuntimeException("資料格式化錯誤");
+                if (!isInitial) {
+                    try {
+                        List<String> result = assetService.formatKlineTableByTime(newAddData);
+                        List<String> dataList = List.of(result.getFirst());
+                        WebsocketChartDto dto = formatKlineData(dataList, type);
+                        if (dto != null) {
+                            sessions.forEach(sessionId -> {
+                                User user = USER_MAP.get(sessionId);
+                                if (user == null) {
+                                    KLINE_SUBSCRIPTIONS.get(assetId).remove(sessionId);
+                                } else {
+                                    dto.setPreferCurrencyExrate(user.getPreferredCurrency().getExchangeRate());
+                                    WebSocketSession session = SESSION_MAP.get(sessionId);
+                                    sendMessage(dto, session);
+                                }
+                            });
+                        } else {
+                            throw new RuntimeException("資料格式化錯誤");
+                        }
+                    } catch (Exception e) {
+                        log.error("更新資料時發生錯誤: {}", e.getMessage());
+                        throw new RuntimeException(e);
                     }
-                } catch (Exception e) {
-                    log.error("更新資料時發生錯誤: {}", e.getMessage());
-                    throw new RuntimeException(e);
+                } else {
+                    sessions.forEach(sessionId -> initialConnect(assetId, SESSION_MAP.get(sessionId)));
                 }
-            } else {
-                log.debug("沒有新資料需要更新");
             }
         });
     }
 
     /**
-     * 發送消息給用戶。
-     * 此消息為Object類型，將其轉換為JSON格式。
+     * 發送消息給用戶，並在發送消息時處理連線已經關閉的情況。
      *
-     * @param object  要發送的消息對象
-     * @param session WebSocketSession對象
-     * @param <T>     泛型類型
+     * @param session           WebSocketSession對象
+     * @param websocketChartDto K線圖表格式資料
      */
-    private <T> void sendMessage(T object, WebSocketSession session) {
+    private void sendMessage(WebsocketChartDto websocketChartDto, WebSocketSession session) {
         try {
             if (session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(object)));
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(websocketChartDto)));
             } else {
-                log.error("發送消息時發生錯誤: 連線已經關閉");
+                log.debug("發送消息時發生錯誤: 連線已經關閉");
+                removeSession(session);
             }
         } catch (IOException e) {
             log.error("發送消息時發生錯誤: {}", e.getMessage());
@@ -448,46 +457,49 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
      * 從Redis獲取最後更新時間。
      * 更新資料。
      *
-     * @param historyType 歷史類型
+     * @param type 歷史類型
      */
-    private void updateSubscription(String historyType) {
-        KLINE_SUBSCRIPTIONS.forEach((assetId, sessions) -> {
-            if (sessions.isEmpty()) {
-                KLINE_SUBSCRIPTIONS.remove(assetId);
-                return;
-            }
-            String listKey = String.format("%s_%s:", CURRENT_TYPE, assetId);
-            String lastTimestamp = redisService.getHashValueFromKey(KLINE_PREFIX, listKey + LAST_TIMESTAMP_SUFFIX);
-            log.debug("最後更新時間: {}", lastTimestamp);
-            updateData(sessions, assetId, historyType, lastTimestamp);
-        });
+    private void updateSubscription(Long assetId, Set<String> sessions, String type, boolean isInitial) {
+        if (sessions.isEmpty()) {
+            KLINE_SUBSCRIPTIONS.remove(assetId);
+            return;
+        }
+        String listKey = String.format("%s_%s:", CURRENT_TYPE, assetId);
+        String lastTimestamp = redisService.getHashValueFromKey(KLINE_PREFIX, listKey + LAST_TIMESTAMP_SUFFIX);
+        log.debug("最後更新時間: {}", lastTimestamp);
+        updateData(sessions, assetId, type, lastTimestamp, isInitial);
     }
 
+    /**
+     * 用於Kafka發送Kline資料，並將其轉換為K線圖格式，並發送給用戶。
+     *
+     * @param klineData KafkaWebsocketDto對象
+     */
     public void sendKlineDataByKafka(KafkaWebsocketDto klineData) {
         Long assetId = klineData.getAssetId();
         Set<String> sessions = KLINE_SUBSCRIPTIONS.get(assetId);
         if (sessions == null) {
             return;
         }
-        Map<String, Object> result = new HashMap<>();
-        Map<String, String> data = new HashMap<>();
-        result.put("type", "current");
-        result.put("data", new ArrayList<Map<String, String>>());
-
+        WebsocketChartDto dto = new WebsocketChartDto();
+        dto.setType(CURRENT_TYPE);
+        ArrayNode dataArray = objectMapper.createArrayNode();
         AssetKlineDataDto assetData = klineData.getData();
 
         long timeLong = Long.parseLong(assetData.getTimestamp());
-        Instant instant = Instant.ofEpochMilli(timeLong);
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
-        String timestamp = formatter.format(instant);
+        String timestamp = formatter.format(Instant.ofEpochMilli(timeLong));
 
-        data.put("timestamp", timestamp);
-        data.put("open", assetData.getOpen());
-        data.put("high", assetData.getHigh());
-        data.put("low", assetData.getLow());
-        data.put("close", assetData.getClose());
-        data.put("volume", assetData.getVolume());
-        result.put("data", List.of(data));
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("timestamp", timestamp);
+        node.put("open", assetData.getOpen());
+        node.put("high", assetData.getHigh());
+        node.put("low", assetData.getLow());
+        node.put("close", assetData.getClose());
+        node.put("volume", assetData.getVolume());
+        dataArray.add(node);
+        dto.setData(dataArray);
+
         for (String sessionId : sessions) {
             if (INITIALIZATION_STATUS.get(sessionId) == null || !INITIALIZATION_STATUS.get(sessionId)) {
                 continue;
@@ -497,9 +509,34 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             if (user == null) {
                 KLINE_SUBSCRIPTIONS.get(assetId).remove(sessionId);
             } else {
-                result.put("preferCurrencyExrate", user.getPreferredCurrency().getExchangeRate());
-                sendMessage(result, session);
+                dto.setPreferCurrencyExrate(user.getPreferredCurrency().getExchangeRate());
+                sendMessage(dto, session);
             }
         }
+    }
+
+    /**
+     * 用於關閉Session以及刪除相關資料。
+     *
+     * @param session WebSocketSession對象
+     *
+     * @throws IOException 如果關閉WebSocketSession時發生錯誤，則拋出異常
+     */
+    private void removeSession(WebSocketSession session) throws IOException {
+        User user = USER_MAP.get(session.getId());
+        Map<Long, String> userConnections = CONNECTIONS.get(user);
+        if (userConnections != null) {
+            userConnections.entrySet().removeIf(entry -> entry.getValue().equals(session.getId()));
+            if (userConnections.isEmpty()) {
+                CONNECTIONS.remove(user);
+            }
+        }
+        KLINE_SUBSCRIPTIONS.values().forEach(sessionsSet -> sessionsSet.remove(session.getId()));
+        INITIALIZATION_STATUS.remove(session.getId());
+        SESSION_MAP.get(session.getId()).close();
+        SESSION_MAP.remove(session.getId());
+        USER_MAP.remove(session.getId());
+        log.debug("WebSocket連線關閉: {} ,用戶: {}", session.getId(), user.getEmail());
+        session.close();
     }
 }

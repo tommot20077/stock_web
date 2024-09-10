@@ -54,7 +54,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
 
-        http.csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**"))
+        http.csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**","/ws/**","/sockjs/**"))
 
             .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                                                    .sessionConcurrency((concurrency) -> concurrency.maximumSessions(1)

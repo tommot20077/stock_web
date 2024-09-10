@@ -461,7 +461,7 @@
 <script>
 	let assetId = getAssetParamFromUrl();
 	let socket = null;
-
+	const charts = {};
 
 	function initWebSocket(retryCount = 0) {
 		let protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';

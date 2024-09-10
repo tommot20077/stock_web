@@ -1,6 +1,3 @@
-const charts = {};
-
-
 function disableLoading(type) {
     let elementId = type === "current" ? "current-loader" : "history-loader"
     document.getElementById(elementId).style.display = 'none'
@@ -14,16 +11,6 @@ function displayError(type, message) {
     disableLoading(type)
 
 
-}
-
-function toggleLoadingDisplay(type, shouldDisplay) {
-    let loaderId = type === 'history' ? 'history-loader' : 'current-loader';
-    let loaderElement = document.getElementById(loaderId);
-    if (loaderElement) {
-        loaderElement.style.display = shouldDisplay ? 'flex' : 'none';
-    } else {
-        console.error('找不到元素: ' + loaderId);
-    }
 }
 
 async function getAssetDetails(assetId) {
@@ -83,7 +70,6 @@ function handleIncomingData(rawData) {
     } catch (error) {
         console.error("處理接收到的資料時出錯：", error);
         if (error instanceof SyntaxError && typeof rawData === 'string') {
-            console.log("rawData" + rawData)
             displayError("history", rawData)
             displayError("current", rawData)
         }
@@ -91,22 +77,14 @@ function handleIncomingData(rawData) {
 }
 
 function formatKlineData(data, exrate = 1) {
-    const formattedData = [];
-
-    data.forEach(kline => {
-        formattedData.push({
-            timestamp: new Date(kline.timestamp).getTime(),
-            open: parseFloat(kline.open) * exrate,
-            high: parseFloat(kline.high) * exrate,
-            low: parseFloat(kline.low) * exrate,
-            close: parseFloat(kline.close) * exrate,
-            volume: parseFloat(kline.volume)
-        });
-    });
-
-    formattedData.sort((a, b) => a.timestamp - b.timestamp);
-
-    return formattedData;
+    return data.map(kline => ({
+        timestamp: new Date(kline.timestamp).getTime(),
+        open: parseFloat(kline.open) * exrate,
+        high: parseFloat(kline.high) * exrate,
+        low: parseFloat(kline.low) * exrate,
+        close: parseFloat(kline.close) * exrate,
+        volume: parseFloat(kline.volume)
+    })).sort((a, b) => a.timestamp - b.timestamp);
 }
 
 function initKlineChart(type) {
@@ -120,9 +98,8 @@ function initKlineChart(type) {
     const chart = klinecharts.init(chartContainer);
     chart.createIndicator('VOL');
     charts[type] = chart;
-
-
 }
+
 function updateKlineChart(type, data) {
     const chart = charts[type];
     if (!chart) {

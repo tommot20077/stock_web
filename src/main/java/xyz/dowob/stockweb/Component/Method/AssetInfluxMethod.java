@@ -309,7 +309,7 @@ public class AssetInfluxMethod {
             List<FluxTable> tables;
         };
         Object[] bucketAndClient = getBucketAndClient(asset, isHistory);
-        // todo 考慮即時資料實現分段傳輸
+        //todo 考慮即時資料實現分段傳輸
         DateTimeFormatter outFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'00:00:00'Z'");
         DateTimeFormatter cryptoAndStockTwFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
         String start;

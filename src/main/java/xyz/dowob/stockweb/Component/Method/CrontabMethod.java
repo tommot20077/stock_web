@@ -126,6 +126,9 @@ public class CrontabMethod {
     @Value("${stock_tw.enable_auto_start:false}")
     private boolean isStockTwAutoStart;
 
+    @Value("${common.kafka.enable:false}")
+    private boolean isKafkaEnable;
+
     /**
      * 初始化方法
      * 1.台股即時更新:根據配置文件設置stock_tw.enable_auto_start
@@ -134,7 +137,7 @@ public class CrontabMethod {
     @PostConstruct
     public void init() {
         logger.info("自動連線台股即時更新: {}", isStockTwAutoStart);
-        if (isStockTwAutoStart) {
+        if (isStockTwAutoStart || isKafkaEnable) {
             immediatelyUpdateStockTw = true;
         }
 

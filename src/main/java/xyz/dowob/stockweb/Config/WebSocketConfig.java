@@ -11,7 +11,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import xyz.dowob.stockweb.Component.Handler.CryptoWebSocketHandler;
-import xyz.dowob.stockweb.Component.Handler.ImmediateDataHandler;
+import xyz.dowob.stockweb.Component.Handler.ImmediateDataStatusHandler;
 import xyz.dowob.stockweb.Component.Handler.KlineWebSocketHandler;
 import xyz.dowob.stockweb.Interceptor.WebSocketHandleInterceptor;
 
@@ -115,11 +115,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
     /**
      * 創建ImmediateDataHandler
      *
-     * @return ImmediateDataHandler
+     * @return ImmediateDataStatusHandler
      */
     @Bean
-    public ImmediateDataHandler immediateDataHandler() {
-        return new ImmediateDataHandler();
+    public ImmediateDataStatusHandler immediateDataHandler() {
+        return new ImmediateDataStatusHandler();
     }
 
     /**

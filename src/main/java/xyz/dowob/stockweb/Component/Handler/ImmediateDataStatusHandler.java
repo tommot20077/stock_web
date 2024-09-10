@@ -5,6 +5,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.DependsOn;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -24,13 +26,15 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author yuan
  * @program Stock-Web
- * @ClassName ImmediateDataHandler
+ * @ClassName ImmediateDataStatusHandler
  * @description
  * @create 2024-09-04 17:25
  * @Version 1.0
  **/
 @Log4j2
-public class ImmediateDataHandler extends TextWebSocketHandler {
+@Component
+@DependsOn({"crontabMethod","cryptoService"})
+public class ImmediateDataStatusHandler extends TextWebSocketHandler {
     @Autowired
     private CryptoService cryptoService;
 
@@ -87,8 +91,10 @@ public class ImmediateDataHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws IOException {
         User user = (User) session.getAttributes().get("user");
         log.debug("用戶: {}連接關閉", user.getUsername());
-        SESSION_MAP.remove(session.getId()).close();
+        WebSocketSession mapSession = SESSION_MAP.get(session.getId());
+        mapSession.close();
         session.close();
+        SESSION_MAP.remove(session.getId());
         log.debug("當前連接數量: {}", SESSION_MAP.size());
     }
 
@@ -117,7 +123,8 @@ public class ImmediateDataHandler extends TextWebSocketHandler {
             if (session.isOpen()) {
                 session.sendMessage(new TextMessage(OBJECT_MAPPER.writeValueAsString(STATUS)));
             } else {
-                log.info("發送消息時發生錯誤: 連線已經關閉");
+                SESSION_MAP.get(session.getId()).close();
+                SESSION_MAP.remove(session.getId());
             }
         } catch (IOException e) {
             log.error("發送消息時發生錯誤: {}", e.getMessage());
