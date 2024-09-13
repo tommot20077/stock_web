@@ -67,7 +67,6 @@ public class Token implements Serializable {
 
     private OffsetDateTime rememberMeTokenExpireTime;
 
-
     @Value(value = "${security.jwt.expiration:120}")
     private int expirationMs;
 
@@ -95,7 +94,6 @@ public class Token implements Serializable {
         setRememberMeToken(token);
         setRememberMeTokenExpireTime(OffsetDateTime.now(ZoneId.of(user.getTimezone())).plusDays(expireTimeDays));
     }
-
 
     /**
      * 重寫toString
@@ -142,6 +140,4 @@ public class Token implements Serializable {
     public int hashCode() {
         return Objects.hash(id);
     }
-
-
 }

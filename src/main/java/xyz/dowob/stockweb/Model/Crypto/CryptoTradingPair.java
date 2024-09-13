@@ -29,7 +29,6 @@ import java.util.Set;
 @Data
 @Table(name = "crypto_data")
 public class CryptoTradingPair extends Asset implements Serializable {
-
     @Column(nullable = false)
     private String tradingPair;
 
@@ -53,6 +52,4 @@ public class CryptoTradingPair extends Asset implements Serializable {
     public boolean checkUserIsSubscriber(User user) {
         return subscribers.contains(user.getId());
     }
-
-
 }

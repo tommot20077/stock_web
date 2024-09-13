@@ -2,12 +2,10 @@ package xyz.dowob.stockweb.Service.Common;
 
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -18,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author yuan
  * 管理動態線程池的服務。
  */
+@Log4j2
 @Service
 public class DynamicThreadPoolService {
     @Value("${common.global_thread_limit:6}")
@@ -28,15 +27,16 @@ public class DynamicThreadPoolService {
     @Getter
     private final AtomicInteger activeTasks = new AtomicInteger(0);
 
-    Logger logger = LoggerFactory.getLogger(DynamicThreadPoolService.class);
-
-
     /**
      * 初始化線程池,並受限於globalThreadLimit。
      */
     @PostConstruct
     public void init() {
-        this.executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(globalThreadLimit);
+        try {
+            this.executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(globalThreadLimit);
+        } catch (Exception e) {
+            log.error("初始化錯誤: " + e);
+        }
     }
 
     /**
@@ -58,12 +58,9 @@ public class DynamicThreadPoolService {
         int corePoolSize = this.executorService.getCorePoolSize();
         if (activeTaskCount == corePoolSize && activeTaskCount < globalThreadLimit) {
             this.executorService.setCorePoolSize(corePoolSize + 1);
-            logger.debug("線程池增加一個線程");
         } else if (activeTaskCount < corePoolSize) {
             this.executorService.setCorePoolSize(Math.max(corePoolSize - 1, 1));
-            logger.debug("線程池減少一個線程");
         }
-        logger.debug("線程池現在有{}個線程", activeTaskCount);
     }
 
     /**
@@ -72,7 +69,6 @@ public class DynamicThreadPoolService {
     public void onTaskStart() {
         activeTasks.incrementAndGet();
         adjustThreadPoolBasedOnLoad();
-        logger.debug("現在有{}個任務", activeTasks);
     }
 
     /**
@@ -81,7 +77,6 @@ public class DynamicThreadPoolService {
     public void onTaskComplete() {
         activeTasks.decrementAndGet();
         adjustThreadPoolBasedOnLoad();
-        logger.debug("現在有{}個任務", activeTasks);
     }
 
     /**
@@ -100,13 +95,10 @@ public class DynamicThreadPoolService {
      * @param unit    時間單位。
      */
     public void shutdown(long timeout, TimeUnit unit) {
-
         executorService.shutdown();
         try {
             if (!executorService.awaitTermination(timeout, unit)) {
-                List<Runnable> tasks = executorService.shutdownNow();
-                logger.warn("任務關閉超過預定時間，強制關閉");
-                logger.info("剩餘任務: {}", tasks.size());
+                executorService.shutdownNow();
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

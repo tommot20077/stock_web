@@ -1,8 +1,7 @@
 package xyz.dowob.stockweb.Component.Method.Initial;
 
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,9 +19,8 @@ import xyz.dowob.stockweb.Service.Stock.StockTwService;
  * @author yuan
  */
 @Component
+@Log4j2
 public class AssetDataInitial {
-    Logger logger = LoggerFactory.getLogger(AssetDataInitial.class);
-
     private final CurrencyService currencyService;
 
     private final CurrencyRepository currencyRepository;
@@ -53,30 +51,20 @@ public class AssetDataInitial {
     public void init() {
         try {
             Pageable pageable = PageRequest.of(0, 10);
-
-            logger.info("確認貨幣匯率資料");
             Page<String> currencies = currencyRepository.findAllCurrenciesByPage(pageable);
             if (currencies.isEmpty()) {
-                logger.info("貨幣匯率資料為空,開始加載");
                 currencyService.updateCurrencyData();
             }
-
-            logger.debug("確認台灣股票資料");
             Page<String> stockTws = stockTwRepository.findAllStockCodeByPage(pageable);
             if (stockTws.isEmpty()) {
-                logger.info("台灣股票資料為空,開始加載");
                 stockTwService.updateStockList();
             }
-
-            logger.debug("確認加密貨幣資料");
             Page<String> cryptoTradingPairs = cryptoRepository.findAllTradingPairByPage(pageable);
             if (cryptoTradingPairs.isEmpty()) {
-                logger.info("加密貨幣資料為空,開始加載");
                 cryptoService.updateSymbolList();
             }
-            logger.info("資料初始化完成");
         } catch (Exception e) {
-            logger.error("無法加載資產資料", e);
+            log.error("初始化錯誤: " + e);
         }
     }
 }

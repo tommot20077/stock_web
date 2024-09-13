@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Component.Method;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.EventCache;
@@ -23,13 +22,11 @@ public class EventCacheMethod {
     /**
      * 這是一個構造函數，用於注入事件緩存資料庫和應用程序事件發布者。
      *
-     * @param eventCacheRepository      事件緩存資料庫
+     * @param eventCacheRepository 事件緩存資料庫
      */
-    @Autowired
     public EventCacheMethod(EventCacheRepository eventCacheRepository) {
         this.eventCacheRepository = eventCacheRepository;
     }
-
 
     /**
      * 根據資產獲取事件緩存
@@ -53,7 +50,6 @@ public class EventCacheMethod {
         return eventCacheRepository.findEventCacheByProperty(property);
     }
 
-
     /**
      * 添加事件緩存
      *
@@ -75,5 +71,4 @@ public class EventCacheMethod {
     public void deleteEventCache(EventCache eventCache) {
         eventCacheRepository.delete(eventCache);
     }
-
 }

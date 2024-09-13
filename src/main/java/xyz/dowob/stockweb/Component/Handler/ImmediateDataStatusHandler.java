@@ -12,12 +12,14 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import xyz.dowob.stockweb.Component.Method.CrontabMethod;
-import xyz.dowob.stockweb.Model.User.User;
+import xyz.dowob.stockweb.Exception.ServiceExceptions;
 import xyz.dowob.stockweb.Service.Crypto.CryptoService;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static xyz.dowob.stockweb.Exception.ServiceExceptions.ErrorEnum.WEBSOCKET_SEND_MESSAGE_ERROR;
 
 /**
  * 用於處理伺服器即時數據WebSocket狀態的處理器。
@@ -33,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
  **/
 @Log4j2
 @Component
-@DependsOn({"crontabMethod","cryptoService"})
+@DependsOn({"crontabMethod", "cryptoService"})
 public class ImmediateDataStatusHandler extends TextWebSocketHandler {
     @Autowired
     private CryptoService cryptoService;
@@ -57,10 +59,13 @@ public class ImmediateDataStatusHandler extends TextWebSocketHandler {
      */
     @PostConstruct
     public void init() {
-        STATUS.put(CRYPTO_STATUS, cryptoService.isConnectionOpen());
-        STATUS.put(STOCK_TW_STATUS, crontabMethod.isStockTwAutoStart());
+        try {
+            STATUS.put(CRYPTO_STATUS, cryptoService.isConnectionOpen());
+            STATUS.put(STOCK_TW_STATUS, crontabMethod.isStockTwAutoStart());
+        } catch (Exception e) {
+            log.error("初始化錯誤: " + e);
+        }
     }
-
 
     /**
      * 當WebSocket連接成功時，此方法將被調用。
@@ -69,13 +74,9 @@ public class ImmediateDataStatusHandler extends TextWebSocketHandler {
      * @param session WebSocketSession對象
      */
     @Override
-    public void afterConnectionEstablished(@NotNull WebSocketSession session) {
-        User user = (User) session.getAttributes().get("user");
-        log.debug("用戶: {}連接成功", user.getUsername());
+    public void afterConnectionEstablished(@NotNull WebSocketSession session) throws IOException {
         SESSION_MAP.put(session.getId(), session);
-        log.debug("當前連接數量: {}", SESSION_MAP.size());
         sendMessage(session);
-        log.debug("發送消息成功");
     }
 
     /**
@@ -89,13 +90,10 @@ public class ImmediateDataStatusHandler extends TextWebSocketHandler {
      */
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) throws IOException {
-        User user = (User) session.getAttributes().get("user");
-        log.debug("用戶: {}連接關閉", user.getUsername());
         WebSocketSession mapSession = SESSION_MAP.get(session.getId());
         mapSession.close();
         session.close();
         SESSION_MAP.remove(session.getId());
-        log.debug("當前連接數量: {}", SESSION_MAP.size());
     }
 
     /**
@@ -108,8 +106,6 @@ public class ImmediateDataStatusHandler extends TextWebSocketHandler {
      */
     @Override
     public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) throws Exception {
-        log.error("WebSocket連線出現錯誤: {} ,用戶ID: {}", session.getId(), session.getAttributes().get("userId"));
-        log.error("錯誤訊息: {}", exception.getMessage());
         super.handleTransportError(session, exception);
     }
 
@@ -118,7 +114,7 @@ public class ImmediateDataStatusHandler extends TextWebSocketHandler {
      *
      * @param session WebSocketSession對象
      */
-    public static void sendMessage(WebSocketSession session) {
+    public static void sendMessage(WebSocketSession session) throws RuntimeException {
         try {
             if (session.isOpen()) {
                 session.sendMessage(new TextMessage(OBJECT_MAPPER.writeValueAsString(STATUS)));
@@ -127,7 +123,7 @@ public class ImmediateDataStatusHandler extends TextWebSocketHandler {
                 SESSION_MAP.remove(session.getId());
             }
         } catch (IOException e) {
-            log.error("發送消息時發生錯誤: {}", e.getMessage());
+            throw new RuntimeException(new ServiceExceptions(WEBSOCKET_SEND_MESSAGE_ERROR, e));
         }
     }
 }

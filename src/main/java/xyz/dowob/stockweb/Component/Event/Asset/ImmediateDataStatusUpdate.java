@@ -17,8 +17,6 @@ import static xyz.dowob.stockweb.Component.Handler.ImmediateDataStatusHandler.*;
  **/
 @Component
 public class ImmediateDataStatusUpdate implements ApplicationListener<ImmediateDataUpdateEvent> {
-
-
     /**
      * 當接收ImmediateDataUpdateEvent事件時，此方法將被調用。
      * 根據事件的類型，更新STATUS。

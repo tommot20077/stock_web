@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.JsonParseException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,6 +15,7 @@ import java.util.Map;
 
 /**
  * 這是一個用於處理用戶交易相關的控制器
+ *
  * @author yuan
  */
 @Controller
@@ -27,10 +27,10 @@ public class ApiTransactionController {
 
     /**
      * 這是一個構造函數，用於注入TransactionService和UserService
+     *
      * @param transactionService 交易服務
-     * @param userService 用戶服務
+     * @param userService        用戶服務
      */
-    @Autowired
     public ApiTransactionController(TransactionService transactionService, UserService userService) {
         this.transactionService = transactionService;
         this.userService = userService;
@@ -80,7 +80,10 @@ public class ApiTransactionController {
      * @return ResponseEntity
      */
     @GetMapping("/getUserAllTransaction")
-    public ResponseEntity<?> getUserAllTransaction(HttpSession session, @RequestParam(required = false, name = "page", defaultValue = "1") int page) {
+    public ResponseEntity<?> getUserAllTransaction(
+            HttpSession session, @RequestParam(required = false,
+                                               name = "page",
+                                               defaultValue = "1") int page) {
         try {
             User user = userService.getUserFromJwtTokenOrSession(session);
             if (user == null) {

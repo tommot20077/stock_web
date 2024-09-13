@@ -4,8 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -50,15 +48,12 @@ public class KafkaConsumerMethod {
 
     private static final Map<String, Asset> ASSET_CACHE_MAP = new ConcurrentHashMap<>();
 
-    Logger log = LoggerFactory.getLogger(KafkaConsumerMethod.class);
-
     public KafkaConsumerMethod(CryptoInfluxService cryptoInfluxService, StockTwInfluxService stockTwInfluxService, KlineWebSocketHandler klineWebSocketHandler, AssetService assetService) {
         this.cryptoInfluxService = cryptoInfluxService;
         this.stockTwInfluxService = stockTwInfluxService;
         this.klineWebSocketHandler = klineWebSocketHandler;
         this.assetService = assetService;
     }
-
 
     /**
      * 用於Kafka處理消費者的加密貨幣即時K線資料並儲存到InfluxDB。
@@ -71,8 +66,6 @@ public class KafkaConsumerMethod {
         Map<String, Map<String, String>> klineDataMap = formatConsumerRecordToMap(klineData);
         if (klineDataMap != null) {
             cryptoInfluxService.writeToInflux(klineDataMap);
-        } else {
-            log.debug("加密貨幣即時K線資料為空");
         }
     }
 
@@ -87,11 +80,8 @@ public class KafkaConsumerMethod {
         Map<String, Map<String, String>> klineDataMap = formatConsumerRecordToMap(klineData);
         if (klineDataMap != null) {
             stockTwInfluxService.writeToInflux(klineDataMap);
-        } else {
-            log.debug("台灣股票即時K線資料為空");
         }
     }
-
 
     /**
      * 用於Kafka處理消費者的即時K線資料轉換資料格式後發送到WebSocket。
@@ -102,7 +92,7 @@ public class KafkaConsumerMethod {
                    groupId = "websocket")
     @KafkaListener(topics = "stock_tw_kline",
                    groupId = "websocket")
-    public void consumeKlineDataByWebsocket(@Header(KafkaHeaders.RECEIVED_TOPIC) String topic, ConsumerRecord<String, Object> klineData) {
+    public void consumeKlineDataByWebsocket(ConsumerRecord<String, Object> klineData) {
         Map<String, Map<String, String>> klineDataMap = formatConsumerRecordToMap(klineData);
         if (klineDataMap != null) {
             for (Map.Entry<String, Map<String, String>> entry : klineDataMap.entrySet()) {
@@ -113,12 +103,10 @@ public class KafkaConsumerMethod {
                 } else {
                     asset = assetService.getAssetByAssetName(assetName);
                     if (asset == null) {
-                        log.error("找不到名為{}的資產", entry.getKey());
                         continue;
                     }
                     ASSET_CACHE_MAP.put(assetName, asset);
                 }
-
                 KafkaWebsocketDto kafkaWebsocketDto = new KafkaWebsocketDto();
                 Map<String, String> assetData = entry.getValue();
                 AssetKlineDataDto assetKlineDataDto = formatMapToAssetKlineDataDto(assetData);
@@ -128,11 +116,8 @@ public class KafkaConsumerMethod {
                 kafkaWebsocketDto.setData(assetKlineDataDto);
                 CompletableFuture.runAsync(() -> klineWebSocketHandler.sendKlineDataByKafka(kafkaWebsocketDto));
             }
-        } else {
-            log.debug("{}即時K線資料為空", "crypto_kline".equals(topic) ? "虛擬貨幣" : "台灣股票");
         }
     }
-
 
     /**
      * 處理Redis中緩存的即時K線資料成Map格式。
@@ -147,11 +132,8 @@ public class KafkaConsumerMethod {
             String jsonString = obj.value().toString();
             jsonString = jsonString.replaceAll("([a-zA-Z0-9_]+)=([a-zA-Z0-9_.]+)", "\"$1\":\"$2\"");
             jsonString = jsonString.replaceAll("([a-zA-Z0-9_]+)=", "\"$1\":");
-            Map<String, Map<String, String>> formatKlineData = objectMapper.readValue(jsonString, new TypeReference<>() {});
-            log.debug("轉換後的Map資料: {}", formatKlineData);
-            return formatKlineData;
+            return objectMapper.readValue(jsonString, new TypeReference<>() {});
         } catch (JsonProcessingException e) {
-            log.error("Kafka在轉換台灣股票K線資料時發生錯誤 {}", e.getMessage());
             return null;
         }
     }

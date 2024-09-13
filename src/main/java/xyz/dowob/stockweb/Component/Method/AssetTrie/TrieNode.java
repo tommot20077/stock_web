@@ -29,7 +29,6 @@ public class TrieNode implements Serializable {
     /**
      * 字典樹節點的構造函數
      */
-
     public TrieNode() {
         children = new HashMap<>();
         isEndOfWord = false;

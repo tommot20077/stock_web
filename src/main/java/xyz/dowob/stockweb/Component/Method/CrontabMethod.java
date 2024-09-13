@@ -1,12 +1,9 @@
 package xyz.dowob.stockweb.Component.Method;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -41,6 +38,7 @@ import java.util.Map;
  *
  * @author yuan
  */
+@Log4j2
 @Component
 public class CrontabMethod {
     private final TokenService tokenService;
@@ -85,7 +83,6 @@ public class CrontabMethod {
      * @param subscribeMethod        訂閱相關方法
      * @param propertyInfluxService  資產Influx相關服務
      */
-    @Autowired
     public CrontabMethod(TokenService tokenService, CurrencyService currencyService, StockTwService stockTwService, CryptoService cryptoService, UserService userService, PropertyService propertyService, NewsService newsService, RedisService redisService, AssetService assetService, CryptoWebSocketHandler cryptoWebSocketHandler, SubscribeMethod subscribeMethod, PropertyInfluxService propertyInfluxService, ApplicationEventPublisher applicationEventPublisher) {
         this.tokenService = tokenService;
         this.currencyService = currencyService;
@@ -105,8 +102,6 @@ public class CrontabMethod {
     private List<String> trackableStocks = new ArrayList<>();
 
     private boolean immediatelyUpdateStockTw = false;
-
-    Logger logger = LoggerFactory.getLogger(CrontabMethod.class);
 
     @Value("${news.remain.days:30}")
     private int newsRemainDays;
@@ -136,17 +131,15 @@ public class CrontabMethod {
      */
     @PostConstruct
     public void init() {
-        logger.info("自動連線台股即時更新: {}", isStockTwAutoStart);
-        if (isStockTwAutoStart || isKafkaEnable) {
-            immediatelyUpdateStockTw = true;
-        }
-
-        logger.info("檢查資產前綴樹緩存...");
-        if (redisService.getCacheValueFromKey("assetTrie") == null) {
-            logger.info("資產前綴樹緩存不存在，重新緩存");
-            assetService.cacheTrieToRedis();
-        } else {
-            logger.info("資產前綴樹緩存存在");
+        try {
+            if (isStockTwAutoStart || isKafkaEnable) {
+                immediatelyUpdateStockTw = true;
+            }
+            if (redisService.getCacheValueFromKey("assetTrie") == null) {
+                assetService.cacheTrieToRedis();
+            }
+        } catch (Exception e) {
+            log.error("初始化失敗", e);
         }
     }
 
@@ -156,7 +149,11 @@ public class CrontabMethod {
      */
     @Scheduled(cron = "0 0 1 * * ?")
     public void cleanExpiredTokens() {
-        tokenService.removeExpiredTokens();
+        try {
+            tokenService.removeExpiredTokens();
+        } catch (Exception e) {
+            log.error("清除過期的token失敗", e);
+        }
     }
 
     /**
@@ -165,7 +162,11 @@ public class CrontabMethod {
      */
     @Scheduled(cron = "0 30 */2 * * ?")
     public void updateCurrencyData() {
-        currencyService.updateCurrencyData();
+        try {
+            currencyService.updateCurrencyData();
+        } catch (Exception e) {
+            log.error("更新匯率資料失敗", e);
+        }
     }
 
     /**
@@ -175,34 +176,32 @@ public class CrontabMethod {
     @Scheduled(cron = "0 0 3 * * ?",
                zone = "Asia/Taipei")
     public void updateStockList() {
-        stockTwService.updateStockList();
+        try {
+            stockTwService.updateStockList();
+        } catch (Exception e) {
+            log.error("更新台股股票列表失敗", e);
+        }
     }
 
     /**
      * 檢查台灣股票訂閱狀況，如果有訂閱則追蹤即時交易價格
      * 每天早上8:30
-     *
-     * @throws JsonProcessingException 無法獲取列表
      */
     @Scheduled(cron = "0 30 8 * * ? ",
                zone = "Asia/Taipei")
-    public void checkSubscriptions() throws JsonProcessingException {
-
-        logger.info("正在檢查訂閱狀況");
-        logger.debug(String.valueOf(trackableStocks));
-        Map<String, List<String>> subscriptionValidity = stockTwService.checkSubscriptionValidity();
-        if (subscriptionValidity != null) {
-            logger.debug("成功獲取列表，加入到處理欄中");
-            trackableStocks = subscriptionValidity.get("inquiry");
-        } else {
-            logger.debug("無法獲取列表，重新獲取");
-            trackableStocks = stockTwService.checkSubscriptionValidity().get("inquiry");
-            if (trackableStocks != null && !trackableStocks.isEmpty()) {
-                logger.debug("成功獲取列表，加入到處理欄中");
-                stockTwService.trackStockNowPrices(trackableStocks);
+    public void checkSubscriptions() {
+        try {
+            Map<String, List<String>> subscriptionValidity = stockTwService.checkSubscriptionValidity();
+            if (subscriptionValidity != null) {
+                trackableStocks = subscriptionValidity.get("inquiry");
             } else {
-                logger.info("沒有可以訂閱的股票");
+                trackableStocks = stockTwService.checkSubscriptionValidity().get("inquiry");
+                if (trackableStocks != null && !trackableStocks.isEmpty()) {
+                    stockTwService.trackStockNowPrices(trackableStocks);
+                }
             }
+        } catch (Exception e) {
+            log.error("檢查台灣股票訂閱狀況失敗", e);
         }
     }
 
@@ -214,26 +213,21 @@ public class CrontabMethod {
     @Scheduled(cron = "*/5 * 9-13 * * MON-FRI ",
                zone = "Asia/Taipei")
     public void trackStockTwPricesPeriodically() {
-        if (immediatelyUpdateStockTw) {
-            LocalTime now = LocalTime.now(ZoneId.of("Asia/Taipei"));
-            if (!trackableStocks.isEmpty()) {
-                logger.debug("已經獲取列表");
-
-                if (now.isAfter(LocalTime.of(13, 30)) && now.getMinute() % 10 == 0) {
-                    logger.debug("收盤時間:更新速度為10分鐘");
-                    stockTwService.trackStockNowPrices(trackableStocks);
+        try {
+            if (immediatelyUpdateStockTw) {
+                LocalTime now = LocalTime.now(ZoneId.of("Asia/Taipei"));
+                if (!trackableStocks.isEmpty()) {
+                    if (now.isAfter(LocalTime.of(13, 30)) && now.getMinute() % 10 == 0) {
+                        stockTwService.trackStockNowPrices(trackableStocks);
+                    } else {
+                        stockTwService.trackStockNowPrices(trackableStocks);
+                    }
                 } else {
-                    logger.debug("開盤時間:更新速度為5秒");
-                    stockTwService.trackStockNowPrices(trackableStocks);
-                }
-            } else {
-                logger.debug("列表為空，嘗試獲取訂閱列表");
-                try {
                     checkSubscriptions();
-                } catch (JsonProcessingException e) {
-                    logger.error("無法獲取列表: {}", e.getMessage());
                 }
             }
+        } catch (Exception e) {
+            log.error("追蹤台股股票5秒搓合交易價格失敗", e);
         }
     }
 
@@ -244,8 +238,11 @@ public class CrontabMethod {
     @Scheduled(cron = "0 30 16 * * MON-FRI ",
                zone = "Asia/Taipei")
     public void updateStockHistoryPrices() {
-        logger.info("開始更新股票的每日最新價格");
-        stockTwService.trackStockHistoryPricesWithUpdateDaily();
+        try {
+            stockTwService.trackStockHistoryPricesWithUpdateDaily();
+        } catch (Exception e) {
+            log.error("更新台股股票的每日歷史價格失敗", e);
+        }
     }
 
     /**
@@ -255,8 +252,11 @@ public class CrontabMethod {
     @Scheduled(cron = "0 30 2 * * ? ",
                zone = "UTC")
     public void updateCryptoHistoryPrices() {
-        logger.info("開始更新加密貨幣的每日最新價格");
-        cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
+        try {
+            cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
+        } catch (Exception e) {
+            log.error("更新加密貨幣的每日歷史價格失敗", e);
+        }
     }
 
     /**
@@ -266,8 +266,11 @@ public class CrontabMethod {
     @Scheduled(cron = "0 30 */4 * * ? ",
                zone = "UTC")
     public void checkHistoryData() {
-        logger.info("開始檢查資產的歷史數據");
-        subscribeMethod.CheckSubscribedAssets();
+        try {
+            subscribeMethod.CheckSubscribedAssets();
+        } catch (Exception e) {
+            log.error("檢查資產的歷史數據完整性失敗", e);
+        }
     }
 
     /**
@@ -277,27 +280,20 @@ public class CrontabMethod {
      */
     @Scheduled(cron = "0 0 */1 * * ? ")
     public void recordUserPropertySummary() {
-        logger.info("開始記錄使用者的資產總價");
-        List<User> users = userService.getAllUsers();
-        logger.debug(String.valueOf(users));
         try {
+            List<User> users = userService.getAllUsers();
             for (User user : users) {
-                logger.debug("正在記錄使用者 {} 的資產總價", user.getUsername());
                 List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(user, false);
                 if (getAllPropertiesDtoList == null) {
-                    logger.debug("用戶:{}沒有資產可以記錄", user.getUsername());
-                    logger.info("重製用戶 {} 的influx資產資料庫", user.getUsername());
                     propertyService.resetUserPropertySummary(user);
-                    logger.info("重製用戶資料完成");
                     continue;
                 }
                 List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(
                         getAllPropertiesDtoList);
                 propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, user);
             }
-            logger.debug("記錄完成");
         } catch (Exception e) {
-            logger.error("記錄失敗", e);
+            log.error("記錄使用者的資產總價失敗", e);
         }
     }
 
@@ -305,19 +301,16 @@ public class CrontabMethod {
      * 更新使用者的現金流
      * 每4小時執行一次
      */
-
     @Scheduled(cron = "0 10 */4 * * ? ",
                zone = "UTC")
     public void updateUserCashFlow() {
-        logger.info("開始更新使用者的現金流");
-        List<User> users = userService.getAllUsers();
         try {
+            List<User> users = userService.getAllUsers();
             for (User user : users) {
                 propertyInfluxService.writeNetFlowToInflux(BigDecimal.ZERO, user);
             }
-            logger.debug("更新完成");
         } catch (Exception e) {
-            logger.error("更新失敗", e);
+            log.error("更新使用者的現金流失敗", e);
         }
     }
 
@@ -328,15 +321,17 @@ public class CrontabMethod {
     @Scheduled(cron = "0 40 */4 * * ? ",
                zone = "UTC")
     public void updateUserRoiData() {
-        logger.info("開始更新使用者的 ROI 資料");
-        Long time = Instant.now().toEpochMilli();
-        List<User> users = userService.getAllUsers();
-        for (User user : users) {
-            List<String> roiResult = propertyService.prepareRoiDataAndCalculate(user);
-            ObjectNode roiObject = propertyService.formatToObjectNode(roiResult);
-            propertyInfluxService.writeUserRoiDataToInflux(roiObject, user, time);
+        try {
+            Long time = Instant.now().toEpochMilli();
+            List<User> users = userService.getAllUsers();
+            for (User user : users) {
+                List<String> roiResult = propertyService.prepareRoiDataAndCalculate(user);
+                ObjectNode roiObject = propertyService.formatToObjectNode(roiResult);
+                propertyInfluxService.writeUserRoiDataToInflux(roiObject, user, time);
+            }
+        } catch (Exception e) {
+            log.error("更新使用者的 ROI 失敗", e);
         }
-        logger.debug("更新完成");
     }
 
     /**
@@ -346,21 +341,19 @@ public class CrontabMethod {
     @Scheduled(cron = "0 45 */4 * * ? ",
                zone = "UTC")
     public void updateUserRoiStatistic() {
-        logger.info("開始更新使用者的 ROI 統計資料");
-        List<User> users = userService.getAllUsers();
-        for (User user : users) {
-            Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
-            propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
-
-            Map<String, String> sharpeRatioResult = propertyService.calculateSharpeRatio(user);
-            propertyInfluxService.writeUserSharpRatioToInflux(sharpeRatioResult, user);
-
-            Map<String, Map<String, List<BigDecimal>>> drawDownResult = propertyService.calculateUserDrawDown(user);
-            propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
-
-
+        try {
+            List<User> users = userService.getAllUsers();
+            for (User user : users) {
+                Map<String, BigDecimal> roiStatisticResult = propertyService.roiStatisticCalculation(user);
+                propertyInfluxService.writeUserRoiStatisticsToInflux(roiStatisticResult, user);
+                Map<String, String> sharpeRatioResult = propertyService.calculateSharpeRatio(user);
+                propertyInfluxService.writeUserSharpRatioToInflux(sharpeRatioResult, user);
+                Map<String, Map<String, List<BigDecimal>>> drawDownResult = propertyService.calculateUserDrawDown(user);
+                propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
+            }
+        } catch (Exception e) {
+            log.error("更新使用者的 ROI 統計資料失敗", e);
         }
-        logger.debug("更新完成");
     }
 
     /**
@@ -369,8 +362,12 @@ public class CrontabMethod {
      */
     @Scheduled(fixedRate = 300000)
     public void checkAndReconnectWebSocket() {
-        if (cryptoService.isNeedToCheckConnection() && !cryptoWebSocketHandler.isRunning()) {
-            cryptoService.checkAndReconnectWebSocket();
+        try {
+            if (cryptoService.isNeedToCheckConnection() && !cryptoWebSocketHandler.isRunning()) {
+                cryptoService.checkAndReconnectWebSocket();
+            }
+        } catch (Exception e) {
+            log.error("檢查並重新連接WebSocket失敗", e);
         }
     }
 
@@ -383,11 +380,13 @@ public class CrontabMethod {
     @Scheduled(cron = "0 0 1 * * ? ",
                zone = "UTC")
     public void removeExpiredNews() {
-        if (newsRemainDays > 0) {
-            logger.info("開始刪除過期的新聞");
-            LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
-            newsService.deleteNewsBeforeDate(removeTime);
-            logger.debug("刪除完成");
+        try {
+            if (newsRemainDays > 0) {
+                LocalDateTime removeTime = LocalDateTime.now().minusDays(newsRemainDays);
+                newsService.deleteNewsBeforeDate(removeTime);
+            }
+        } catch (Exception e) {
+            log.error("刪除過期的新聞失敗", e);
         }
     }
 
@@ -401,21 +400,19 @@ public class CrontabMethod {
      */
     @Scheduled(cron = "0 30 */8 * * ? ")
     public void updateNewsData() {
-        logger.info("開始更新頭條新聞");
-        redisService.deleteByPattern("news_headline_page_*");
-        logger.debug("刪除緩存完成");
-        newsService.sendNewsRequest(true, 1, null, null);
-        logger.info("開始更新訂閱資產的新聞");
-        List<Asset> subscribeAsset = assetService.findHasSubscribeAsset(newsAutoupdateCrypto,
-                                                                        newsAutoupdateStockTw,
-                                                                        newsAutoupdateCurrency);
-        for (Asset asset : subscribeAsset) {
-            logger.debug("正在更新 {} 的新聞", asset.getId());
-            newsService.sendNewsRequest(false, 1, null, asset);
+        try {
+            redisService.deleteByPattern("news_headline_page_*");
+            newsService.sendNewsRequest(true, 1, null, null);
+            List<Asset> subscribeAsset = assetService.findHasSubscribeAsset(newsAutoupdateCrypto,
+                                                                            newsAutoupdateStockTw,
+                                                                            newsAutoupdateCurrency);
+            for (Asset asset : subscribeAsset) {
+                newsService.sendNewsRequest(false, 1, null, asset);
+            }
+            newsService.sendNewsRequest(false, 1, "DEBT", null);
+        } catch (Exception e) {
+            log.error("更新新聞資料失敗", e);
         }
-        newsService.sendNewsRequest(false, 1, "DEBT", null);
-
-        logger.info("新聞更新完成");
     }
 
     /**
@@ -426,21 +423,16 @@ public class CrontabMethod {
     public void updateAssetListCache() {
         try {
             List<String> keys = new ArrayList<>(Arrays.asList("crypto", "stock_tw", "currency"));
-            logger.info("開始更新資產列表緩存");
-
             for (String key : keys) {
                 int totalPage = assetService.findAssetTotalPage(key, pageSize);
                 for (int page = 1; page <= totalPage; page++) {
-                    logger.debug("正在更新 {} 的第 {} 頁資產列表緩存", key, page);
                     String innerKey = keys + "_page_" + page;
                     List<Asset> assetsList = assetService.findAssetPageByType(key, page, false);
                     assetService.formatStringAssetListToFrontendType(assetsList, innerKey);
                 }
             }
-            logger.info("資產列表緩存更新完成");
         } catch (Exception e) {
-            logger.error("更新資產列表緩存失敗", e);
-            throw new RuntimeException("更新資產列表緩存失敗", e);
+            log.error("更新資產列表緩存失敗", e);
         }
     }
 
@@ -450,7 +442,11 @@ public class CrontabMethod {
      */
     @Scheduled(cron = "0 0 2 * * ?")
     public void updateGovernmentBondsData() {
-        assetService.GovernmentBondsDataFetcherAndSaveToInflux();
+        try {
+            assetService.GovernmentBondsDataFetcherAndSaveToInflux();
+        } catch (Exception e) {
+            log.error("更新政府公債資料失敗", e);
+        }
     }
 
     /**
@@ -459,9 +455,12 @@ public class CrontabMethod {
      * @param isOpen 是否開啟
      */
     public void operateStockTwTrack(boolean isOpen) {
-        immediatelyUpdateStockTw = isOpen;
-        logger.info("已獲取股票台灣自動更新狀態 {}", isOpen);
-        applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, isOpen, AssetType.STOCK_TW));
+        try {
+            immediatelyUpdateStockTw = isOpen;
+            applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, isOpen, AssetType.STOCK_TW));
+        } catch (Exception e) {
+            log.error("變更股票台灣自動更新狀態失敗", e);
+        }
     }
 
     /**
@@ -473,14 +472,19 @@ public class CrontabMethod {
      * @return 是否開啟
      */
     public boolean isStockTwAutoStart() {
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Taipei"));
-        DayOfWeek dayOfWeek = now.getDayOfWeek();
-        if (dayOfWeek.getValue() >= DayOfWeek.MONDAY.getValue() && dayOfWeek.getValue() <= DayOfWeek.FRIDAY.getValue()) {
-            if (now.getHour() >= 9 && now.getHour() < 14) {
-                return immediatelyUpdateStockTw;
+        try {
+            LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Taipei"));
+            DayOfWeek dayOfWeek = now.getDayOfWeek();
+            if (dayOfWeek.getValue() >= DayOfWeek.MONDAY.getValue() && dayOfWeek.getValue() <= DayOfWeek.FRIDAY.getValue()) {
+                if (now.getHour() >= 9 && now.getHour() < 14) {
+                    return immediatelyUpdateStockTw;
+                }
             }
+            return false;
+        } catch (Exception e) {
+            log.error("獲取股票台灣自動更新狀態失敗", e);
+            return false;
         }
-        return false;
     }
 
     /**
@@ -490,8 +494,11 @@ public class CrontabMethod {
     @Scheduled(cron = "0 0 2 * * 5")
     @Transactional
     public void cacheAssetTrie() {
-        redisService.deleteByPattern("assetTrie");
-        assetService.cacheTrieToRedis();
+        try {
+            redisService.deleteByPattern("assetTrie");
+            assetService.cacheTrieToRedis();
+        } catch (Exception e) {
+            log.error("緩存資產前綴樹失敗", e);
+        }
     }
 }
-

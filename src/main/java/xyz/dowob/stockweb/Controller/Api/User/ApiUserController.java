@@ -3,19 +3,15 @@ package xyz.dowob.stockweb.Controller.Api.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
 import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Dto.User.TodoDto;
+import xyz.dowob.stockweb.Exception.AssetExceptions;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.News;
 import xyz.dowob.stockweb.Model.User.User;
@@ -52,7 +48,6 @@ public class ApiUserController {
 
     private final TodoService todoService;
 
-
     /**
      * 這是一個構造函數
      *
@@ -63,7 +58,6 @@ public class ApiUserController {
      * @param assetService 資產相關服務
      * @param todoService  待辦事項相關服務
      */
-    @Autowired
     public ApiUserController(UserService userService, TokenService tokenService, NewsService newsService, RedisService redisService, AssetService assetService, TodoService todoService) {
         this.userService = userService;
         this.tokenService = tokenService;
@@ -72,7 +66,6 @@ public class ApiUserController {
         this.assetService = assetService;
         this.todoService = todoService;
     }
-
 
     /**
      * 註冊用戶
@@ -87,7 +80,7 @@ public class ApiUserController {
         try {
             userService.registerUser(registerUserDto);
             return ResponseEntity.ok().body("註冊成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -106,19 +99,12 @@ public class ApiUserController {
             @RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session) {
         try {
             User user = userService.loginUser(loginUserDto, response);
-            Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
-            session.setAttribute("currentUserId", user.getId());
-            session.setAttribute("userMail", user.getEmail());
-
-
+            tokenService.authenticateUser(user, session);
             String jwt = tokenService.generateJwtToken(user, response);
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", jwt);
-
             return ResponseEntity.ok().body(tokenMap);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -135,7 +121,6 @@ public class ApiUserController {
         try {
             String email = userInfo.get("email");
             tokenService.sendResetPasswordEmail(email);
-
             return ResponseEntity.ok().body("已發送");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -159,7 +144,6 @@ public class ApiUserController {
         }
     }
 
-
     /**
      * 取得用戶詳細資訊
      *
@@ -181,7 +165,6 @@ public class ApiUserController {
                 userInfo.put("gender", user.getGender().toString());
                 userInfo.put("timeZone", user.getTimezone());
                 userInfo.put("preferredCurrency", user.getPreferredCurrency().getCurrency());
-
                 return ResponseEntity.ok(userInfo);
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("找不到用戶");
@@ -214,7 +197,6 @@ public class ApiUserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("錯誤: " + e.getMessage());
         }
     }
-
 
     /**
      * 發送用戶信箱確認信
@@ -258,12 +240,13 @@ public class ApiUserController {
      */
     @GetMapping("/getTimeZoneList")
     public ResponseEntity<?> getTimeZoneList() {
-
-        List<String> timezones = ZoneId.getAvailableZoneIds().stream().sorted().collect(Collectors.toList());
-
-        return ResponseEntity.ok().body(timezones);
+        try {
+            List<String> timezones = ZoneId.getAvailableZoneIds().stream().sorted().collect(Collectors.toList());
+            return ResponseEntity.ok().body(timezones);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("發生錯誤: " + e.getMessage());
+        }
     }
-
 
     /**
      * 獲取csrf token
@@ -318,22 +301,21 @@ public class ApiUserController {
                           required = false) String category, @RequestParam(name = "asset",
                                                                            required = false) Long assetId, @RequestParam(name = "page",
                                                                                                                          required = false,
-                                                                                                                         defaultValue = "1") int page) {
-        String innerKey;
-        Asset asset = null;
-        if (assetId != null) {
-            asset = assetService.getAssetById(assetId);
-            category = asset.getId().toString();
-        }
-        if (category != null && !category.isEmpty() && asset != null) {
-            innerKey = asset.getId() + "_page_" + page;
-        } else if (category != null && !category.isEmpty()) {
-            innerKey = category.toLowerCase() + "_page_" + page;
-        } else {
-            return ResponseEntity.badRequest().body("沒有任何查詢參數可以使用");
-        }
-
+                                                                                                                         defaultValue = "1") int page) throws AssetExceptions {
         try {
+            String innerKey;
+            Asset asset = null;
+            if (assetId != null) {
+                asset = assetService.getAssetById(assetId);
+                category = asset.getId().toString();
+            }
+            if (category != null && !category.isEmpty() && asset != null) {
+                innerKey = asset.getId() + "_page_" + page;
+            } else if (category != null && !category.isEmpty()) {
+                innerKey = category.toLowerCase() + "_page_" + page;
+            } else {
+                return ResponseEntity.badRequest().body("沒有任何查詢參數可以使用");
+            }
             String cachedNewsJson = redisService.getHashValueFromKey("news", innerKey);
             if (cachedNewsJson != null) {
                 return ResponseEntity.ok().body(cachedNewsJson);
@@ -344,7 +326,6 @@ public class ApiUserController {
                 } else {
                     news = newsService.getAllNewsByType(category, page);
                 }
-
                 String newsJson = newsService.formatNewsListToJson(news);
                 if (newsJson == null) {
                     Map<String, String> result = new HashMap<>();

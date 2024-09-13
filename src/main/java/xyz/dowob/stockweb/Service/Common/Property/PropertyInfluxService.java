@@ -6,15 +6,15 @@ import com.influxdb.client.WriteApi;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Annotation.MeaninglessData;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Dto.Property.PropertyListDto;
+import xyz.dowob.stockweb.Exception.AssetExceptions;
+import xyz.dowob.stockweb.Exception.RepositoryExceptions;
 import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.User.User;
@@ -23,7 +23,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author yuan
@@ -42,9 +44,6 @@ public class PropertyInfluxService {
 
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
-
-    Logger logger = LoggerFactory.getLogger(PropertyInfluxService.class);
-
     /**
      * 用戶資產Influx操作服務建構子
      *
@@ -52,7 +51,6 @@ public class PropertyInfluxService {
      * @param assetInfluxMethod           資產Influx操作方法
      * @param retryTemplate               重試模板
      */
-    @Autowired
     public PropertyInfluxService(
             @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.propertySummaryInfluxClient = propertySummaryInfluxClient;
@@ -82,7 +80,6 @@ public class PropertyInfluxService {
         } else {
             time = userPropertiesDtoList.getFirst().getTimeMillis();
         }
-
         var ref = new Object() {
             BigDecimal currencyTypeSum = new BigDecimal(0);
 
@@ -104,11 +101,9 @@ public class PropertyInfluxService {
                     try {
                         try (WriteApi writeApi = propertySummaryInfluxClient.makeWriteApi()) {
                             writeApi.writePoint(specificPoint);
-                            logger.debug("寫入資料{}成功", specificPoint);
                         }
                     } catch (Exception e) {
-                        logger.error("寫入InfluxDB時發生錯誤", e);
-                        throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
+                        throw new RuntimeException(new RepositoryExceptions(RepositoryExceptions.ErrorEnum.INFLUXDB_WRITE_ERROR, e));
                     }
                     switch (userPropertiesDto.getAssetType()) {
                         case CURRENCY:
@@ -129,15 +124,12 @@ public class PropertyInfluxService {
                                           .addField("stock_tw_sum", ref.stockTwTypeSum)
                                           .addField("total_sum", ref.currencyTypeSum.add(ref.cryptoTypeSum).add(ref.stockTwTypeSum))
                                           .time(time, WritePrecision.MS);
-                logger.debug("建立InfluxDB specificPoint");
                 assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, summaryPoint);
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
         }
     }
-
 
     /**
      * 計算用戶資產淨流量
@@ -150,8 +142,7 @@ public class PropertyInfluxService {
     public BigDecimal calculateNetFlow(BigDecimal quantity, Asset asset) {
         BigDecimal price = assetInfluxMethod.getLatestPrice(asset);
         if (price.compareTo(BigDecimal.valueOf(-1)) == 0) {
-            logger.error("無法取得最新價格");
-            throw new RuntimeException("無法取得最新價格");
+            throw new AssetExceptions(AssetExceptions.ErrorEnum.ASSET_IMMEDIATE_PRICE_NOT_FOUND, asset.getId());
         }
         return price.multiply(quantity);
     }
@@ -163,7 +154,6 @@ public class PropertyInfluxService {
      * @param user       用戶
      */
     public void writeNetFlowToInflux(BigDecimal newNetFlow, User user) {
-
         Map<String, List<FluxTable>> netCashFlowTablesMap = queryInflux(propertySummaryBucket,
                                                                         "net_cash_flow",
                                                                         null,
@@ -179,36 +169,28 @@ public class PropertyInfluxService {
                                                                                                                         .getFirst()
                                                                                                                         .getRecords()
                                                                                                                         .isEmpty()) {
-            logger.debug("沒有該用戶的資料，設定初始值0");
             originNetCashFlow = BigDecimal.valueOf(0);
         } else {
             Object value = netCashFlowTablesMap.get("net_cash_flow").getFirst().getRecords().getFirst().getValueByKey("_value");
-            logger.debug("取得該用戶的資料: " + value);
             if (value instanceof Double netCashFlowBig) {
                 originNetCashFlow = BigDecimal.valueOf(netCashFlowBig);
             } else {
-                logger.debug("沒有該用戶的資料，設定初始值0");
                 originNetCashFlow = BigDecimal.valueOf(0);
             }
         }
         BigDecimal newNetCashFlow = originNetCashFlow.add(newNetFlow);
-        logger.debug("更新後的現金流量: " + newNetCashFlow);
         try {
             retryTemplate.doWithRetry(() -> {
                 Point netCashFlowPoint = Point.measurement("net_cash_flow")
                                               .addTag("user_id", user.getId().toString())
                                               .addField("net_cash_flow", newNetCashFlow)
                                               .time(Instant.now().toEpochMilli(), WritePrecision.MS);
-
-                logger.debug("建立InfluxDB netCashFlowPoint");
                 assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, netCashFlowPoint);
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
-
 
     /**
      * 透過用戶查詢用戶資產
@@ -225,6 +207,7 @@ public class PropertyInfluxService {
      *
      * @return 用戶資產列表
      */
+    @MeaninglessData
     public Map<String, List<FluxTable>> queryInflux(String bucket, String measurement, Map<String, Map<String, List<String>>> filter, User user, String queryTimeRange, boolean isLast, boolean isFirst, boolean isCount, boolean isSum) {
         Map<String, List<FluxTable>> userPropertyTablesMap = new HashMap<>();
         String summaryPredicate = createInquiryPredicate(bucket,
@@ -243,10 +226,8 @@ public class PropertyInfluxService {
             retryTemplate.doWithRetry(() -> ref.userPropertyTables = propertySummaryInfluxClient.getQueryApi()
                                                                                                 .query(summaryPredicate, org));
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
-
         userPropertyTablesMap.put(measurement, ref.userPropertyTables);
         return userPropertyTablesMap;
     }
@@ -280,11 +261,9 @@ public class PropertyInfluxService {
         } else if (isSum) {
             baseQuery.append(" |> sum(column: \"_value\")");
         }
-
         if (user != null) {
             baseQuery.append(String.format(" |> filter(fn: (r) => r[\"user_id\"] == \"%s\")", user.getId()));
         }
-
         if (filter != null) {
             int filterSize = filter.size();
             for (Map.Entry<String, Map<String, List<String>>> entry : filter.entrySet()) {
@@ -303,11 +282,8 @@ public class PropertyInfluxService {
                 }
             }
         }
-
-        logger.debug("baseQuery: " + baseQuery);
         return baseQuery.toString();
     }
-
 
     /**
      * 將用戶ROI資料寫入InfluxDB
@@ -318,7 +294,6 @@ public class PropertyInfluxService {
      * @param time 時間
      */
     public void writeUserRoiDataToInflux(ObjectNode node, User user, Long time) {
-        logger.debug("讀取資料: " + node);
         Point roiPoint = Point.measurement("roi")
                               .addTag("user_id", user.getId().toString())
                               .addField("day", "數據不足".equals(node.get("day").asText()) ? null : node.get("day").asDouble())
@@ -326,9 +301,7 @@ public class PropertyInfluxService {
                               .addField("month", "數據不足".equals(node.get("month").asText()) ? null : node.get("month").asDouble())
                               .addField("year", "數據不足".equals(node.get("year").asText()) ? null : node.get("year").asDouble())
                               .time(time, WritePrecision.MS);
-
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, roiPoint);
-
     }
 
     /**
@@ -355,7 +328,6 @@ public class PropertyInfluxService {
     public void writeUserSharpRatioToInflux(Map<String, String> dataMap, User user) {
         for (Map.Entry<String, String> entry : dataMap.entrySet()) {
             Double sharpRatio = "數據不足".equals(entry.getValue()) ? null : Double.parseDouble(entry.getValue());
-            logger.debug("key: " + entry.getKey() + " value: " + entry.getValue());
             Point sharpRatioPoint = Point.measurement("roi_statistics")
                                          .addTag("user_id", user.getId().toString())
                                          .addTag(entry.getKey(), entry.getKey())
@@ -396,20 +368,15 @@ public class PropertyInfluxService {
      */
     public void deleteSpecificPropertyDataByUserAndAsset(User user) {
         String predicate = String.format("_measurement=\"specific_property\" AND user_id=\"%s\"", user.getId());
-        logger.warn("刪除" + user.getId() + "的特定資產歷史資料");
         try {
             retryTemplate.doWithRetry(() -> {
                 try {
-                    logger.warn("連接InfluxDB成功");
                     propertySummaryInfluxClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, propertySummaryBucket, org);
-                    logger.info("刪除資料成功");
                 } catch (Exception e) {
-                    logger.error("刪除資料時發生錯誤: " + e.getMessage());
                     throw new RuntimeException("刪除資料時發生錯誤: " + e.getMessage());
                 }
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
@@ -428,15 +395,11 @@ public class PropertyInfluxService {
                                   .addField("stock_tw_sum", 0.0)
                                   .addField("total_sum", 0.0)
                                   .time(time, WritePrecision.MS);
-        logger.debug("建立InfluxDB specificPoint");
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, summaryPoint);
-
         Point netFlowPoint = Point.measurement("net_cash_flow")
                                   .addTag("user_id", user.getId().toString())
                                   .addField("net_cash_flow", 0.0)
                                   .time(time, WritePrecision.MS);
-        logger.debug("建立InfluxDB netFlowPoint");
         assetInfluxMethod.writeToInflux(propertySummaryInfluxClient, netFlowPoint);
     }
-
 }

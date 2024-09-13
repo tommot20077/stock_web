@@ -1,6 +1,7 @@
 package xyz.dowob.stockweb.Component.Method.retry;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Exception.RetryException;
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author yuan
  */
+@Log4j2
 @Component
 public class RetryMethod {
     @Value("${common.max_retryTimes:3}")
@@ -25,9 +27,12 @@ public class RetryMethod {
      */
     @PostConstruct
     private void init() {
-        maxRetryTimes = new AtomicInteger(maxRetryTimesValue);
+        try {
+            maxRetryTimes = new AtomicInteger(maxRetryTimesValue);
+        } catch (Exception e) {
+            log.error("初始化錯誤: " + e);
+        }
     }
-
 
     public RetryContent getRetryContent() {
         return new RetryContent(maxRetryTimes.get());

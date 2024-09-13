@@ -23,7 +23,6 @@ import java.util.Objects;
  * 7. taskStatus : 任務狀態
  * 8. message : 任務訊息
  */
-
 @Data
 @Entity
 @Table(name = "server_task_records")
@@ -60,7 +59,6 @@ public class Task implements Serializable {
             columnDefinition = "TEXT")
     private String message;
 
-
     @PrePersist
     protected void onCreate() {
         taskStartTime = LocalDateTime.now();
@@ -84,7 +82,6 @@ public class Task implements Serializable {
         Long hours = duration.toHours();
         Long minutes = duration.toMinutes();
         Long seconds = duration.getSeconds();
-
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
@@ -93,6 +90,4 @@ public class Task implements Serializable {
         this.taskStatus = status;
         this.message = message;
     }
-
-
 }

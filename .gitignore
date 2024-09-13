@@ -39,3 +39,5 @@ build/
 /.mvn/wrapper/maven-wrapper.jar
 /src/main/resources/rebel.xml
 /src/main/resources/application-prod.properties
+/Dockerfile
+/rebel.xml

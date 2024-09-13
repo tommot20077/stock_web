@@ -6,14 +6,13 @@ import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Enum.AssetType;
+import xyz.dowob.stockweb.Exception.AssetExceptions;
+import xyz.dowob.stockweb.Exception.RepositoryExceptions;
 import xyz.dowob.stockweb.Exception.RetryException;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
@@ -59,7 +58,6 @@ public class AssetInfluxMethod {
 
     private final RetryTemplate retryTemplate;
 
-
     @Value("${db.influxdb.bucket.crypto}")
     private String cryptoBucket;
 
@@ -90,8 +88,6 @@ public class AssetInfluxMethod {
     @Value("${db.influxdb.bucket.stock_tw_current.remain_day:365}")
     private int stockTwCurrentRemainDay;
 
-    Logger logger = LoggerFactory.getLogger(AssetInfluxMethod.class);
-
     /**
      * 構造函數，用於注入InfluxDBClient
      *
@@ -105,7 +101,6 @@ public class AssetInfluxMethod {
      * @param currencyRepository          貨幣相關的資料庫
      * @param retryTemplate               重試模板
      */
-    @Autowired
     public AssetInfluxMethod(
             @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, @Qualifier("CurrencyInfluxClient") InfluxDBClient currencyInfluxClient, @Qualifier("propertySummaryInfluxClient") InfluxDBClient propertySummaryInfluxClient, @Qualifier("commonEconomyInfluxClient") InfluxDBClient commonEconomyInfluxClient, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         this.stockTwInfluxClient = stockTwInfluxClient;
@@ -135,13 +130,11 @@ public class AssetInfluxMethod {
      *
      * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
-
     private Object[] getBucketAndClient(Asset asset, boolean useHistoryData) {
         Object bucket, client;
         String klineDataKey = "kline_data", rateKey = "exchange_rate";
         String closeKey = "close", rateTypeKey = "rate";
         String tradingPairKey = "tradingPair", currencyKey = "Currency", stockCodeKey = "stock_tw";
-
         return switch (asset.getAssetType()) {
             case CRYPTO -> {
                 CryptoTradingPair cryptoTradingPair = (CryptoTradingPair) asset;
@@ -193,13 +186,11 @@ public class AssetInfluxMethod {
                                              field,
                                              assetType,
                                              symbol);
-                logger.debug("取得價格的查詢條件: {}", query);
                 ref.tables = client.getQueryApi().query(query, org);
             });
             return ref.tables;
         } catch (RetryException e) {
             Exception lastException = e.getLastException();
-            logger.error("重試失敗，最後一次錯誤信息：{}", lastException.getMessage(), lastException);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + lastException.getMessage(), lastException);
         }
     }
@@ -212,27 +203,19 @@ public class AssetInfluxMethod {
      * @return 最新價格
      */
     public BigDecimal getLatestPrice(Asset asset) {
-        logger.debug("取得最新價格{}", asset);
         List<FluxTable> tables = queryLatestPrice(asset, false);
-        logger.debug("取得最新價格結果: {}", tables);
-
-        Currency twd = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到 TWD"));
-
+        Currency twd = currencyRepository.findByCurrency("TWD")
+                                         .orElseThrow(() -> new RuntimeException(new AssetExceptions(AssetExceptions.ErrorEnum.ASSET_NOT_FOUND,
+                                                                                                     "TWD")));
         if (tables.isEmpty() || tables.getFirst().getRecords().isEmpty()) {
             if (asset.getAssetType() == AssetType.CURRENCY) {
-                logger.debug("可能貨幣資料對更新時間太久，改以從MySQL取得: {}", asset);
                 Currency currency = (Currency) asset;
                 if (currency.getExchangeRate() != null) {
                     return BigDecimal.ONE.divide(currency.getExchangeRate(), 6, RoundingMode.HALF_UP);
                 }
             } else {
-                logger.debug("取得最新價格失敗 + {}", asset);
-                logger.debug("改成使用最新的歷史資料");
                 List<FluxTable> historyTables = queryLatestPrice(asset, true);
-                logger.debug("取得最新歷史價格結果: {}", historyTables);
-
                 if (historyTables.isEmpty() || historyTables.getFirst().getRecords().isEmpty()) {
-                    logger.debug("取得最新歷史價格失敗 + {}", asset);
                     return BigDecimal.valueOf(-1);
                 }
                 FluxRecord historyRecord = historyTables.getFirst().getRecords().getFirst();
@@ -245,25 +228,19 @@ public class AssetInfluxMethod {
                         return BigDecimal.valueOf(((Number) historyValue).doubleValue());
                     }
                 } else {
-                    logger.debug("取得最新歷史價格失敗 + {}", asset);
                     return BigDecimal.valueOf(-1);
                 }
             }
-            logger.debug("取得最新價格失敗 + {}", asset);
             return BigDecimal.valueOf(-1);
         }
         FluxRecord record = tables.getFirst().getRecords().getFirst();
         Object value = record.getValueByKey("_value");
-        logger.debug("取得價格為: {}", value);
-
         if (value instanceof Number) {
             return BigDecimal.valueOf(((Number) value).doubleValue());
         } else {
-            logger.debug("取得最新歷史價格失敗 + {}", asset);
             return BigDecimal.valueOf(-1);
         }
     }
-
 
     /**
      * 寫入Influx方法。
@@ -275,18 +252,14 @@ public class AssetInfluxMethod {
         try {
             retryTemplate.doWithRetry(() -> {
                 try {
-                    logger.debug("寫入InfluxDB: {}", point.toLineProtocol());
                     try (WriteApi writeApi = influxClient.makeWriteApi()) {
                         writeApi.writePoint(point);
-                        logger.debug("寫入InfluxDB成功");
                     }
                 } catch (Exception e) {
-                    logger.error("寫入InfluxDB時發生錯誤", e);
-                    throw new RuntimeException("寫入InfluxDB時發生錯誤", e);
+                    throw new RepositoryExceptions(RepositoryExceptions.ErrorEnum.INFLUXDB_WRITE_ERROR, e);
                 }
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
@@ -309,11 +282,10 @@ public class AssetInfluxMethod {
             List<FluxTable> tables;
         };
         Object[] bucketAndClient = getBucketAndClient(asset, isHistory);
-        //todo 考慮即時資料實現分段傳輸
+        // todo 考慮即時資料實現分段傳輸
         DateTimeFormatter outFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'00:00:00'Z'");
         DateTimeFormatter cryptoAndStockTwFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
         String start;
-
         if (timeStamp != null) {
             start = timeStamp;
         } else {
@@ -335,8 +307,6 @@ public class AssetInfluxMethod {
                 start = "1970-01-01T00:00:00.000Z";
             }
         }
-        logger.debug("取得價格的起始時間: {}", start);
-
         try {
             retryTemplate.doWithRetry(() -> {
                 String bucket = (String) bucketAndClient[0];
@@ -350,16 +320,13 @@ public class AssetInfluxMethod {
                                              measurement,
                                              assetType,
                                              symbol);
-                logger.debug("取得價格的查詢條件: {}", query);
                 ref.tables = client.getQueryApi().query(query, org);
             });
-
             String addition = isHistory ? "history" : "current";
             return new HashMap<>() {{
                 put(asset.getId().toString() + "_" + addition, ref.tables);
             }};
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
     }
@@ -388,16 +355,13 @@ public class AssetInfluxMethod {
      */
     public Map<LocalDateTime, String> createInquiryPredicateWithUserAndSpecificTimes(
             String propertySummaryBucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
-
         Map<LocalDateTime, String> queries = new HashMap<>();
         DateTimeFormatter influxDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
         for (LocalDateTime specificTime : specificTimes) {
             LocalDateTime rangeStart = specificTime.minusHours(allowRangeOfHour);
             LocalDateTime rangeEnd = specificTime.plusMinutes(30);
-
             String formattedStart = influxDateFormat.format(rangeStart);
             String formattedEnd = influxDateFormat.format(rangeEnd);
-
             StringBuilder baseQuery = new StringBuilder(String.format("from(bucket: \"%s\")" + " |> range(start: %s, stop: %s)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")",
                                                                       propertySummaryBucket,
                                                                       formattedStart,
@@ -410,8 +374,6 @@ public class AssetInfluxMethod {
                 String additionalQuery = String.format(" |> filter(fn: (r) => r[\"user_id\"] == \"%s\")", user.getId());
                 baseQuery.append(additionalQuery);
             }
-
-
             if (needToFillData) {
                 baseQuery.append(" |> aggregateWindow(every: 1h, fn: mean, createEmpty: true)" + " |> fill(usePrevious: true)");
             }
@@ -427,7 +389,6 @@ public class AssetInfluxMethod {
             }
             queries.put(specificTime, baseQuery.toString());
         }
-        logger.debug("queries: {}", queries);
         return queries;
     }
 
@@ -448,7 +409,6 @@ public class AssetInfluxMethod {
      * history/current: 歷史/當前價格
      * FluxTable: 資料表
      */
-
     public Map<LocalDateTime, List<FluxTable>> queryByTimeAndUser(String bucket, String measurement, Map<String, String> filters, User user, List<LocalDateTime> specificTimes, int allowRangeOfHour, boolean isLast, boolean needToFillData) {
         Map<LocalDateTime, List<FluxTable>> userTablesMap = new HashMap<>();
         Map<LocalDateTime, String> predicate = createInquiryPredicateWithUserAndSpecificTimes(bucket,
@@ -459,18 +419,15 @@ public class AssetInfluxMethod {
                                                                                               allowRangeOfHour,
                                                                                               isLast,
                                                                                               needToFillData);
-
         for (Map.Entry<LocalDateTime, String> entry : predicate.entrySet()) {
             LocalDateTime specificTime = entry.getKey();
             String query = entry.getValue();
-
             var ref = new Object() {
                 List<FluxTable> result;
             };
             try {
                 retryTemplate.doWithRetry(() -> ref.result = propertySummaryInfluxClient.getQueryApi().query(query, org));
             } catch (RetryException e) {
-                logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
                 throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
             }
             userTablesMap.put(specificTime, ref.result);
@@ -505,9 +462,7 @@ public class AssetInfluxMethod {
     public void formatGovernmentBondsToPoint(Map<String, Map<String, BigDecimal>> data) {
         Instant now = Instant.now();
         long utcMillis = now.toEpochMilli();
-
         if (data == null || data.isEmpty()) {
-            logger.debug("無政府債券資料");
             return;
         }
         for (Map.Entry<String, Map<String, BigDecimal>> entry : data.entrySet()) {

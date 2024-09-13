@@ -32,7 +32,6 @@ public class Property implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id",
                 nullable = false)
@@ -63,7 +62,6 @@ public class Property implements Serializable {
 
     private OffsetDateTime updateTime;
 
-
     @PreUpdate
     protected void onUpdate() {
         updateTime = OffsetDateTime.now(ZoneId.of(user.getTimezone()));
@@ -74,5 +72,4 @@ public class Property implements Serializable {
         updateTime = OffsetDateTime.now(ZoneId.of(user.getTimezone()));
         createTime = OffsetDateTime.now(ZoneId.of(user.getTimezone()));
     }
-
 }

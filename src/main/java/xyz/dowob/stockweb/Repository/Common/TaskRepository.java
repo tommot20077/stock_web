@@ -12,7 +12,6 @@ import java.util.List;
  * 繼承JpaRepository, 用於操作資料庫
  */
 public interface TaskRepository extends JpaRepository<Task, Long> {
-
     /**
      * 透過任務狀態尋找任務
      *

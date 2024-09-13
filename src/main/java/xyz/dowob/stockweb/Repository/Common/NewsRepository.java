@@ -17,7 +17,6 @@ import java.util.List;
  * 繼承JpaRepository, 用於操作資料庫
  */
 public interface NewsRepository extends JpaRepository<News, String> {
-
     /**
      * 透過發布時間刪除在這時間點之前的所有新聞
      *

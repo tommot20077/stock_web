@@ -9,9 +9,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.micrometer.common.util.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,7 +19,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import xyz.dowob.stockweb.Component.Annotation.MeaninglessData;
 import xyz.dowob.stockweb.Enum.NewsType;
+import xyz.dowob.stockweb.Exception.ServiceExceptions;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Common.News;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
@@ -37,14 +36,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-
 /**
  * @author yuan
  * 新聞相關業務邏輯
  */
 @Service
 public class NewsService {
-
     private final NewsRepository newsRepository;
 
     @Value("${news.api.token}")
@@ -65,14 +62,11 @@ public class NewsService {
     @Value("${common.global_page_size:100}")
     private int pageSize;
 
-    Logger logger = LoggerFactory.getLogger(NewsService.class);
-
     /**
      * 建構子
      *
      * @param newsRepository 新聞數據庫
      */
-    @Autowired
     public NewsService(NewsRepository newsRepository) {
         this.newsRepository = newsRepository;
     }
@@ -92,21 +86,13 @@ public class NewsService {
         if (asset != null && StringUtils.isBlank(keyword) && !isHeadline) {
             switch (asset) {
                 case Currency currency -> keyword = currency.getCurrency();
-
                 case StockTw stockTw -> keyword = stockTw.getStockName();
-
                 case CryptoTradingPair cryptoTradingPair -> keyword = cryptoTradingPair.getBaseAsset();
-
-                default -> {
-                    logger.info("找不到關鍵字，設定尋找頭條");
-                    isHeadline = true;
-                }
+                default -> isHeadline = true;
             }
         } else if ((keyword == null || StringUtils.isBlank(keyword)) && !isHeadline) {
-            logger.info("找不到關鍵字，設定尋找頭條");
             isHeadline = true;
         }
-
         if (isHeadline) {
             inquiryUrl.append("top-headlines?");
             inquiryUrl.append("country=").append(preferCountry).append("&");
@@ -124,7 +110,6 @@ public class NewsService {
         }
         inquiryUrl.append("pageSize=").append(pageSize).append("&");
         inquiryUrl.append("page=").append(page);
-        logger.debug("查詢Url: {}", inquiryUrl);
         return inquiryUrl.toString();
     }
 
@@ -135,16 +120,12 @@ public class NewsService {
      * @param page       頁數
      * @param keyword    關鍵字
      * @param asset      資產
-     *
-     * @throws RuntimeException 當請求失敗時拋出
      */
     @Async
-    public void sendNewsRequest(boolean isHeadline, int page, String keyword, Asset asset) {
-
+    public void sendNewsRequest(boolean isHeadline, int page, String keyword, Asset asset) throws ServiceExceptions {
         String inquiryUrl = getInquiryUrl(isHeadline, page, keyword, asset);
         RestTemplate restTemplate = new RestTemplate();
         URI uri = URI.create(inquiryUrl);
-
         RequestEntity<?> requestEntity = RequestEntity.get(uri)
                                                       .header("Authorization", "Bearer " + newsApiToken)
                                                       .accept(MediaType.APPLICATION_JSON)
@@ -152,22 +133,16 @@ public class NewsService {
         try {
             ResponseEntity<String> response = restTemplate.exchange(requestEntity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                logger.debug("請求成功: {}", response.getBody());
                 handleResponse(response.getBody(), isHeadline, page, keyword, asset);
             } else {
-                logger.error("請求失敗: {}", response.getBody());
-                throw new RuntimeException("請求失敗: " + response.getBody());
+                throw new ServiceExceptions(ServiceExceptions.ErrorEnum.NEWS_REQUEST_ERROR, response.getBody());
             }
         } catch (HttpStatusCodeException e) {
-            logger.error("請求失敗: {}", e.getStatusCode());
-            logger.error("錯誤內容: {}", e.getResponseBodyAsString());
-            throw new RuntimeException("請求失敗: " + e.getResponseBodyAsString());
+            throw new ServiceExceptions(ServiceExceptions.ErrorEnum.NEWS_REQUEST_ERROR, e.getResponseBodyAsString());
         } catch (Exception e) {
-            logger.error("請求時發生錯誤: {}", e.getMessage());
-            throw new RuntimeException("請求時發生錯誤: " + e.getMessage());
+            throw new ServiceExceptions(ServiceExceptions.ErrorEnum.NEWS_REQUEST_ERROR, e.getMessage());
         }
     }
-
 
     /**
      * 處理請求新聞的回應並存入數據庫
@@ -178,46 +153,31 @@ public class NewsService {
      * @param keyword      關鍵字
      * @param asset        資產
      */
-    public void handleResponse(String responseBody, boolean isHeadline, int page, String keyword, Asset asset) {
+    public void handleResponse(String responseBody, boolean isHeadline, int page, String keyword, Asset asset) throws ServiceExceptions {
         JsonObject responseJson = JsonParser.parseString(responseBody).getAsJsonObject();
         int totalResults = responseJson.get("totalResults").getAsInt();
         JsonArray articles = responseJson.get("articles").getAsJsonArray();
-
         List<String> titleList = newsRepository.getAllNewsWithPublishedAtAndTitle();
-
-        logger.info("總筆數: {}", totalResults);
         if (totalResults == 0) {
-            logger.info("無資料");
             return;
         }
-
         for (JsonElement article : articles) {
-
             News news = new News();
             JsonObject articleJson = article.getAsJsonObject();
-
             JsonElement titleElement = articleJson.get("title");
             String title = titleElement.isJsonNull() ? null : titleElement.getAsString();
-
-
             if (titleList.contains(title)) {
-                logger.info("重複新聞: {}", title);
                 continue;
             }
             news.setTitle(title);
-
             JsonElement sourceNameElement = articleJson.get("source").getAsJsonObject().get("name");
             news.setSourceName(sourceNameElement.isJsonNull() ? null : sourceNameElement.getAsString());
-
             JsonElement urlElement = articleJson.get("url");
             news.setUrl(urlElement.isJsonNull() ? null : urlElement.getAsString());
-
             JsonElement urlToImageElement = articleJson.get("urlToImage");
             news.setUrlToImage(urlToImageElement.isJsonNull() ? null : urlToImageElement.getAsString());
-
             JsonElement authorElement = articleJson.get("author");
             news.setAuthor(authorElement.isJsonNull() ? null : authorElement.getAsString());
-
             JsonElement publishedAtElement = articleJson.get("publishedAt");
             if (publishedAtElement.isJsonNull()) {
                 news.setPublishedAt(null);
@@ -226,8 +186,6 @@ public class NewsService {
                 DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
                 news.setPublishedAt(LocalDateTime.parse(publishedAt, formatter));
             }
-
-
             if (isHeadline) {
                 news.setNewsType(NewsType.HEADLINE);
             } else {
@@ -257,16 +215,10 @@ public class NewsService {
             news.setAsset(asset);
             newsRepository.save(news);
         }
-
-
         if (totalResults > page * pageSize) {
-            logger.debug("有後續資料，發送新的請求");
             sendNewsRequest(isHeadline, page + 1, keyword, asset);
-        } else {
-            logger.debug("無後續資料");
         }
     }
-
 
     /**
      * 刪除指定日期之前的新聞
@@ -276,7 +228,6 @@ public class NewsService {
     public void deleteNewsBeforeDate(LocalDateTime date) {
         newsRepository.deleteAllByPublishedAtBefore(date);
     }
-
 
     /**
      * 根據新聞類型獲取所有新聞分頁內容
@@ -292,8 +243,7 @@ public class NewsService {
             PageRequest pageRequest = PageRequest.of(page - 1, 50);
             return newsRepository.findAllByNewsTypeOrderByPublishedAtDesc(type, pageRequest);
         } catch (IllegalArgumentException e) {
-            logger.error("錯誤的類型: {}", categoryString);
-            throw new RuntimeException("錯誤的類型: " + categoryString);
+            throw new IllegalArgumentException("錯誤的類型: " + categoryString);
         }
     }
 
@@ -310,7 +260,6 @@ public class NewsService {
         return newsRepository.findAllByAssetOrderByPublishedAtDesc(asset, pageRequest);
     }
 
-
     /**
      * 轉換新聞列表為Json格式
      *
@@ -318,19 +267,14 @@ public class NewsService {
      *
      * @return Json格式的新聞列表
      */
-    public String formatNewsListToJson(Page<News> newsList) {
-        logger.debug("newsList: {}", newsList);
+    @MeaninglessData
+    public String formatNewsListToJson(Page<News> newsList) throws JsonProcessingException {
         if (newsList == null || newsList.isEmpty()) {
             return null;
         }
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        try {
-            return objectMapper.writeValueAsString(newsList);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return objectMapper.writeValueAsString(newsList);
     }
 }

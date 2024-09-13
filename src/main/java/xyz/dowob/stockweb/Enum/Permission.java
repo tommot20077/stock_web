@@ -16,5 +16,4 @@ public enum Permission {
     USER_DELETE("user:delete");
 
     private final String permission;
-
 }

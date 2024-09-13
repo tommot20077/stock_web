@@ -32,7 +32,6 @@ import java.util.Set;
 @PrimaryKeyJoinColumn(name = "asset_id")
 @Table(name = "stock_tw_data")
 public class StockTw extends Asset implements Serializable {
-
     @Column(name = "stock_code",
             unique = true,
             nullable = false)
@@ -60,7 +59,6 @@ public class StockTw extends Asset implements Serializable {
 
     @Column(name = "update_time")
     private LocalDate updateTime;
-
 
     public boolean checkUserIsSubscriber(User user) {
         return subscribers.contains(user.getId());

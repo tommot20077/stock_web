@@ -25,7 +25,6 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 public class News implements Serializable {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

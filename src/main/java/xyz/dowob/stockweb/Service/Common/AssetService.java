@@ -10,9 +10,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpEntity;
@@ -21,12 +18,16 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import xyz.dowob.stockweb.Component.Annotation.MeaninglessData;
 import xyz.dowob.stockweb.Component.Handler.AssetHandler;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Method.AssetTrie.Trie;
 import xyz.dowob.stockweb.Dto.Common.AssetKlineDataDto;
 import xyz.dowob.stockweb.Dto.Common.AssetListDto;
 import xyz.dowob.stockweb.Enum.AssetType;
+import xyz.dowob.stockweb.Exception.AssetExceptions;
+import xyz.dowob.stockweb.Exception.FormatExceptions;
+import xyz.dowob.stockweb.Exception.RepositoryExceptions;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -52,6 +53,9 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static xyz.dowob.stockweb.Exception.AssetExceptions.ErrorEnum.*;
+import static xyz.dowob.stockweb.Exception.FormatExceptions.ErrorEnum.*;
+
 /**
  * @author yuan
  * 用於資產相關的業務邏輯。
@@ -74,8 +78,6 @@ public class AssetService {
 
     private final CryptoRepository cryptoRepository;
 
-    Logger logger = LoggerFactory.getLogger(AssetService.class);
-
     /**
      * AssetService建構子
      *
@@ -88,7 +90,6 @@ public class AssetService {
      * @param stockTwRepository  台股資料庫操作介面
      * @param cryptoRepository   加密貨幣資料庫操作介面
      */
-    @Autowired
     public AssetService(AssetRepository assetRepository, AssetInfluxMethod assetInfluxMethod, ObjectMapper objectMapper, RedisService redisService, AssetHandler assetHandler, CurrencyRepository currencyRepository, StockTwRepository stockTwRepository, CryptoRepository cryptoRepository) {
         this.assetRepository = assetRepository;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -98,6 +99,7 @@ public class AssetService {
         this.currencyRepository = currencyRepository;
         this.stockTwRepository = stockTwRepository;
         this.cryptoRepository = cryptoRepository;
+        this.objectMapper.registerModule(new JavaTimeModule());
     }
 
     @Value("${db.influxdb.bucket.currency}")
@@ -115,11 +117,9 @@ public class AssetService {
     @Value("${common.global_page_size:100}")
     private int pageSize;
 
-    public Map<String, List<FluxTable>> getAssetKlineData(Long assetId, String type, String timestamp) {
+    public Map<String, List<FluxTable>> getAssetKlineData(Long assetId, String type, String timestamp) throws AssetExceptions {
         Asset asset = getAssetById(assetId);
-        Map<String, List<FluxTable>> tableMap = assetInfluxMethod.queryByAsset(asset, "history".equals(type), timestamp);
-        logger.debug("資產K線數據: {}", tableMap.toString());
-        return tableMap;
+        return assetInfluxMethod.queryByAsset(asset, "history".equals(type), timestamp);
     }
 
     /**
@@ -133,23 +133,20 @@ public class AssetService {
      *
      * @return 是否有數據
      */
-    public boolean checkNewDataMethod(Long assetId, String type, Map<String, List<FluxTable>> tableMap) {
+    public boolean checkNewDataMethod(Long assetId, String type, Map<String, List<FluxTable>> tableMap) throws RepositoryExceptions {
         String hashInnerKey = String.format("%s_%s:", type, assetId);
         String listKey = String.format("kline_%s", hashInnerKey);
         if (tableMap.get("%s_%s".formatted(assetId, type)).isEmpty()) {
             List<String> listCache = redisService.getCacheListValueFromKey(listKey + "data");
             if (listCache.isEmpty()) {
-                logger.debug("此資產沒有過資料紀錄，設定緩存狀態為no_data");
                 redisService.saveHashToCache("kline", hashInnerKey + "status", "no_data", 48);
                 return false;
             }
-            logger.debug("此資產有資料紀錄，設定緩存狀態為success");
             redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 48);
             return false;
         }
         return true;
     }
-
 
     /**
      * 將資產數據存儲到Redis中。
@@ -158,21 +155,22 @@ public class AssetService {
      * @param key          緩存鍵。
      * @param hashInnerKey 緩存內部鍵。
      */
+    @MeaninglessData
     public void saveAssetInfoToRedis(Map<String, List<FluxTable>> tableMap, String key, String hashInnerKey) {
         try {
             redisService.saveHashToCache("kline", hashInnerKey + "status", "processing", 48);
-
             List<String> klineDataMap = formatKlineTableByTime(tableMap);
             redisService.rPushToCacheList(key + "data", klineDataMap.getFirst(), 24);
             redisService.saveHashToCache("kline", hashInnerKey + "last_timestamp", klineDataMap.get(1), 48);
             redisService.saveHashToCache("kline", hashInnerKey + "status", "success", 48);
         } catch (Exception e) {
             redisService.saveHashToCache("kline", hashInnerKey + "status", "fail", 48);
-            throw new RuntimeException("資產資料處理錯誤: ", e);
+            throw new FormatExceptions(ASSET_FORMAT_ERROR, tableMap);
         }
     }
 
-    public List<String> formatKlineTableByTime(Map<String, List<FluxTable>> tableMap) throws JsonProcessingException {
+    @MeaninglessData
+    public List<String> formatKlineTableByTime(Map<String, List<FluxTable>> tableMap) throws JsonProcessingException, FormatExceptions {
         String lastTimePoint = null;
         List<AssetKlineDataDto> klineDataList = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
@@ -187,7 +185,6 @@ public class AssetService {
                 for (FluxRecord record : fluxTable.getRecords()) {
                     Instant recordTimestamp = ((Instant) Objects.requireNonNull(record.getValueByKey("_time")));
                     String timestamp = formatter.format(recordTimestamp);
-
                     if (lastTimePoint == null || Instant.parse(lastTimePoint).isBefore(Instant.parse(timestamp))) {
                         lastTimePoint = timestamp;
                     }
@@ -234,14 +231,13 @@ public class AssetService {
                                     dataDto.setVolume("0");
                                     break;
                                 default:
-                                    throw new RuntimeException("資產資料轉換錯誤: " + field);
+                                    throw new FormatExceptions(ASSET_FORMAT_ERROR, field);
                             }
                         }
                     }
                 }
             }
         }
-        objectMapper.registerModule(new JavaTimeModule());
         String kLineJson = objectMapper.writeValueAsString(klineDataList);
         ArrayList<String> result = new ArrayList<>();
         result.add(kLineJson);
@@ -256,12 +252,11 @@ public class AssetService {
      *
      * @return 資產統計數據列表。
      */
-    public List<String> getAssetStatisticsAndSaveToRedis(Asset asset) {
+    public List<String> getAssetStatisticsAndSaveToRedis(Asset asset) throws AssetExceptions {
         List<LocalDateTime> localDateList = assetInfluxMethod.getStatisticDate();
         Map<LocalDateTime, String> priceMap = new TreeMap<>();
         Map<String, String> filters = new HashMap<>();
         Object[] select = new Object[2];
-
         switch (asset) {
             case StockTw stockTw -> {
                 filters.put("_field", "close");
@@ -281,12 +276,8 @@ public class AssetService {
                 select[0] = currencyBucket;
                 select[1] = "exchange_rate";
             }
-            default -> {
-                logger.error("無法取得指定資產資料: {}", asset);
-                throw new RuntimeException("無法取得指定資產資料: " + asset);
-            }
+            default -> throw new AssetExceptions(ASSET_NOT_FOUND, asset);
         }
-
         Map<LocalDateTime, List<FluxTable>> queryResultMap = assetInfluxMethod.queryByTimeAndUser(select[0].toString(),
                                                                                                   select[1].toString(),
                                                                                                   filters,
@@ -297,26 +288,21 @@ public class AssetService {
                                                                                                   false);
         for (Map.Entry<LocalDateTime, List<FluxTable>> entry : queryResultMap.entrySet()) {
             if (entry.getValue().isEmpty() || entry.getValue().getFirst().getRecords().isEmpty()) {
-                logger.debug("{} 取得指定資產價格資料: " + null, entry.getKey());
                 priceMap.put(entry.getKey(), null);
             } else {
                 for (FluxTable table : entry.getValue()) {
                     for (FluxRecord record : table.getRecords()) {
                         if (record.getValueByKey("_value") instanceof Double doubleValue) {
                             BigDecimal value = BigDecimal.valueOf(doubleValue);
-                            logger.debug("{} 取得指定資產價格資料: {}", entry.getKey(), value);
                             priceMap.put(entry.getKey(), String.format("%.6f", value));
                         } else {
-                            logger.debug("{} 取得指定資產價格資料: " + null, entry.getKey());
                             priceMap.put(entry.getKey(), null);
                         }
                     }
                 }
             }
         }
-
         priceMap.put(localDateList.getFirst(), (assetInfluxMethod.getLatestPrice(asset)).toString());
-        logger.debug("結果資料: {}", priceMap);
         List<String> resultList = new ArrayList<>();
         for (Map.Entry<LocalDateTime, String> entry : priceMap.entrySet()) {
             if (entry.getValue() != null) {
@@ -337,8 +323,8 @@ public class AssetService {
      *
      * @throws RuntimeException 當找不到資產時拋出異常。
      */
-    public Asset getAssetById(Long assetId) {
-        return assetRepository.findById(assetId).orElseThrow(() -> new RuntimeException("找不到資產"));
+    public Asset getAssetById(Long assetId) throws AssetExceptions {
+        return assetRepository.findById(assetId).orElseThrow(() -> new AssetExceptions(ASSET_NOT_FOUND, assetId));
     }
 
     /**
@@ -349,8 +335,6 @@ public class AssetService {
      * @param user            用戶對象。
      *
      * @return 資產統計數據JSON。
-     *
-     * @throws RuntimeException 當資產數據處理錯誤時拋出異常。
      */
     public String formatRedisAssetInfoCacheToJson(List<String> cachedAssetJson, Asset asset, User user) {
         try {
@@ -370,20 +354,15 @@ public class AssetService {
                 }
                 resultMap.put("statistics", statisticsListForUser);
             }
-
             switch (asset) {
                 case StockTw stockTw -> resultMap.put("assetName", stockTw.getStockName());
                 case CryptoTradingPair cryptoTradingPair -> resultMap.put("assetName", cryptoTradingPair.getBaseAsset());
                 case Currency currency -> resultMap.put("assetName", currency.getCurrency());
-                default -> {
-                    logger.error("無法取得指定資產資料: {}", asset);
-                    throw new RuntimeException("無法取得指定資產資料: " + asset);
-                }
+                default -> throw new AssetExceptions(ASSET_NOT_FOUND, asset);
             }
             return objectMapper.writeValueAsString(resultMap);
-        } catch (JsonProcessingException e) {
-            logger.error("資產資料處理錯誤: ", e);
-            throw new RuntimeException("資產資料處理錯誤: ", e);
+        } catch (Exception e) {
+            throw new FormatExceptions(ASSET_FORMAT_ERROR, cachedAssetJson);
         }
     }
 
@@ -418,16 +397,13 @@ public class AssetService {
      * @param isCache  是否緩存
      *
      * @return 資產列表
-     *
-     * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
      */
-    public List<Asset> findAssetPageByType(String category, int page, boolean isCache) throws JsonProcessingException {
-
+    @MeaninglessData
+    public List<Asset> findAssetPageByType(String category, int page, boolean isCache) throws JsonProcessingException, AssetExceptions {
         PageRequest pageRequest = PageRequest.of(page - 1, pageSize);
         List<Asset> assetsList = getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest)
                                                                                  .getContent() : assetRepository.findAll(pageRequest)
                                                                                                                 .getContent();
-
         if (isCache) {
             String key = "asset";
             String innerKey = category + "_page_" + page;
@@ -448,12 +424,12 @@ public class AssetService {
      * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
      */
     @SuppressWarnings("unchecked")
-    public String formatStringAssetListToFrontendType(List<?> assetList, String innerKey) throws JsonProcessingException {
+    @MeaninglessData
+    public String formatStringAssetListToFrontendType(List<?> assetList, String innerKey) throws JsonProcessingException, AssetExceptions, FormatExceptions {
         List<Map<String, Object>> resultList = new ArrayList<>();
         if (assetList == null || assetList.isEmpty()) {
             return null;
         }
-
         if (assetList.getFirst() instanceof Asset) {
             for (Object a : assetList) {
                 Asset asset = (Asset) a;
@@ -471,10 +447,7 @@ public class AssetService {
                         resultMap.put("assetName", currency.getCurrency());
                         resultMap.put("isSubscribed", true);
                     }
-                    default -> {
-                        logger.error("無法取得指定資產資料: {}", asset);
-                        throw new RuntimeException("無法取得指定資產資料: " + asset);
-                    }
+                    default -> throw new AssetExceptions(ASSET_NOT_FOUND, asset);
                 }
                 resultMap.put("assetId", asset.getId());
                 resultMap.put("type", asset.getAssetType().toString());
@@ -486,7 +459,7 @@ public class AssetService {
                 resultList.add((assetMap));
             }
         } else {
-            throw new RuntimeException("資產類型錯誤: " + assetList);
+            throw new FormatExceptions(ASSET_LIST_FORMAT_ERROR, assetList);
         }
         return cacheHashDataToRedis("frontendAssetList", innerKey, resultList, 24);
     }
@@ -500,14 +473,13 @@ public class AssetService {
      *
      * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
      */
+    @MeaninglessData
     public List<Map<String, Object>> formatJsonToAssetList(String assetJson) throws JsonProcessingException {
         if (assetJson == null) {
             return null;
         }
-        objectMapper.registerModule(new JavaTimeModule());
         return objectMapper.readValue(assetJson, new TypeReference<>() {});
     }
-
 
     /**
      * 轉換泛型數據為JSON格式並存儲到Redis中。
@@ -534,6 +506,7 @@ public class AssetService {
      *
      * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
      */
+    @MeaninglessData
     public <T> String cacheValueDataToRedis(String key, T content, int expireTime) throws JsonProcessingException {
         String json = formatContentToJson(content);
         redisService.saveValueToCache(key, json, expireTime);
@@ -549,6 +522,7 @@ public class AssetService {
      *
      * @throws JsonProcessingException 當JSON處理錯誤時拋出異常
      */
+    @MeaninglessData
     private <T> String formatContentToJson(T content) throws JsonProcessingException {
         return objectMapper.writeValueAsString(content);
     }
@@ -561,7 +535,7 @@ public class AssetService {
      *
      * @return 總頁數
      */
-    public int findAssetTotalPage(String category, int pageSize) {
+    public int findAssetTotalPage(String category, int pageSize) throws AssetExceptions {
         PageRequest pageRequest = PageRequest.of(0, pageSize);
         return getAssetType(category) != null ? assetRepository.findAllByAssetType(getAssetType(category), pageRequest)
                                                                .getTotalPages() : assetRepository.findAll(pageRequest).getTotalPages();
@@ -573,18 +547,15 @@ public class AssetService {
      * @param category 資產類型
      *
      * @return 資產類型
-     *
-     * @throws RuntimeException 當找不到資產類型時拋出異常
      */
-    private AssetType getAssetType(String category) {
+    private AssetType getAssetType(String category) throws AssetExceptions {
         return switch (category) {
             case "crypto" -> AssetType.CRYPTO;
             case "stock_tw" -> AssetType.STOCK_TW;
             case "currency" -> AssetType.CURRENCY;
             case "all" -> null;
-            default -> throw new RuntimeException("找不到資產類型: " + category);
+            default -> throw new AssetExceptions(ASSET_TYPE_NOT_FOUND, category);
         };
-
     }
 
     /**
@@ -599,19 +570,15 @@ public class AssetService {
         String url = "https://hk.investing.com/rates-bonds/world-government-bonds";
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
         String result = response.getBody();
-
-
         Map<String, Map<String, BigDecimal>> governmentBondsMap = new HashMap<>();
         if (result != null) {
             Document document = Jsoup.parse(result);
             Elements tables = document.select("#leftColumn table");
-
             for (Element table : tables) {
                 StringBuilder countryName = null;
                 Map<String, BigDecimal> bondMap = new HashMap<>();
                 Elements rows = table.select("tbody>tr");
                 String period = "";
-
                 for (Element row : rows) {
                     Element nameElement = row.select("td.plusIconTd a").first();
                     if (nameElement == null) {
@@ -622,8 +589,6 @@ public class AssetService {
                     String[] lastPartSplit = parts[parts.length - 1].replace("-bond-yield", "").split("-");
                     Pattern pattern = Pattern.compile("\\d+");
                     Matcher matcher;
-
-
                     for (int i = lastPartSplit.length - 1; i >= 0; i--) {
                         matcher = pattern.matcher(lastPartSplit[i]);
                         if (matcher.find()) {
@@ -644,13 +609,10 @@ public class AssetService {
                     String yield = row.select("td").get(2).text();
                     if (countryName != null) {
                         bondMap.put(period, new BigDecimal(yield));
-                        logger.debug("政府債券數據: {} {} {}", countryName, period, yield);
                     }
                 }
                 if (countryName != null) {
                     governmentBondsMap.put(countryName.toString().replace(".", ""), bondMap);
-                } else {
-                    logger.error("政府債券數據解析錯誤: {}", table);
                 }
             }
         }
@@ -688,21 +650,17 @@ public class AssetService {
                 result.computeIfAbsent(country, k -> new HashMap<>()).put(period, rate);
             }
         }
-
         Comparator<String> periodComparator = (p1, p2) -> {
             int value1 = periodToSortValue(p1);
             int value2 = periodToSortValue(p2);
             return Integer.compare(value1, value2);
         };
-
         for (Map.Entry<String, Map<String, BigDecimal>> entry : result.entrySet()) {
             Map<String, BigDecimal> sortedMap = new TreeMap<>(periodComparator);
             sortedMap.putAll(entry.getValue());
             result.put(entry.getKey(), sortedMap);
         }
-
         Map<String, Map<String, BigDecimal>> sortedResult = new TreeMap<>(result);
-        logger.debug("政府債券數據排序: {}", sortedResult);
         return new LinkedHashMap<>(sortedResult);
     }
 
@@ -715,18 +673,15 @@ public class AssetService {
      *
      * @return 格式化後的政府債券數據
      */
-    public <T> Map<String, Map<String, BigDecimal>> formatGovernmentBondDataByTime(T governmentBondData) {
+    public <T> Map<String, Map<String, BigDecimal>> formatGovernmentBondDataByTime(T governmentBondData) throws AssetExceptions {
         Map<String, Map<String, BigDecimal>> result = new LinkedHashMap<>();
         Map<String, Map<String, BigDecimal>> dataMap = checkGovernmentBondData(governmentBondData);
-
         List<String> sortedPeriods = dataMap.entrySet()
                                             .stream()
                                             .flatMap(entry -> entry.getValue().keySet().stream())
                                             .sorted(Comparator.comparingInt(this::periodToSortValue))
                                             .distinct()
                                             .toList();
-
-        logger.debug("政府債券數據排序: {}", sortedPeriods);
         sortedPeriods.forEach(period -> dataMap.forEach((country, bondMap) -> {
             BigDecimal rate = bondMap.get(period);
             if (rate != null) {
@@ -757,7 +712,7 @@ public class AssetService {
         if (period.contains("year")) {
             return Integer.parseInt(period.split("-")[0]) * 52;
         }
-        throw new RuntimeException("政府債券數據排序時解析錯誤: " + period);
+        throw new RuntimeException(new AssetExceptions(DEBT_DATA_UPDATE_ERROR, period));
     }
 
     /**
@@ -769,18 +724,17 @@ public class AssetService {
      * @return 政府債券數據
      */
     @SuppressWarnings("unchecked")
-    private <T> Map<String, Map<String, BigDecimal>> checkGovernmentBondData(T governmentBondData) {
+    private <T> Map<String, Map<String, BigDecimal>> checkGovernmentBondData(T governmentBondData) throws AssetExceptions {
         if (governmentBondData instanceof String) {
             try {
                 return objectMapper.readValue((String) governmentBondData, new TypeReference<>() {});
             } catch (JsonProcessingException e) {
-                logger.error("政府債券數據解析錯誤: ", e);
-                throw new RuntimeException("政府債券數據解析錯誤: ", e);
+                throw new AssetExceptions(DEBT_DATA_RESOLVE_ERROR, e);
             }
         } else if (governmentBondData instanceof Map<?, ?>) {
             return (Map<String, Map<String, BigDecimal>>) governmentBondData;
         } else {
-            throw new RuntimeException("政府債券數據類型錯誤: " + governmentBondData);
+            throw new AssetExceptions(DEBT_DATA_RESOLVE_ERROR, governmentBondData);
         }
     }
 
@@ -789,7 +743,8 @@ public class AssetService {
      *
      * @return 資產前綴樹
      */
-    public Trie getAssetTrie() {
+    @MeaninglessData
+    public Trie getAssetTrie() throws FormatExceptions {
         String assetTrie = redisService.getCacheValueFromKey("assetTrie");
         if (assetTrie == null) {
             return cacheTrieToRedis();
@@ -798,8 +753,7 @@ public class AssetService {
              ObjectInputStream ois = new ObjectInputStream(bis)) {
             return (Trie) ois.readObject();
         } catch (Exception e) {
-            logger.error("資產列表Trie緩存錯誤: ", e);
-            throw new RuntimeException("資產列表Trie緩存錯誤: ", e);
+            throw new FormatExceptions(ASSET_TRIE_FORMAT_ERROR, e);
         }
     }
 
@@ -808,15 +762,14 @@ public class AssetService {
      *
      * @return 資產前綴樹
      */
-    public Trie cacheTrieToRedis() {
+    public Trie cacheTrieToRedis() throws FormatExceptions {
         Trie trie = getAssetDataAndBuildTrie();
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(trie);
             String formateString = Base64.getEncoder().encodeToString(bos.toByteArray());
             redisService.saveValueToCache("assetTrie", formateString, 48);
         } catch (Exception e) {
-            logger.error("資產列表Trie緩存錯誤: ", e);
-            throw new RuntimeException("資產列表Trie緩存錯誤: ", e);
+            throw new FormatExceptions(ASSET_TRIE_FORMAT_ERROR, e);
         }
         return trie;
     }
@@ -834,7 +787,6 @@ public class AssetService {
                     List<Object[]> list = new ArrayList<>();
                     list.add(new Object[]{cryptoTradingPair.getTradingPair(), cryptoTradingPair.isHasAnySubscribed()});
                     yield list;
-
                 }
                 case STOCK_TW: {
                     StockTw stockTw = (StockTw) asset;
@@ -866,14 +818,10 @@ public class AssetService {
      *
      * @return 府和前綴的資產列表JSON
      */
-    public String searchAssetList(String keyword, Trie trie) {
+    @MeaninglessData
+    public String searchAssetList(String keyword, Trie trie) throws JsonProcessingException {
         List<AssetListDto> searchResult = trie.search(keyword.toUpperCase());
-        try {
-            return objectMapper.writeValueAsString(searchResult);
-        } catch (JsonProcessingException e) {
-            logger.error("資產列表搜索錯誤: ", e);
-            throw new RuntimeException("資產列表搜索錯誤: ", e);
-        }
+        return objectMapper.writeValueAsString(searchResult);
     }
 
     /**
@@ -896,6 +844,3 @@ public class AssetService {
         return currency.orElse(null);
     }
 }
-
-
-

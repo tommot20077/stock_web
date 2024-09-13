@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +22,6 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api/user/currency")
 public class ApiCurrencyController {
-
     private final CurrencyService currencyService;
 
     private final UserService userService;
@@ -34,7 +32,6 @@ public class ApiCurrencyController {
      * @param currencyService 貨幣服務
      * @param userService     用戶服務
      */
-    @Autowired
     public ApiCurrencyController(CurrencyService currencyService, UserService userService) {
         this.currencyService = currencyService;
         this.userService = userService;
@@ -51,8 +48,12 @@ public class ApiCurrencyController {
     @GetMapping("/getCurrencyExchangeRates")
     public ResponseEntity<Map<String, BigDecimal>> getCurrencyExchangeRates(
             @RequestBody List<String> currencyCodes) {
-        Map<String, BigDecimal> exchangeRates = currencyService.getExchangeRates(currencyCodes);
-        return ResponseEntity.ok().body(exchangeRates);
+        try {
+            Map<String, BigDecimal> exchangeRates = currencyService.getExchangeRates(currencyCodes);
+            return ResponseEntity.ok().body(exchangeRates);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new HashMap<>());
+        }
     }
 
     /**
@@ -62,8 +63,12 @@ public class ApiCurrencyController {
      */
     @GetMapping("/getAllCurrency")
     public ResponseEntity<?> getAllCurrency() {
-        List<String> currencyList = currencyService.getCurrencyList();
-        return ResponseEntity.ok().body(currencyList);
+        try {
+            List<String> currencyList = currencyService.getCurrencyList();
+            return ResponseEntity.ok().body(currencyList);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     /**
@@ -78,8 +83,12 @@ public class ApiCurrencyController {
     @GetMapping("/convertCurrency")
     public ResponseEntity<?> convertCurrency(
             @RequestParam String from, @RequestParam String to, @RequestParam(defaultValue = "1") String amount) {
-        BigDecimal result = currencyService.convertCurrency(from, to, amount);
-        return ResponseEntity.ok().body(result);
+        try {
+            BigDecimal result = currencyService.convertCurrency(from, to, amount);
+            return ResponseEntity.ok().body(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     /**
@@ -100,10 +109,8 @@ public class ApiCurrencyController {
             if (user == null) {
                 return ResponseEntity.badRequest().body("使用者不存在");
             }
-
             List<SubscriptionCurrencyDto.Subscription> subscriptions = request.getSubscriptions();
             Map<String, String> failedSubscribes = new HashMap<>();
-
             if (subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要訂閱的貨幣");
             } else {
@@ -146,10 +153,8 @@ public class ApiCurrencyController {
             if (user == null) {
                 return ResponseEntity.badRequest().body("使用者不存在");
             }
-
             List<SubscriptionCurrencyDto.Subscription> subscriptions = request.getSubscriptions();
             Map<String, String> failedSubscribes = new HashMap<>();
-
             if (subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要取消訂閱的貨幣");
             } else {
@@ -171,5 +176,4 @@ public class ApiCurrencyController {
             return ResponseEntity.badRequest().body("取消訂閱失敗: " + e.getMessage());
         }
     }
-
 }

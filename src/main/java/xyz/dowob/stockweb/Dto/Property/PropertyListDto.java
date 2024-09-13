@@ -18,9 +18,7 @@ import java.util.List;
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PropertyListDto {
-
     private List<PropertyDto> propertyList;
-
 
     /**
      * 用於傳遞資產的資料
@@ -52,7 +50,7 @@ public class PropertyListDto {
             if (quantity == null) {
                 return null;
             }
-            BigDecimal quantityBigDecimal = new BigDecimal(quantity);
+            BigDecimal quantityBigDecimal = new BigDecimal(quantity.replace(",", ""));
             return quantityBigDecimal.setScale(8, RoundingMode.HALF_UP).stripTrailingZeros();
         }
 
@@ -175,6 +173,5 @@ public class PropertyListDto {
             this.quantity = quantity;
             this.currentTotalPrice = currentTotalPrice;
         }
-
     }
 }

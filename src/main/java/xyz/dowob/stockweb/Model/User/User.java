@@ -1,6 +1,7 @@
 package xyz.dowob.stockweb.Model.User;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -55,6 +56,7 @@ public class User implements Serializable {
     private String lastName;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Column(nullable = false,
@@ -113,7 +115,6 @@ public class User implements Serializable {
                       property = "id")
     private List<Todo> todoLists = new ArrayList<>();
 
-
     @PreUpdate
     protected void onUpdate() {
         updated = OffsetDateTime.now(ZoneId.of(timezone));
@@ -124,7 +125,6 @@ public class User implements Serializable {
         created = OffsetDateTime.now(ZoneId.of(timezone));
         updated = OffsetDateTime.now(ZoneId.of(timezone));
     }
-
 
     /**
      * 從電子郵件中提取使用者名稱
@@ -151,7 +151,6 @@ public class User implements Serializable {
         return Collections.singleton(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
 
-
     /**
      * 重寫toString
      * 隱藏token, subscriptions, property, todoLists, 避免循環參考
@@ -164,7 +163,7 @@ public class User implements Serializable {
             @Override
             protected boolean accept(Field f) {
                 return super.accept(f) && !"token".equals(f.getName()) && !"subscriptions".equals(f.getName()) && !"property".equals(f.getName()) && !"propertySummary".equals(
-                        f.getName()) && !"todoLists".equals(f.getName());
+                        f.getName()) && !"todoLists".equals(f.getName()) && !"password".equals(f.getName());
             }
         }).toString();
     }

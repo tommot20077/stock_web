@@ -25,5 +25,4 @@ public class Asset implements Serializable {
     @Enumerated(EnumType.STRING)
     @Column(name = "asset_type")
     private AssetType assetType;
-
 }

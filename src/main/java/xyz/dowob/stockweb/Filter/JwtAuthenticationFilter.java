@@ -51,12 +51,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
-
         try {
             if (request.getRequestURI().contains("/api")) {
                 String jwt = getJwtFromRequest(request);
                 if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-
                     Long userId = Long.parseLong(jwtTokenProvider.getClaimsFromJwt(jwt).getSubject());
                     UserDetails userDetails = customUserDetailsService.loadUserById(userId);
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
@@ -66,8 +64,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
-        } catch (Exception ex) {
-            logger.error("無法使用你的令牌設置權限", ex);
         } finally {
             filterChain.doFilter(request, response);
         }

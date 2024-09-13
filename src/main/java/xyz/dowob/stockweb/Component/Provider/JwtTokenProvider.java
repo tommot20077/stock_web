@@ -5,14 +5,12 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import xyz.dowob.stockweb.Exception.UserExceptions;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.User.UserRepository;
-
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -22,11 +20,10 @@ import java.util.Date;
  *
  * @author yuan
  */
+@Log4j2
 @Component
 public class JwtTokenProvider {
     private final UserRepository userRepository;
-
-    Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
     @Value(value = "${security.jwt.secret}")
     private String jwtSecret;
@@ -41,7 +38,6 @@ public class JwtTokenProvider {
      *
      * @param userRepository 使用者資料庫
      */
-    @Autowired
     public JwtTokenProvider(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
@@ -51,10 +47,13 @@ public class JwtTokenProvider {
      */
     @PostConstruct
     public void init() {
-        byte[] encodedSecret = Decoders.BASE64.decode(jwtSecret);
-        this.key = Keys.hmacShaKeyFor(encodedSecret);
+        try {
+            byte[] encodedSecret = Decoders.BASE64.decode(jwtSecret);
+            this.key = Keys.hmacShaKeyFor(encodedSecret);
+        } catch (Exception e) {
+            log.error("初始化錯誤: " + e);
+        }
     }
-
 
     /**
      * 從JwtToken中取得Claims
@@ -64,7 +63,6 @@ public class JwtTokenProvider {
      * @return Claims
      */
     public Claims getClaimsFromJwt(String token) {
-
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }
 
@@ -76,18 +74,16 @@ public class JwtTokenProvider {
      *
      * @return boolean 驗證結果
      */
-
-    public boolean validateToken(String authToken) {
+    public boolean validateToken(String authToken) throws UserExceptions {
         try {
             Claims claims = getClaimsFromJwt(authToken);
             Long userId = Long.parseLong(claims.getSubject());
-            User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("找不到使用者"));
+            User user = userRepository.findById(userId)
+                                      .orElseThrow(() -> new UserExceptions(UserExceptions.ErrorEnum.USER_NOT_FOUND, userId));
             Integer tokenVersionInDb = user.getToken().getJwtApiCount();
             Integer tokenVersionInToken = claims.get("token_version", Integer.class);
             return tokenVersionInDb.equals(tokenVersionInToken);
-
         } catch (SignatureException | IllegalArgumentException | UnsupportedJwtException | ExpiredJwtException | MalformedJwtException ex) {
-            logger.error("不合法的Jwt Token: {}", ex.getMessage());
             throw new RuntimeException(ex.getMessage());
         }
     }
@@ -105,7 +101,6 @@ public class JwtTokenProvider {
         Date now = new Date();
         int expirationMs = expirationMinute * 60 * 1000;
         Date expiryDate = new Date(now.getTime() + expirationMs);
-
         return Jwts.builder()
                    .subject(Long.toString(userId))
                    .issuedAt(now)

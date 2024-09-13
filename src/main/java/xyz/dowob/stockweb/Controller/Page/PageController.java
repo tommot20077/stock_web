@@ -1,15 +1,10 @@
-package xyz.dowob.stockweb.Controller;
+package xyz.dowob.stockweb.Controller.Page;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -41,7 +36,6 @@ public class PageController {
      * @param userService  用戶服務
      * @param tokenService 用戶令牌服務
      */
-    @Autowired
     public PageController(UserService userService, TokenService tokenService, AssetService assetService) {
         this.userService = userService;
         this.tokenService = tokenService;
@@ -72,18 +66,12 @@ public class PageController {
             @RequestBody LoginUserDto loginUserDto, HttpServletResponse response, HttpSession session) {
         try {
             User user = userService.loginUser(loginUserDto, response);
-            Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
-            session.setAttribute("currentUserId", user.getId());
-            session.setAttribute("userMail", user.getEmail());
-
+            tokenService.authenticateUser(user, session);
             return ResponseEntity.ok().body("登入成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
 
     /**
      * 前往註冊頁面
@@ -108,11 +96,10 @@ public class PageController {
         try {
             userService.registerUser(registerUserDto);
             return ResponseEntity.ok().body("註冊成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
 
     /**
      * 前往首頁
@@ -214,7 +201,7 @@ public class PageController {
         try {
             assetService.getAssetById(assetId);
             return "assetInfo";
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return "redirect:/";
         }
     }
@@ -244,7 +231,6 @@ public class PageController {
      *
      * @return 債務資訊頁面
      */
-
     @GetMapping("/debt_info")
     public String debtInfo() {
         return "debtInfo";
@@ -266,10 +252,5 @@ public class PageController {
             return "redirect:/";
         }
         return "serverManage";
-    }
-
-    @GetMapping("/testws/{id}")
-    public String testws(@PathVariable String id) {
-        return "testws";
     }
 }

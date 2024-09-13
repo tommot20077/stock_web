@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.Admin;
 
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 @Controller
 @RequestMapping("/api/admin")
 public class ApiAdminController {
-
     private final CurrencyService currencyService;
 
     private final CryptoService cryptoService;
@@ -56,7 +54,6 @@ public class ApiAdminController {
      * @param crontabMethod          定時任務相關方法
      * @param assetService           資產相關服務
      */
-    @Autowired
     public ApiAdminController(CurrencyService currencyService, CryptoService cryptoService, StockTwService stockTwService, NewsService newsService, ProgressTrackerService progressTrackerService, CrontabMethod crontabMethod, AssetService assetService) {
         this.currencyService = currencyService;
         this.cryptoService = cryptoService;
@@ -167,9 +164,13 @@ public class ApiAdminController {
     @PostMapping("/crypto/trackCryptoHistoryData")
     public CompletableFuture<?> trackCryptoHistoryData(
             @RequestParam String tradingPair) {
-        CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
-        return cryptoService.trackCryptoHistoryPrices(tradingPairs)
-                            .thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
+        try {
+            CryptoTradingPair tradingPairs = cryptoService.getCryptoTradingPair(tradingPair.toUpperCase());
+            return cryptoService.trackCryptoHistoryPrices(tradingPairs)
+                                .thenApplyAsync(taskId -> ResponseEntity.ok().body("請求更新成功，任務id: " + taskId));
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture(ResponseEntity.badRequest().body(e.getMessage()));
+        }
     }
 
     /**
@@ -187,7 +188,6 @@ public class ApiAdminController {
         }
     }
 
-
     /**
      * 取得所有任務進度, 並回傳任務進度列表
      *
@@ -196,17 +196,20 @@ public class ApiAdminController {
     @GetMapping("/crypto/getAllTaskProgress")
     @ResponseBody
     public List<Progress.ProgressDto> getAllTaskProgress() {
-        List<Progress.ProgressDto> progressList = new ArrayList<>();
-        for (Progress progress : progressTrackerService.getAllProgressInfo()) {
-            Progress.ProgressDto dto = new Progress.ProgressDto(progress.getTaskName(),
-                                                                progress.getProgressCount(),
-                                                                progress.getTotalTask(),
-                                                                progress.getProgressPercentage() * 100);
-            progressList.add(dto);
+        try {
+            List<Progress.ProgressDto> progressList = new ArrayList<>();
+            for (Progress progress : progressTrackerService.getAllProgressInfo()) {
+                Progress.ProgressDto dto = new Progress.ProgressDto(progress.getTaskName(),
+                                                                    progress.getProgressCount(),
+                                                                    progress.getTotalTask(),
+                                                                    progress.getProgressPercentage() * 100);
+                progressList.add(dto);
+            }
+            return progressList;
+        } catch (Exception e) {
+            return new ArrayList<>();
         }
-        return progressList;
     }
-
 
     /**
      * 檢查並重新連接WebSocket
@@ -244,7 +247,6 @@ public class ApiAdminController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body("操作失敗: " + e.getMessage());
         }
-
     }
 
     /**
@@ -262,7 +264,6 @@ public class ApiAdminController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(e.getMessage());
         }
-
     }
 
     /**
@@ -342,7 +343,7 @@ public class ApiAdminController {
         try {
             currencyService.updateCurrencyData();
             return ResponseEntity.ok().body("操作成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body("操作成功" + e.getMessage());
         }
     }
@@ -370,7 +371,7 @@ public class ApiAdminController {
         try {
             crontabMethod.updateUserRoiData();
             return ResponseEntity.ok().body("ROI更新成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -385,7 +386,7 @@ public class ApiAdminController {
         try {
             crontabMethod.recordUserPropertySummary();
             return ResponseEntity.ok().body("更新成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -400,7 +401,7 @@ public class ApiAdminController {
         try {
             crontabMethod.updateUserCashFlow();
             return ResponseEntity.ok().body("更新成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -415,7 +416,7 @@ public class ApiAdminController {
         try {
             newsService.sendNewsRequest(true, 1, null, null);
             return ResponseEntity.ok().body("更新成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -440,7 +441,7 @@ public class ApiAdminController {
             }
             newsService.sendNewsRequest(false, 1, keyword, asset);
             return ResponseEntity.ok().body("更新成功");
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -550,4 +551,3 @@ public class ApiAdminController {
         }
     }
 }
-

@@ -2,6 +2,7 @@ package xyz.dowob.stockweb.Component.Method;
 
 import com.influxdb.query.FluxTable;
 import org.springframework.stereotype.Component;
+import xyz.dowob.stockweb.Component.Annotation.MeaninglessData;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 
 import java.math.BigDecimal;
@@ -18,7 +19,6 @@ import java.util.*;
  */
 @Component
 public class ChartMethod {
-
     /**
      * 格式化時間成UTC時間字串
      *
@@ -47,6 +47,7 @@ public class ChartMethod {
      * date_Format: 格式化時間
      * value: 資產價值
      */
+    @MeaninglessData
     public Map<String, List<Map<String, Object>>> formatSummaryToChartData(Map<String, List<FluxTable>> userSummary, Currency preferCurrency) {
         Map<String, List<Map<String, Object>>> chartData = new HashMap<>();
         Map<String, Map<String, Object>> latestRecord = new HashMap<>();
@@ -56,7 +57,6 @@ public class ChartMethod {
         chartData.put("stock_tw_sum", new ArrayList<>());
         chartData.put("latest", new ArrayList<>());
         BigDecimal exchangeRate = preferCurrency.getExchangeRate();
-
         userSummary.forEach((key, tables) -> tables.forEach(table -> table.getRecords().forEach(record -> {
             String field = (String) record.getValueByKey("_field");
             List<Map<String, Object>> dataPoints = chartData.get(field);
@@ -66,8 +66,6 @@ public class ChartMethod {
                 dataPoint.put("field", field);
                 dataPoint.put("date_instant", time);
                 dataPoint.put("date_Format", formatDate(time));
-
-
                 Double value = (Double) record.getValueByKey("_value");
                 if (value != null) {
                     BigDecimal exchangeValue = new BigDecimal(value).multiply(exchangeRate).setScale(6, RoundingMode.HALF_UP);
@@ -75,9 +73,7 @@ public class ChartMethod {
                 } else {
                     dataPoint.put("value", record.getValueByKey("_value"));
                 }
-
                 dataPoints.add(dataPoint);
-
                 if (!latestRecord.containsKey(field) || Objects.requireNonNull(time)
                                                                .compareTo((Instant) latestRecord.get(field).get("date_instant")) > 0) {
                     latestRecord.put(field, dataPoint);
@@ -97,6 +93,7 @@ public class ChartMethod {
      * key: 資料類型
      * value: 圖表資料
      */
+    @MeaninglessData
     public List<Map<String, Object>> formatDailyRoiToChartData(List<FluxTable> dailyRoiDataTables) {
         List<Map<String, Object>> chartData = new ArrayList<>();
         dailyRoiDataTables.forEach(table -> table.getRecords().forEach(record -> {

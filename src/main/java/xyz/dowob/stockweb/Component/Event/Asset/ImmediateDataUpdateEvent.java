@@ -15,7 +15,6 @@ import xyz.dowob.stockweb.Enum.AssetType;
  * @create 2024-09-04 20:50
  * @Version 1.0
  **/
-
 @Getter
 public class ImmediateDataUpdateEvent extends ApplicationEvent {
     private final Boolean isOpen;
@@ -29,7 +28,6 @@ public class ImmediateDataUpdateEvent extends ApplicationEvent {
      * @param isOpen 資產是否開啟即時數據更新。
      * @param type   資產的類型，使用AssetType枚舉類型。
      */
-
     public ImmediateDataUpdateEvent(@NonNull Object source, @NonNull Boolean isOpen, @NonNull AssetType type) {
         super(source);
         this.isOpen = isOpen;

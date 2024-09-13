@@ -1,7 +1,5 @@
 package xyz.dowob.stockweb.Config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -23,8 +21,6 @@ import xyz.dowob.stockweb.Interceptor.WebSocketHandleInterceptor;
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
-
     /**
      * 初始化WebSocketConfig
      * 創建ThreadPoolTaskScheduler
@@ -33,7 +29,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
         ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
         taskScheduler.initialize();
     }
-
 
     /**
      * 創建WebSocketConnectionManager
@@ -44,13 +39,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
      */
     @Bean
     public WebSocketConnectionManager wsConnectionManager(CryptoWebSocketHandler cryptoWebSocketHandler) {
-        logger.info("WebSocket連線中");
         StandardWebSocketClient webSocketClient = new StandardWebSocketClient();
         String url = "wss://stream.binance.com:9443/stream?streams=";
-
         WebSocketConnectionManager connectionManager = new WebSocketConnectionManager(webSocketClient, cryptoWebSocketHandler, url);
         connectionManager.setAutoStartup(false);
-        logger.info("WebSocket連線成功");
         return connectionManager;
     }
 
@@ -91,8 +83,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
                 .setAllowedOrigins("*")
                 .addInterceptors(webSocketHandleInterceptor())
                 .withSockJS();
-
-
         registry.addHandler(immediateDataHandler(), "/ws/server/immediate")
                 .setAllowedOrigins("*")
                 .addInterceptors(webSocketHandleInterceptor());

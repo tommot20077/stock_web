@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +24,6 @@ import java.util.Map;
 @Controller
 @RequestMapping("/api/user/crypto")
 public class ApiCryptoController {
-
     private final CryptoService cryptoService;
 
     private final UserService userService;
@@ -36,12 +34,10 @@ public class ApiCryptoController {
      * @param cryptoService 虛擬貨幣服務
      * @param userService   用戶服務
      */
-    @Autowired
     public ApiCryptoController(CryptoService cryptoService, UserService userService) {
         this.cryptoService = cryptoService;
         this.userService = userService;
     }
-
 
     /**
      * 用戶訂閱加密貨幣
@@ -64,10 +60,7 @@ public class ApiCryptoController {
             if (user == null) {
                 return ResponseEntity.badRequest().body("使用者不存在");
             }
-
             Map<String, String> failedSubscribes = new HashMap<>();
-
-
             if (subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要訂閱的加密貨幣");
             } else {
@@ -111,9 +104,7 @@ public class ApiCryptoController {
             if (user == null) {
                 return ResponseEntity.badRequest().body("使用者不存在");
             }
-
             Map<String, String> failedSubscribes = new HashMap<>();
-
             if (subscriptions.isEmpty()) {
                 return ResponseEntity.badRequest().body("請選擇要取消訂閱的加密貨幣和通知通道");
             } else {
@@ -136,7 +127,6 @@ public class ApiCryptoController {
         }
     }
 
-
     /**
      * 取得所有加密貨幣清單
      *
@@ -151,7 +141,6 @@ public class ApiCryptoController {
             return ResponseEntity.badRequest().body("取得所有加密貨幣清單失敗: " + e.getMessage());
         }
     }
-
 
     /**
      * 查看WebSocket連線狀態
@@ -171,4 +160,3 @@ public class ApiCryptoController {
         }
     }
 }
-

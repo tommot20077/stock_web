@@ -5,14 +5,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Component.Method.AssetInfluxMethod;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
+import xyz.dowob.stockweb.Exception.AssetExceptions;
 import xyz.dowob.stockweb.Model.Currency.Currency;
 import xyz.dowob.stockweb.Repository.Currency.CurrencyRepository;
 
@@ -39,8 +37,6 @@ public class StockTwInfluxService {
 
     private final RetryTemplate retryTemplate;
 
-    Logger logger = LoggerFactory.getLogger(StockTwInfluxService.class);
-
     private final OffsetDateTime startDateTime = Instant.parse("1970-01-01T00:00:00Z").atOffset(ZoneOffset.UTC);
 
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
@@ -54,7 +50,6 @@ public class StockTwInfluxService {
      * @param currencyRepository         貨幣資料庫
      * @param retryTemplate              重試模板
      */
-    @Autowired
     public StockTwInfluxService(
             @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
@@ -79,7 +74,7 @@ public class StockTwInfluxService {
      * @param msgArray kline數據
      */
     public void writeToInflux(Map<String, Map<String, String>> msgArray) {
-        for (Map.Entry<String, Map<String,String>> dataMap : msgArray.entrySet()) {
+        for (Map.Entry<String, Map<String, String>> dataMap : msgArray.entrySet()) {
             String stockId = dataMap.getKey();
             Map<String, String> data = dataMap.getValue();
             String time = data.get("time");
@@ -88,13 +83,6 @@ public class StockTwInfluxService {
             Double openDouble = Double.parseDouble(data.get("open"));
             Double lowDouble = Double.parseDouble(data.get("low"));
             Double volumeDouble = Double.parseDouble(data.get("volume"));
-
-            logger.debug("price = {}, high = {}, low = {}, open = {}, volume = {}",
-                         closeDouble,
-                         highDouble,
-                         lowDouble,
-                         openDouble,
-                         volumeDouble);
             Point point = Point.measurement("kline_data")
                                .addTag("stock_tw", stockId)
                                .addField("open", openDouble)
@@ -113,26 +101,15 @@ public class StockTwInfluxService {
      * @param dataArray 股價數據
      * @param stockCode 股票代碼
      */
-    public void writeStockTwHistoryToInflux(ArrayNode dataArray, String stockCode) {
-        logger.debug("讀取歷史股價數據");
+    public void writeStockTwHistoryToInflux(ArrayNode dataArray, String stockCode) throws AssetExceptions {
         for (JsonNode dataEntry : dataArray) {
             String dateStr = dataEntry.get(0).asText();
             Long tLong = formattedRocData(dateStr);
-
             String numberOfStocksVolume = dataEntry.get(1).asText().replace(",", "");
             String openingPrice = dataEntry.get(3).asText();
             String highestPrice = dataEntry.get(4).asText();
             String lowestPrice = dataEntry.get(5).asText();
             String closingPrice = dataEntry.get(6).asText();
-
-            logger.debug("(轉換前)日期: {}, 成交股數: {}, 開盤價: {}, 最高價: {}, 最低價: {}, 收盤價: {}",
-                         dateStr,
-                         numberOfStocksVolume,
-                         openingPrice,
-                         highestPrice,
-                         lowestPrice,
-                         closingPrice);
-
             if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice,
                                                                                                            "--") || Objects.equals(
                     closingPrice,
@@ -146,25 +123,16 @@ public class StockTwInfluxService {
     /**
      * 每日更新股價數據寫入InfluxDB
      *
-     * @param node          股價數據
+     * @param node      股價數據
      * @param timestamp 日期Long格式
      */
-    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long timestamp) {
+    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long timestamp) throws AssetExceptions {
         String stockCode = node.path("Code").asText();
         String tradeVolume = node.path("TradeVolume").asText();
         String openingPrice = node.path("OpeningPrice").asText();
         String highestPrice = node.path("HighestPrice").asText();
         String lowestPrice = node.path("LowestPrice").asText();
         String closingPrice = node.path("ClosingPrice").asText();
-
-        logger.debug("(轉換前)日期(Long): {}, 成交股數: {}, 開盤價: {}, 最高價: {}, 最低價: {}, 收盤價: {}",
-                     timestamp.toString(),
-                     tradeVolume,
-                     openingPrice,
-                     highestPrice,
-                     lowestPrice,
-                     closingPrice);
-
         if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice, "--") || Objects.equals(
                 closingPrice,
                 "--")) {
@@ -185,14 +153,11 @@ public class StockTwInfluxService {
         int yearRoc = Integer.parseInt(dateParts[0]);
         int yearAd = yearRoc + 1911;
         String formattedDate = yearAd + "/" + dateParts[1] + "/" + dateParts[2];
-
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
         LocalDate localDate = LocalDate.parse(formattedDate, formatter);
-
         Instant instant = localDate.atStartOfDay(ZoneId.of("Asia/Taipei")).toInstant();
         return instant.toEpochMilli();
     }
-
 
     /**
      * 刪除股票代碼的歷史資料
@@ -203,46 +168,36 @@ public class StockTwInfluxService {
      */
     public void deleteDataByStockCode(String stockCode) {
         String predicate = String.format("_measurement=\"kline_data\" AND stock_tw=\"%s\"", stockCode);
-        logger.debug("刪除{}的歷史資料", stockCode);
         try {
             retryTemplate.doWithRetry(() -> {
-                try {
-                    logger.debug("連接InfluxDB成功");
-                    StockTwInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockBucket, org);
-                    StockTwHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockHistoryBucket, org);
-                    logger.debug("刪除資料成功");
-                } catch (Exception e) {
-                    logger.error("刪除資料時發生錯誤", e);
-                }
+                StockTwInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockBucket, org);
+                StockTwHistoryInfluxDBClient.getDeleteApi().delete(startDateTime, stopDateTime, predicate, stockHistoryBucket, org);
             });
         } catch (Exception e) {
-            logger.error("重試失敗，最後一次錯誤信息：{}", e.getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getMessage(), e);
         }
     }
 
-
     /**
      * 將kline數據寫入InfluxDB
      *
-     * @param timestamp 日期Long格式
-     * @param stockCode     股票代碼
-     * @param tradeVolume   成交股數
-     * @param openingPrice  開盤價
-     * @param highestPrice  最高價
-     * @param lowestPrice   最低價
-     * @param closingPrice  收盤價
+     * @param timestamp    日期Long格式
+     * @param stockCode    股票代碼
+     * @param tradeVolume  成交股數
+     * @param openingPrice 開盤價
+     * @param highestPrice 最高價
+     * @param lowestPrice  最低價
+     * @param closingPrice 收盤價
      */
-    private void writeKlineDataPoint(Long timestamp, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) {
-        Currency twdCurrency = currencyRepository.findByCurrency("TWD").orElseThrow(() -> new RuntimeException("找不到TWD幣別"));
+    private void writeKlineDataPoint(Long timestamp, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) throws AssetExceptions {
+        Currency twdCurrency = currencyRepository.findByCurrency("TWD")
+                                                 .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND,
+                                                                                        "TWD"));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
-
         Double formatOpeningPrice = (new BigDecimal(openingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Double formatHighestPrice = (new BigDecimal(highestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Double formatLowestPrice = (new BigDecimal(lowestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Double formatClosingPrice = (new BigDecimal(closingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
-
-
         Point point = Point.measurement("kline_data")
                            .addTag("stock_tw", stockCode)
                            .addField("high", formatHighestPrice)
@@ -251,15 +206,6 @@ public class StockTwInfluxService {
                            .addField("close", formatClosingPrice)
                            .addField("volume", Double.parseDouble(tradeVolume))
                            .time(timestamp, WritePrecision.MS);
-        logger.debug("建立InfluxDB Point");
-        logger.debug("(轉換後)日期(Long): {}, 成交股數: {}, 開盤價: {}, 最高價: {}, 最低價: {}, 收盤價: {}",
-                     timestamp.toString(),
-                     tradeVolume,
-                     formatOpeningPrice,
-                     formatHighestPrice,
-                     formatLowestPrice,
-                     formatClosingPrice);
-
         assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
     }
 }

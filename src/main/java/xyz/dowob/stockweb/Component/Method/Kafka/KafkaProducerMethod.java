@@ -1,6 +1,5 @@
 package xyz.dowob.stockweb.Component.Method.Kafka;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Component;
 public class KafkaProducerMethod {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Autowired
     public KafkaProducerMethod(KafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
@@ -36,5 +34,4 @@ public class KafkaProducerMethod {
     public void sendMessage(String topic, Object message) {
         kafkaTemplate.send(topic, message);
     }
-
 }

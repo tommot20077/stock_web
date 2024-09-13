@@ -3,6 +3,7 @@ package xyz.dowob.stockweb.Dto.User;
 import lombok.Data;
 import xyz.dowob.stockweb.Enum.Priority;
 import xyz.dowob.stockweb.Enum.Role;
+import xyz.dowob.stockweb.Exception.UserExceptions;
 import xyz.dowob.stockweb.Model.User.Todo;
 import xyz.dowob.stockweb.Model.User.User;
 
@@ -49,17 +50,15 @@ public class TodoDto {
      *
      * @return 待辦事項
      */
-    public Todo toEntity(TodoDto todoDto, User user) {
+    public Todo toEntity(TodoDto todoDto, User user) throws UserExceptions {
         Todo todo = new Todo();
         todo.setContent(todoDto.getContent());
         todo.setPriority(Priority.valueOf(todoDto.getPriority()));
         todo.setUser(user);
-
         if (("true").equals(isReminder)) {
             if (user.getRole() == Role.UNVERIFIED_USER) {
-                throw new RuntimeException("未驗證用戶不可使用提醒功能");
+                throw new UserExceptions(UserExceptions.ErrorEnum.INVALID_EMAIL_CANNOT_USE, "待辦事項提醒");
             }
-
             OffsetDateTime userUtcDueDate = parseToUtc(todoDto.getDueDate(), user);
             OffsetDateTime userUtcReminderTime = parseToUtc(todoDto.getReminderTime(), user);
             todo.setDueDate(userUtcDueDate);

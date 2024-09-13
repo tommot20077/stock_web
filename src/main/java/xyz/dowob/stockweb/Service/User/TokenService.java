@@ -3,17 +3,21 @@ package xyz.dowob.stockweb.Service.User;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.dowob.stockweb.Component.Annotation.SensitiveData;
 import xyz.dowob.stockweb.Component.Method.retry.RetryTemplate;
 import xyz.dowob.stockweb.Component.Provider.JwtTokenProvider;
 import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
 import xyz.dowob.stockweb.Enum.Role;
 import xyz.dowob.stockweb.Exception.RetryException;
+import xyz.dowob.stockweb.Exception.ServiceExceptions;
+import xyz.dowob.stockweb.Exception.UserExceptions;
 import xyz.dowob.stockweb.Model.User.Token;
 import xyz.dowob.stockweb.Model.User.User;
 import xyz.dowob.stockweb.Repository.User.TokenRepository;
@@ -25,6 +29,8 @@ import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+
+import static xyz.dowob.stockweb.Exception.UserExceptions.ErrorEnum.USER_NOT_FOUND;
 
 /**
  * @author yuan
@@ -50,8 +56,6 @@ public class TokenService {
 
     private final RetryTemplate retryTemplate;
 
-    Logger logger = LoggerFactory.getLogger(UserService.class);
-
     /**
      * TokenService構造函數
      *
@@ -63,7 +67,6 @@ public class TokenService {
      * @param userService       用戶服務
      * @param retryTemplate     重試模板
      */
-    @Autowired
     public TokenService(UserRepository userRepository, TokenRepository tokenRepository, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider, UserService userService, RetryTemplate retryTemplate) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
@@ -79,38 +82,30 @@ public class TokenService {
      *
      * @param session HttpSession
      *                用戶未驗證時發送驗證信
-     *
-     * @throws RuntimeException 用戶已經完成驗證
      */
-
-    public void sendVerificationEmail(HttpSession session) {
+    public void sendVerificationEmail(HttpSession session) throws UserExceptions {
         User user = userService.getUserFromJwtTokenOrSession(session);
         if (user.getRole() == Role.UNVERIFIED_USER) {
             mailTokenProvider.sendVerificationEmail(user);
         } else {
-            throw new RuntimeException("用戶已經完成驗證");
+            throw new UserExceptions(UserExceptions.ErrorEnum.USER_ALREADY_VERIFIED);
         }
     }
-
 
     /**
      * 驗證信箱
      *
      * @param base128Token base128Token
-     *
-     * @throws RuntimeException 密鑰不存在
      */
-    public void verifyEmail(String base128Token) {
+    public void verifyEmail(String base128Token) throws UserExceptions {
         if (base128Token == null || base128Token.isBlank()) {
-            throw new RuntimeException("密鑰不存在");
+            throw new UserExceptions(UserExceptions.ErrorEnum.USER_TOKEN_INVALID);
         }
         User user = mailTokenProvider.validateTokenAndReturnUser(base128Token);
         if (user != null) {
             user.setRole(Role.VERIFIED_USER);
             user.getToken().setEmailApiToken(null);
             userRepository.save(user);
-            logger.warn("用戶 {} 完成驗證", user.getEmail());
-
         }
     }
 
@@ -121,10 +116,10 @@ public class TokenService {
      *
      * @throws RuntimeException 找不到用戶
      */
-    public void sendResetPasswordEmail(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("找不到用戶: " + email));
+    public void sendResetPasswordEmail(String email) throws UserExceptions {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserExceptions(USER_NOT_FOUND, email));
         if (user.getRole().equals(Role.UNVERIFIED_USER)) {
-            throw new RuntimeException("未驗證信箱用戶，無法重置密碼");
+            throw new UserExceptions(UserExceptions.ErrorEnum.INVALID_EMAIL_CANNOT_USE, "重置密碼");
         }
         mailTokenProvider.sendResetPasswordEmail(user);
     }
@@ -136,19 +131,16 @@ public class TokenService {
      * @param token       token
      * @param newPassword 設定的新密碼
      */
-    public void resetPassword(String email, String token, String newPassword) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("找不到用戶: " + email));
+    public void resetPassword(String email, String token, String newPassword) throws UserExceptions {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserExceptions(USER_NOT_FOUND, email));
         String confirmToken = new String(Base64.getDecoder().decode(user.getToken().getEmailApiToken()), StandardCharsets.UTF_8);
         if (!confirmToken.equals(token)) {
-            logger.warn("{} 重置密碼的驗證碼不正確", user.getEmail());
-            throw new RuntimeException("驗證碼不正確");
+            throw new UserExceptions(UserExceptions.ErrorEnum.USER_TOKEN_INVALID);
         }
         userService.validatePassword(newPassword);
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
-        logger.info("用戶 {} 重置密碼成功", user.getEmail());
     }
-
 
     /**
      * 生成RememberMe token, 並存入cookie
@@ -156,6 +148,7 @@ public class TokenService {
      * @param response HttpServletResponse
      * @param user     User
      */
+    @SensitiveData
     public void generateRememberMeToken(HttpServletResponse response, User user) {
         Token userToken = user.getToken();
         if (userToken.getRememberMeToken() == null || userToken.getRememberMeToken().isBlank() || userToken.getRememberMeTokenExpireTime()
@@ -164,11 +157,9 @@ public class TokenService {
             String token = UUID.randomUUID().toString();
             String hashedToken = passwordEncoder.encode(token);
             String base64Token = Base64.getEncoder().encodeToString(hashedToken.getBytes(StandardCharsets.UTF_8));
-
             int expireTimeDays = 7;
             userToken.createRememberMeToken(hashedToken, expireTimeDays);
             userRepository.save(user);
-
             Cookie rememberMeCookie = new Cookie("REMEMBER_ME", base64Token);
             rememberMeCookie.setMaxAge(expireTimeDays * 24 * 60 * 60);
             rememberMeCookie.setPath("/");
@@ -184,11 +175,9 @@ public class TokenService {
      * @param base64Token base64Token
      *
      * @return Long userId
-     *
-     * @throws RuntimeException token不存在
      */
     @Transactional
-    public Long verifyRememberMeToken(String base64Token) throws RuntimeException {
+    public Long verifyRememberMeToken(String base64Token) {
         if (base64Token == null) {
             return null;
         }
@@ -240,6 +229,7 @@ public class TokenService {
      *
      * @return String jwt
      */
+    @SensitiveData
     public String generateJwtToken(User user, HttpServletResponse response) {
         String jwt = jwtTokenProvider.generateToken(user.getId(), user.getToken().getAndIncrementJwtApiCount());
         tokenRepository.save(user.getToken());
@@ -247,20 +237,16 @@ public class TokenService {
         jwtCookie.setPath("/");
         jwtCookie.setHttpOnly(true);
         response.addCookie(jwtCookie);
-
         return jwt;
     }
 
     /**
      * 刪除過期的emailApiToken
-     *
-     * @throws RuntimeException 清理過期的token失敗
      */
     @Transactional(rollbackFor = Exception.class)
     public void removeExpiredTokens() {
         try {
             retryTemplate.doWithRetry(() -> {
-                logger.info("開始清理過期的token");
                 try {
                     OffsetDateTime expiredOverDay = OffsetDateTime.now().minusDays(1);
                     List<Token> tokens = tokenRepository.findAllByEmailApiTokenExpiryTimeIsBefore(expiredOverDay);
@@ -276,13 +262,25 @@ public class TokenService {
                     tokenRepository.saveAll(tokens);
                     tokenRepository.saveAll(tokens2);
                 } catch (Exception e) {
-                    logger.error("清理過期的token失敗", e);
-                    throw new RuntimeException("清理過期的token失敗");
+                    throw new ServiceExceptions(ServiceExceptions.ErrorEnum.CLEAR_EXPIRED_TOKEN_ERROR, e.getMessage());
                 }
             });
         } catch (RetryException e) {
-            logger.error("重試失敗，最後一次錯誤信息：{}", e.getLastException().getMessage(), e);
             throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
         }
+    }
+
+    /**
+     * 用於授權用戶權限的方法
+     * @param user 用戶
+     * @param session 當前連接的Session
+     */
+
+    public void authenticateUser(User user, HttpSession session) {
+        Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
+        session.setAttribute("currentUserId", user.getId());
+        session.setAttribute("userMail", user.getEmail());
     }
 }

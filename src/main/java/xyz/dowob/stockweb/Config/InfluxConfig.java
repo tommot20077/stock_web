@@ -56,7 +56,6 @@ public class InfluxConfig {
     @Value("${db.influxdb.read_write_timeout:30}")
     private int influxReadTimeout;
 
-
     /**
      * 創建InfluxDBClient, 連線至cryptoBucket
      *
@@ -127,7 +126,6 @@ public class InfluxConfig {
         return createClient(commonEconomyBucket);
     }
 
-
     /**
      * 創建InfluxDBClient, 連線至預設bucket
      *
@@ -150,8 +148,6 @@ public class InfluxConfig {
                                                                                  java.util.concurrent.TimeUnit.SECONDS)
                                                                  .readTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS)
                                                                  .writeTimeout(influxReadTimeout, java.util.concurrent.TimeUnit.SECONDS);
-
-
         InfluxDBClientOptions options = InfluxDBClientOptions.builder()
                                                              .url(url)
                                                              .authenticateToken(token.toCharArray())
@@ -159,7 +155,6 @@ public class InfluxConfig {
                                                              .bucket(bucketName)
                                                              .okHttpClient(builder)
                                                              .build();
-
         return InfluxDBClientFactory.create(options);
     }
 

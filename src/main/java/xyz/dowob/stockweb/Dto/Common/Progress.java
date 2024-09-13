@@ -58,7 +58,6 @@ public class Progress {
         return (float) progressCount.get() / totalTask;
     }
 
-
     /**
      * 用於傳遞進度條的資料
      * 1. progressCount: 目前進度
@@ -77,5 +76,3 @@ public class Progress {
         private final float progressPercentage;
     }
 }
-
-

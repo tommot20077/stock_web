@@ -26,8 +26,8 @@ public class AssetListDto implements Serializable {
     /**
      * 資產清單的構造函數
      *
-     * @param assetId   資產ID
-     * @param assetName 資產名稱
+     * @param assetId     資產ID
+     * @param assetName   資產名稱
      * @param isSubscribe 是否訂閱
      */
     public AssetListDto(Long assetId, String assetName, boolean isSubscribe) {

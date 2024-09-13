@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +32,6 @@ public class ApiStockTwController {
 
     private final CrontabMethod crontabMethod;
 
-
     /**
      * 這是一個構造函數，用於注入StockTwService和UserService
      *
@@ -41,7 +39,6 @@ public class ApiStockTwController {
      * @param userService    用戶服務
      * @param crontabMethod  CrontabMethod
      */
-    @Autowired
     public ApiStockTwController(StockTwService stockTwService, UserService userService, CrontabMethod crontabMethod) {
         this.stockTwService = stockTwService;
         this.userService = userService;
@@ -59,24 +56,27 @@ public class ApiStockTwController {
     @PostMapping("/subscribe")
     public ResponseEntity<?> addNewStock(
             @RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
-        if (session.getAttribute("currentUserId") == null) {
-            return ResponseEntity.status(401).body("請先登入");
-        }
-        Long userId = (Long) session.getAttribute("currentUserId");
-        User user = userService.getUserById(userId);
-
-        Map<String, String> failedSubscribes = new HashMap<>();
-        for (String stockId : subscriptionStockDto.getSubscriptions()) {
-            try {
-                stockTwService.addStockSubscribeToUser(stockId, user);
-            } catch (Exception e) {
-                failedSubscribes.put(stockId, e.getMessage());
+        try {
+            if (session.getAttribute("currentUserId") == null) {
+                return ResponseEntity.status(401).body("請先登入");
             }
-        }
-        if (failedSubscribes.isEmpty()) {
-            return ResponseEntity.ok().body("股票訂閱成功");
-        } else {
-            return ResponseEntity.status(500).body("以下股票訂閱失敗: " + failedSubscribes);
+            Long userId = (Long) session.getAttribute("currentUserId");
+            User user = userService.getUserById(userId);
+            Map<String, String> failedSubscribes = new HashMap<>();
+            for (String stockId : subscriptionStockDto.getSubscriptions()) {
+                try {
+                    stockTwService.addStockSubscribeToUser(stockId, user);
+                } catch (Exception e) {
+                    failedSubscribes.put(stockId, e.getMessage());
+                }
+            }
+            if (failedSubscribes.isEmpty()) {
+                return ResponseEntity.ok().body("股票訂閱成功");
+            } else {
+                return ResponseEntity.status(500).body("以下股票訂閱失敗: " + failedSubscribes);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
         }
     }
 
@@ -94,24 +94,27 @@ public class ApiStockTwController {
     @PostMapping("/unsubscribe")
     public ResponseEntity<?> removeStock(
             @RequestBody SubscriptionStockDto subscriptionStockDto, HttpSession session) {
-        if (session.getAttribute("currentUserId") == null) {
-            return ResponseEntity.status(401).body("請先登入");
-        }
-        Long userId = (Long) session.getAttribute("currentUserId");
-        User user = userService.getUserById(userId);
-
-        Map<String, String> failedSubscribes = new HashMap<>();
-        for (String stockId : subscriptionStockDto.getSubscriptions()) {
-            try {
-                stockTwService.removeStockSubscribeToUser(stockId, user);
-            } catch (Exception e) {
-                failedSubscribes.put(stockId, e.getMessage());
+        try {
+            if (session.getAttribute("currentUserId") == null) {
+                return ResponseEntity.status(401).body("請先登入");
             }
-        }
-        if (failedSubscribes.isEmpty()) {
-            return ResponseEntity.ok().body("股票退訂成功");
-        } else {
-            return ResponseEntity.status(500).body("以下股票退訂失敗: " + failedSubscribes);
+            Long userId = (Long) session.getAttribute("currentUserId");
+            User user = userService.getUserById(userId);
+            Map<String, String> failedSubscribes = new HashMap<>();
+            for (String stockId : subscriptionStockDto.getSubscriptions()) {
+                try {
+                    stockTwService.removeStockSubscribeToUser(stockId, user);
+                } catch (Exception e) {
+                    failedSubscribes.put(stockId, e.getMessage());
+                }
+            }
+            if (failedSubscribes.isEmpty()) {
+                return ResponseEntity.ok().body("股票退訂成功");
+            } else {
+                return ResponseEntity.status(500).body("以下股票退訂失敗: " + failedSubscribes);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
         }
     }
 

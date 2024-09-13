@@ -1,11 +1,10 @@
 package xyz.dowob.stockweb.Service.Common;
 
-import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.dowob.stockweb.Dto.Common.Progress;
 import xyz.dowob.stockweb.Enum.TaskStatusType;
+import xyz.dowob.stockweb.Exception.ServiceExceptions;
 import xyz.dowob.stockweb.Model.Common.Task;
 import xyz.dowob.stockweb.Repository.Common.TaskRepository;
 
@@ -21,7 +20,6 @@ import java.util.concurrent.TimeUnit;
  * 實現DisposableBean接口，用於關閉線程池
  */
 @Service
-@Log4j2
 public class ProgressTrackerService implements DisposableBean {
     private final TaskRepository taskRepository;
 
@@ -35,7 +33,6 @@ public class ProgressTrackerService implements DisposableBean {
      * @param taskRepository           任務數據庫
      * @param dynamicThreadPoolService 動態線程池服務
      */
-    @Autowired
     public ProgressTrackerService(TaskRepository taskRepository, DynamicThreadPoolService dynamicThreadPoolService) {
         this.taskRepository = taskRepository;
         this.dynamicThreadPoolService = dynamicThreadPoolService;
@@ -52,7 +49,6 @@ public class ProgressTrackerService implements DisposableBean {
     public String createAndTrackNewTask(int totalTask, String name) {
         String taskId = UUID.randomUUID().toString();
         progressMap.put(taskId, new Progress(totalTask, name));
-        log.debug("本次任務Id: {}", taskId);
         return taskId;
     }
 
@@ -86,7 +82,6 @@ public class ProgressTrackerService implements DisposableBean {
         return new ArrayList<>(progressMap.values());
     }
 
-
     /**
      * 重寫destroy方法，在關閉線程池之前將任務狀態寫入數據庫
      *
@@ -94,13 +89,15 @@ public class ProgressTrackerService implements DisposableBean {
      */
     @Override
     public void destroy() throws Exception {
-        List<Task> tasks = taskRepository.findAllByTaskStatus(TaskStatusType.IN_PROGRESS);
-        for (Task task : tasks) {
-            task.completeTask(TaskStatusType.FAILED, "程式被終止，任務失敗");
-            taskRepository.save(task);
+        try {
+            List<Task> tasks = taskRepository.findAllByTaskStatus(TaskStatusType.IN_PROGRESS);
+            for (Task task : tasks) {
+                task.completeTask(TaskStatusType.FAILED, "程式被終止，任務失敗");
+                taskRepository.save(task);
+            }
+            dynamicThreadPoolService.shutdown(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new ServiceExceptions(ServiceExceptions.ErrorEnum.TREAD_POOL_CLOSE_ERROR, e.getMessage());
         }
-        dynamicThreadPoolService.shutdown(5, TimeUnit.SECONDS);
     }
-
-
 }

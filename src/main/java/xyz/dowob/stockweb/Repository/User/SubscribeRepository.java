@@ -24,7 +24,7 @@ public interface SubscribeRepository extends JpaRepository<Subscribe, Long> {
      * @param userId  用戶ID
      * @param assetId 資產ID
      *
-     * @return
+     * @return 用戶訂閱
      */
     Optional<Subscribe> findByUserIdAndAssetId(Long userId, Long assetId);
 
@@ -66,5 +66,4 @@ public interface SubscribeRepository extends JpaRepository<Subscribe, Long> {
     @Query("SELECT s.channel, s.asset, s.removeAble FROM Subscribe s WHERE s.user = :user")
     List<Object[]> getChannelAndAssetAndRemoveAbleByUserId(
             @Param("user") User user);
-
 }

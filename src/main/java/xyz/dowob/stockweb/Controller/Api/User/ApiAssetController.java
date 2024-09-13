@@ -1,7 +1,6 @@
 package xyz.dowob.stockweb.Controller.Api.User;
 
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,13 +36,11 @@ public class ApiAssetController {
      * @param redisService 緩存服務
      * @param userService  用戶服務
      */
-    @Autowired
     public ApiAssetController(AssetService assetService, RedisService redisService, UserService userService) {
         this.assetService = assetService;
         this.redisService = redisService;
         this.userService = userService;
     }
-
 
     /**
      * 取得資產資訊, 並存入Redis
@@ -97,7 +94,6 @@ public class ApiAssetController {
             } else {
                 cacheAssetJson = redisService.getHashValueFromKey("asset", innerKey);
             }
-
             if (cacheAssetJson == null) {
                 List<Asset> assetsList = assetService.findAssetPageByType(formatCategory, page, isCache);
                 if (isFrontEnd) {

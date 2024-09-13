@@ -1,9 +1,6 @@
 package xyz.dowob.stockweb.Component.EventListener.Asset;
 
 import lombok.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 import xyz.dowob.stockweb.Component.Event.Asset.PropertyUpdateEvent;
@@ -30,8 +27,6 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
 
     private final CrontabMethod crontabMethod;
 
-    Logger logger = LoggerFactory.getLogger(PropertyUpdateListener.class);
-
     /**
      * PropertyUpdateListener類別的構造函數。
      *
@@ -39,13 +34,11 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
      * @param propertyService 資產相關服務方法
      * @param crontabMethod   定時任務相關方法
      */
-    @Autowired
     public PropertyUpdateListener(RetryTemplate retryTemplate, PropertyService propertyService, CrontabMethod crontabMethod) {
         this.retryTemplate = retryTemplate;
         this.propertyService = propertyService;
         this.crontabMethod = crontabMethod;
     }
-
 
     /**
      * 當PropertyUpdateEvent事件發生時，此方法將被調用。
@@ -65,26 +58,20 @@ public class PropertyUpdateListener implements ApplicationListener<PropertyUpdat
         try {
             retryTemplate.doWithRetry(() -> {
                 if (event.getUser() != null) {
-                    logger.debug("指定用戶資產更新");
                     List<PropertyListDto.getAllPropertiesDto> getAllPropertiesDtoList = propertyService.getUserAllProperties(event.getUser(),
                                                                                                                              false);
                     if (getAllPropertiesDtoList == null || getAllPropertiesDtoList.isEmpty()) {
-                        logger.debug("沒有用戶資產，停止紀錄用戶:{}", event.getUser().getUsername());
-                        logger.info("重製用戶 {} 的influx資產資料庫", event.getUser().getUsername());
                         propertyService.resetUserPropertySummary(event.getUser());
-                        logger.debug("重製用戶資料完成");
                         return;
                     }
                     List<PropertyListDto.writeToInfluxPropertyDto> toInfluxPropertyDto = propertyService.convertGetAllPropertiesDtoToWriteToInfluxPropertyDto(
                             getAllPropertiesDtoList);
                     propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, event.getUser());
                 } else {
-                    logger.debug("全部用戶資產更新");
                     crontabMethod.recordUserPropertySummary();
                 }
             });
         } catch (RetryException e) {
-            logger.error("寫入資料失敗");
             throw new RuntimeException("寫入資料失敗");
         }
     }

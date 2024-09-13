@@ -51,7 +51,7 @@ public class InfluxInitial {
 
     private final InfluxDBClient influxClient;
 
-    Logger logger = LoggerFactory.getLogger(InfluxInitial.class);
+    Logger log = LoggerFactory.getLogger(InfluxInitial.class);
 
     /**
      * 這是一個構造函數，用於注入InfluxDBClient，此注入客戶端不包含Bucket參數。
@@ -68,41 +68,33 @@ public class InfluxInitial {
      * 它會獲取組織的ID。對於每一個鍵，如果該鍵為null或空，則會輸出一條日誌訊息並拋出異常。
      * 如果該bucket不存在，則會創建該bucket。
      */
-
     @PostConstruct
     public void init() {
-        List<String> buckets = List.of(cryptoBucket,
-                                       cryptoHistoryBucket,
-                                       stockTwBucket,
-                                       stockTwHistoryBucket,
-                                       currencyBucket,
-                                       propertySummaryBucket,
-                                       commonEconomyBucket);
-
-        List<String> keys = List.of(org, url, token);
-
-        String orgId = getOrganization().getId();
-        for (String key : keys) {
-            if (key == null || key.isEmpty()) {
-                logger.warn("請先配置設定: " + key);
-                throw new IllegalStateException("請先配置設定: " + key);
+        try {
+            List<String> buckets = List.of(cryptoBucket,
+                                           cryptoHistoryBucket,
+                                           stockTwBucket,
+                                           stockTwHistoryBucket,
+                                           currencyBucket,
+                                           propertySummaryBucket,
+                                           commonEconomyBucket);
+            List<String> keys = List.of(org, url, token);
+            String orgId = getOrganization().getId();
+            for (String key : keys) {
+                if (key == null || key.isEmpty()) {
+                    throw new IllegalStateException("請先配置設定: " + key);
+                }
             }
-        }
-
-        for (String bucket : buckets) {
-            logger.debug("檢查influx配置: " + bucket);
-            if (bucket == null || bucket.isEmpty()) {
-                logger.warn("請先配置設定: " + bucket);
-                throw new IllegalStateException("請先配置設定: " + bucket);
-            }
-            try {
+            for (String bucket : buckets) {
+                if (bucket == null || bucket.isEmpty()) {
+                    throw new IllegalStateException("請先配置設定: " + bucket);
+                }
                 if (!checkBucketExists(bucket)) {
-                    logger.info("influx沒有指定的bucket，建立bucket: " + bucket);
                     createBucket(bucket, orgId);
                 }
-            } catch (Exception e) {
-                logger.error("influx建立bucket失敗: " + bucket, e);
             }
+        } catch (Exception e) {
+            log.error("初始化錯誤: " + e);
         }
     }
 
@@ -123,7 +115,6 @@ public class InfluxInitial {
      *
      * @return 組織對象
      */
-
     private Organization getOrganization() {
         return influxClient.getOrganizationsApi()
                            .findOrganizations()
@@ -132,7 +123,6 @@ public class InfluxInitial {
                            .findFirst()
                            .orElse(null);
     }
-
 
     /**
      * 這個方法會創建指定的bucket。

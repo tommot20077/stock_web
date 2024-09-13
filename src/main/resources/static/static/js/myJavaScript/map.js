@@ -33,7 +33,8 @@ function getTransactionType(type) {
         'BUY': "買入",
         'SELL': "賣出",
         'DEPOSIT': "存款",
-        'WITHDRAW': "提款"
+        'WITHDRAW': "提款",
+        "UPDATE": "更新",
     }
     return map[type] || type;
 }

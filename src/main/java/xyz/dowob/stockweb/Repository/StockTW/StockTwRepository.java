@@ -1,7 +1,5 @@
 package xyz.dowob.stockweb.Repository.StockTW;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -90,9 +88,6 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
      */
     Set<StockTw> findAllByHasAnySubscribed(boolean hasAnySubscribed);
 
-
-    Logger logger = LoggerFactory.getLogger(StockTwRepository.class);
-
     /**
      * 新增訂閱者並檢查是否需要獲取歷史資料
      *
@@ -103,28 +98,21 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     @Transactional
     default void addAndCheckSubscriber(StockTw stockTw, Long userId, ApplicationEventPublisher eventPublisher) {
         boolean trackHistoryData = false;
-        logger.debug("測試" + countStockTwSubscribersNumber(stockTw) + "用戶訂閱此資產");
         if (countStockTwSubscribersNumber(stockTw) > 0) {
-            logger.debug("已經有用戶訂閱過此資產，不須獲取此資產歷史資料");
         } else {
-            logger.debug("此資產沒有用戶訂閱過或是歷史資料，獲取此資產歷史資料");
             trackHistoryData = true;
         }
-
         Set<Long> subscribers = stockTw.getSubscribers();
         boolean successAdd = subscribers.add(userId);
         if (successAdd) {
-            logger.debug("成功加入訂閱");
             save(stockTw);
             boolean finalTrackHistoryData = trackHistoryData;
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     eventPublisher.publishEvent(new StockTwSubscriberChangeEvent(this, stockTw));
-                    logger.debug("發布更新追蹤股票事件");
                     if (finalTrackHistoryData) {
                         eventPublisher.publishEvent(new StockTwHistoryDataChangeEvent(this, stockTw, "add"));
-                        logger.debug("發布更新歷史資料事件");
                     }
                 }
             });
@@ -141,24 +129,18 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
     @Transactional
     default void removeAndCheckSubscriber(StockTw stockTw, Long userId, ApplicationEventPublisher eventPublisher) {
         if (countStockTwSubscribersNumber(stockTw) <= 1) {
-            logger.debug("沒有用戶訂閱此資產");
             stockTw.setHasAnySubscribed(false);
         }
-
         Set<Long> subscribers = stockTw.getSubscribers();
         boolean successRemove = subscribers.remove(userId);
         if (successRemove) {
-            logger.debug("成功刪除訂閱");
             save(stockTw);
-
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     eventPublisher.publishEvent(new StockTwSubscriberChangeEvent(this, stockTw));
-                    logger.debug("發布更新追蹤股票事件");
                     if (!stockTw.isHasAnySubscribed()) {
                         eventPublisher.publishEvent(new StockTwHistoryDataChangeEvent(this, stockTw, "remove"));
-                        logger.debug("已經刪除所有訂閱，刪除歷史資料");
                     }
                 }
             });

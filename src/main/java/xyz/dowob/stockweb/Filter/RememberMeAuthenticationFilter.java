@@ -47,7 +47,6 @@ public class RememberMeAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private CacheManager cacheManager;
 
-
     /**
      * 驗證Cookie
      * 收到請求時，檢查是否有記住我Cookie，如果有，則驗證Cookie，並將用戶設置為已驗證

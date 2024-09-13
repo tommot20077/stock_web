@@ -17,7 +17,6 @@ import java.util.Optional;
  * 繼承JpaRepository, 用於操作資料庫
  */
 public interface PropertyRepository extends JpaRepository<Property, Long> {
-
     /**
      * 透過ID尋找用戶資產
      *

@@ -49,5 +49,4 @@ public class Subscribe implements Serializable {
 
     @Column(columnDefinition = "boolean default false")
     private boolean removeAble = false;
-
 }

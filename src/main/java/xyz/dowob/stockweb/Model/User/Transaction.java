@@ -63,7 +63,6 @@ public class Transaction implements Serializable {
             scale = 8)
     private BigDecimal quantity;
 
-
     @ManyToOne(optional = false,
                fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_currency_id",
@@ -80,6 +79,4 @@ public class Transaction implements Serializable {
 
     @Column(columnDefinition = "TEXT")
     private String description;
-
-
 }

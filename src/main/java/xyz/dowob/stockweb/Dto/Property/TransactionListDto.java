@@ -3,6 +3,7 @@ package xyz.dowob.stockweb.Dto.Property;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import xyz.dowob.stockweb.Enum.TransactionType;
+import xyz.dowob.stockweb.Exception.FormatExceptions;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -88,14 +89,14 @@ public class TransactionListDto {
          *
          * @return LocalDateTime
          */
-        public LocalDateTime formatTransactionDate() {
+        public LocalDateTime formatTransactionDate() throws FormatExceptions {
             String dateTimeFormat;
             if (date.length() == "yyyy-MM-dd HH:mm:ss".length()) {
                 dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
             } else if (date.length() == "yyyy-MM-dd HH:mm".length()) {
                 dateTimeFormat = "yyyy-MM-dd HH:mm";
             } else {
-                throw new IllegalArgumentException("不支援的格式: " + date);
+                throw new FormatExceptions(FormatExceptions.ErrorEnum.UNSUPPORTED_DATE_FORMAT, date);
             }
             LocalDateTime ldt = LocalDateTime.parse(date.replace("T", " "), DateTimeFormatter.ofPattern(dateTimeFormat));
             return ldt.withSecond(0);

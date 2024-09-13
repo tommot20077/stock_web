@@ -1,13 +1,12 @@
 package xyz.dowob.stockweb.Service.Common;
 
 import com.google.common.annotations.Beta;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
+import xyz.dowob.stockweb.Component.Annotation.MeaninglessData;
+import xyz.dowob.stockweb.Exception.RepositoryExceptions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,17 +18,15 @@ import java.util.concurrent.TimeUnit;
  * 有關redis緩存的業務邏輯
  */
 @Service
+@MeaninglessData
 public class RedisService {
     private final RedisTemplate<String, String> redisTemplate;
-
-    Logger logger = LoggerFactory.getLogger(RedisService.class);
 
     /**
      * RedisService構造函數
      *
      * @param redisTemplate redis模板
      */
-    @Autowired
     public RedisService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
@@ -86,7 +83,6 @@ public class RedisService {
         redisTemplate.expire(key, expirationTime, TimeUnit.HOURS);
     }
 
-
     /**
      * 取得緩存中的數據值
      *
@@ -105,12 +101,11 @@ public class RedisService {
      *
      * @return 緩存列表中的數據值
      */
-    public List<String> getCacheListValueFromKey(String key) {
+    public List<String> getCacheListValueFromKey(String key) throws RepositoryExceptions {
         try {
             return redisTemplate.opsForList().range(key, 0, -1);
         } catch (Exception e) {
-            logger.error("讀取redis時發生錯誤: {}", e.getMessage());
-            throw new RuntimeException("讀取redis時發生錯誤" + e.getMessage());
+            throw new RepositoryExceptions(RepositoryExceptions.ErrorEnum.REDIS_WRITE_ERROR, e.getMessage());
         }
     }
 
@@ -126,16 +121,13 @@ public class RedisService {
         return (String) redisTemplate.opsForHash().get(key, innerKey);
     }
 
-
     /**
      * 使用 scan 命令根据模式删除匹配的鍵
      *
      * @param pattern 模式字符串，例如："news_headline_page_*"
      *                這將刪除所有以"news_headline_page_"開頭的鍵
-     *
-     * @throws RuntimeException 當刪除redis時發生錯誤時拋出
      */
-    public void deleteByPattern(String pattern) {
+    public void deleteByPattern(String pattern) throws RepositoryExceptions {
         int deleteNum = 100;
         ScanOptions options = ScanOptions.scanOptions().match(pattern).count(deleteNum).build();
         try (Cursor<String> cursor = redisTemplate.opsForValue().getOperations().scan(options)) {
@@ -151,11 +143,8 @@ public class RedisService {
                 redisTemplate.delete(keysToDelete);
             }
         } catch (Exception e) {
-            logger.error("刪除redis時發生錯誤: {}", e.getMessage());
-            throw new RuntimeException("刪除redis時發生錯誤: " + e.getMessage());
+            throw new RuntimeException(new RepositoryExceptions(RepositoryExceptions.ErrorEnum.REDIS_WRITE_ERROR, e.getMessage()));
         }
-
-
         Set<String> keys = redisTemplate.keys(pattern);
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);

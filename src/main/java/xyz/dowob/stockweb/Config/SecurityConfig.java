@@ -2,7 +2,6 @@ package xyz.dowob.stockweb.Config;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -33,10 +32,8 @@ import xyz.dowob.stockweb.Service.User.TokenService;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
     private final TokenService tokenService;
 
-    @Autowired
     public SecurityConfig(TokenService tokenService) {
         this.tokenService = tokenService;
     }
@@ -53,9 +50,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
-
-        http.csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**","/ws/**","/sockjs/**"))
-
+        http.csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**", "/ws/**", "/sockjs/**"))
             .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                                                    .sessionConcurrency((concurrency) -> concurrency.maximumSessions(1)
                                                                                                    .maxSessionsPreventsLogin(false)
@@ -64,8 +59,6 @@ public class SecurityConfig {
                                                                                                                                                  "/login"))))
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rememberMeAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-
-
             .formLogin((form) -> form.loginPage("/login").defaultSuccessUrl("/", true).failureUrl("/error").permitAll())
             .exceptionHandling((exception) -> exception.accessDeniedPage("/login"))
             .authorizeHttpRequests((authorize) -> authorize.requestMatchers("/api/user/common/**",
@@ -112,4 +105,3 @@ public class SecurityConfig {
         return new JwtAuthenticationFilter();
     }
 }
-

@@ -4,9 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import xyz.dowob.stockweb.Component.Annotation.MeaninglessData;
 import xyz.dowob.stockweb.Component.Provider.MailTokenProvider;
 import xyz.dowob.stockweb.Dto.Subscription.UserSubscriptionDto;
 import xyz.dowob.stockweb.Dto.User.LoginUserDto;
@@ -21,6 +19,9 @@ import xyz.dowob.stockweb.Dto.User.RegisterUserDto;
 import xyz.dowob.stockweb.Enum.AssetType;
 import xyz.dowob.stockweb.Enum.Gender;
 import xyz.dowob.stockweb.Enum.Role;
+import xyz.dowob.stockweb.Exception.AssetExceptions;
+import xyz.dowob.stockweb.Exception.FormatExceptions;
+import xyz.dowob.stockweb.Exception.UserExceptions;
 import xyz.dowob.stockweb.Model.Common.Asset;
 import xyz.dowob.stockweb.Model.Crypto.CryptoTradingPair;
 import xyz.dowob.stockweb.Model.Currency.Currency;
@@ -36,6 +37,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+
+import static xyz.dowob.stockweb.Exception.AssetExceptions.ErrorEnum.CURRENCY_DATA_UPDATING;
+import static xyz.dowob.stockweb.Exception.AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND;
+import static xyz.dowob.stockweb.Exception.FormatExceptions.ErrorEnum.JSON_FORMAT_ERROR;
+import static xyz.dowob.stockweb.Exception.UserExceptions.ErrorEnum.*;
 
 /**
  * 用戶相關服務
@@ -58,8 +64,6 @@ public class UserService {
 
     private final MailTokenProvider mailTokenProvider;
 
-    Logger logger = LoggerFactory.getLogger(UserService.class);
-
     /**
      * UserService構造函數
      *
@@ -71,7 +75,6 @@ public class UserService {
      * @param passwordEncoder     密碼加密器
      * @param mailTokenProvider   郵件憑證提供者
      */
-    @Autowired
     public UserService(
             UserRepository userRepository, TokenRepository tokenRepository, @Lazy TokenService tokenService, CurrencyRepository currencyRepository, SubscribeRepository subscribeRepository, PasswordEncoder passwordEncoder, MailTokenProvider mailTokenProvider) {
         this.userRepository = userRepository;
@@ -81,68 +84,51 @@ public class UserService {
         this.subscribeRepository = subscribeRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailTokenProvider = mailTokenProvider;
-
     }
 
     /**
      * 註冊用戶
      *
      * @param userDto 用戶資料 Dto物件 {@link RegisterUserDto}
-     *
-     * @throws RuntimeException 當信箱已經被註冊時拋出
-     *                          當密碼不符合規定時拋出
-     *                          當貨幣資料庫更新中時拋出
      */
-
     @Transactional(rollbackFor = {Exception.class})
-    public void registerUser(RegisterUserDto userDto) throws RuntimeException {
+    public void registerUser(RegisterUserDto userDto) throws UserExceptions, AssetExceptions {
         User user = new User();
         validatePassword(userDto.getPassword());
         if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
-            throw new RuntimeException("此信箱已經被註冊");
+            throw new UserExceptions(EMAIL_ALREADY_EXISTS);
         }
         user.setEmail(userDto.getEmail());
         user.setFirstName(userDto.getFirstName());
         user.setLastName(userDto.getLastName());
         user.setUsername(user.extractUsernameFromEmail(userDto.getEmail()));
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
-        user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
-                                                    .orElseThrow(() -> new RuntimeException("貨幣資料更新中，請稍後再嘗試一次，若是狀況持續發生，請聯繫管理員")));
-
+        user.setPreferredCurrency(currencyRepository.findByCurrency("USD").orElseThrow(() -> new AssetExceptions(CURRENCY_DATA_UPDATING)));
         if (userRepository.findAll().isEmpty()) {
-            logger.warn("唯一一位用戶，設定為管理員");
             user.setRole(Role.ADMIN);
         }
         userRepository.save(user);
-
-        logger.info("用戶 {} 註冊成功", user.getEmail());
         Token token = new Token();
         token.setUser(user);
         tokenRepository.save(token);
-        logger.info("用戶憑證資料庫建立成功");
     }
 
     /**
      * 登入用戶
      *
-     * @param userDto 用戶資料 Dto物件 {@link LoginUserDto}
+     * @param userDto 用戶資料 Dto物件
      * @param re      HttpServletResponse
      *
      * @return User
-     *
-     * @throws RuntimeException 當用戶資料格式錯誤時拋出
-     *                          當用戶帳號或密碼錯誤時拋出
      */
-    public User loginUser(LoginUserDto userDto, HttpServletResponse re) {
+    public User loginUser(LoginUserDto userDto, HttpServletResponse re) throws UserExceptions {
         if (userDto == null) {
-            throw new RuntimeException("資料格式錯誤");
+            throw new UserExceptions(LOGIN_DATA_NOT_FOUND);
         } else {
-            User user = userRepository.findByEmail(userDto.getEmail()).orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
-
+            User user = userRepository.findByEmail(userDto.getEmail()).orElseThrow(() -> new UserExceptions(USERNAME_OR_PASSWORD_WRONG));
             if (!passwordEncoder.matches(userDto.getPassword(), user.getPassword())) {
-                throw new RuntimeException("帳號或密碼錯誤");
+                throw new UserExceptions(USERNAME_OR_PASSWORD_WRONG);
             }
-
             if (userDto.isRememberMe()) {
                 tokenService.generateRememberMeToken(re, user);
             }
@@ -161,41 +147,26 @@ public class UserService {
      *                 firstName: 名
      *                 lastName: 姓
      *                 timeZone: 時區
-     *
-     * @throws RuntimeException 當密碼錯誤時拋出
-     *                          當信箱已經被註冊時拋出
-     *                          當密碼不符合規定時拋出
-     *                          當貨幣資料庫更新中時拋出
-     *                          當預設幣別更改失敗時拋出
      */
-
-    public void updateUserDetail(User user, Map<String, String> userInfo) {
-
+    public void updateUserDetail(User user, Map<String, String> userInfo) throws UserExceptions, AssetExceptions {
         String originalPassword = userInfo.get("originalPassword");
         if (originalPassword != null && !originalPassword.isBlank() && passwordEncoder.matches(userInfo.get("originalPassword"),
                                                                                                user.getPassword())) {
             if (userInfo.get("newPassword") != null && !userInfo.get("newPassword").isBlank()) {
                 validatePassword(userInfo.get("newPassword"));
                 user.setPassword(passwordEncoder.encode(userInfo.get("newPassword")));
-                logger.warn("用戶 {} 更改密碼", user.getEmail());
             }
-
             user.setFirstName(userInfo.get("firstName"));
             user.setLastName(userInfo.get("lastName"));
-
             if (userInfo.get("email") != null && !userInfo.get("email").isBlank() && !user.getEmail().equals(userInfo.get("email"))) {
                 if (userRepository.findByEmail(userInfo.get("email")).isPresent()) {
-                    throw new RuntimeException("此信箱已經被註冊");
+                    throw new UserExceptions(EMAIL_ALREADY_EXISTS);
                 }
                 user.setEmail(userInfo.get("email"));
                 user.setRole(Role.UNVERIFIED_USER);
                 user.setUsername(user.extractUsernameFromEmail(userInfo.get("email")));
-
                 mailTokenProvider.sendVerificationEmail(user);
-                logger.warn("用戶 {} 更改信箱", user.getEmail());
             }
-
-
             TimeZone timeZone = TimeZone.getTimeZone(userInfo.get("timeZone"));
             if (timeZone != null && !"GMT".equals(timeZone.getID())) {
                 user.setTimezone(timeZone.getID());
@@ -203,34 +174,29 @@ public class UserService {
                 user.setTimezone("Etc/UTC");
             }
             user.setTimezone(userInfo.get("timeZone"));
-
             try {
                 user.setGender(Gender.valueOf(userInfo.get("gender")));
             } catch (IllegalArgumentException e) {
                 user.setGender(Gender.OTHER);
             }
-
             Currency currency = currencyRepository.findByCurrency(userInfo.get("preferredCurrency")).orElse(null);
             if (currency != null && !currency.getCurrency().equals(user.getPreferredCurrency().getCurrency())) {
                 try {
                     user.setPreferredCurrency(currency);
-                    logger.warn("用戶 {} 更改預設幣別", user.getEmail());
                     subscribeRepository.findAllByUserAndAssetAssetType(user, AssetType.CURRENCY).forEach(subscribe -> {
                         subscribe.setChannel(currency.getCurrency());
                         subscribeRepository.save(subscribe);
                     });
                 } catch (Exception e) {
                     user.setPreferredCurrency(currencyRepository.findByCurrency("USD")
-                                                            .orElseThrow(() -> new RuntimeException("無法找到預設幣別，請聯繫管理員")));
-                    logger.warn("用戶 {} 更改預設幣別失敗，使用預設幣別：USD", user.getEmail());
+                                                                .orElseThrow(() -> new AssetExceptions(DEFAULT_CURRENCY_NOT_FOUND, "USD")));
                 }
             }
             userRepository.save(user);
         } else {
-            throw new RuntimeException("密碼錯誤");
+            throw new UserExceptions(USERNAME_OR_PASSWORD_WRONG);
         }
     }
-
 
     /**
      * 根據userId尋找用戶
@@ -252,30 +218,29 @@ public class UserService {
         return userRepository.findAll();
     }
 
-
     /**
      * 驗證密碼
      *
      * @param userPassword 用戶密碼
      *
-     * @throws RuntimeException 當密碼不符合規定時拋出
-     *                          當密碼不包含英文字母時拋出
-     *                          當密碼不包含數字時拋出
-     *                          當密碼長度不足時拋出
-     *                          當密碼長度過長時拋出
+     * @throws UserExceptions 當密碼不符合規定時拋出
+     *                        當密碼不包含英文字母時拋出
+     *                        當密碼不包含數字時拋出
+     *                        當密碼長度不足時拋出
+     *                        當密碼長度過長時拋出
      */
-    public void validatePassword(String userPassword) {
+    public void validatePassword(String userPassword) throws UserExceptions {
         if (userPassword.length() < 8) {
-            throw new RuntimeException("密碼最少需要8個字元");
+            throw new UserExceptions(PASSWORD_MIN_LENGTH_LIMIT);
         }
         if (userPassword.length() > 100) {
-            throw new RuntimeException("密碼最多可以100個字元");
+            throw new UserExceptions(PASSWORD_MAX_LENGTH_LIMIT);
         }
         if (!userPassword.matches(".*[A-Za-z].*")) {
-            throw new RuntimeException("密碼必須包含至少一個英文字母");
+            throw new UserExceptions(PASSWORD_MUST_CONTAIN_LOWERCASE_LETTER);
         }
         if (!userPassword.matches(".*\\d.*")) {
-            throw new RuntimeException("密碼必須包含至少一個數字");
+            throw new UserExceptions(PASSWORD_MUST_CONTAIN_DIGIT);
         }
     }
 
@@ -286,7 +251,6 @@ public class UserService {
      *
      * @return User
      */
-
     public User getUserFromJwtTokenOrSession(HttpSession session) {
         Long userId = (Long) session.getAttribute("currentUserId");
         if (userId == null) {
@@ -305,7 +269,8 @@ public class UserService {
      *
      * @return String
      */
-    public String getChannelAndAssetAndRemoveAbleByUserId(User user) {
+    @MeaninglessData
+    public String getChannelAndAssetAndRemoveAbleByUserId(User user) throws FormatExceptions {
         List<UserSubscriptionDto> subscriptionDtoList = new ArrayList<>();
         subscribeRepository.getChannelAndAssetAndRemoveAbleByUserId(user).forEach(objects -> {
             String channel = null;
@@ -333,14 +298,11 @@ public class UserService {
                                                             subscribeName,
                                                             removeAble));
         });
-
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.writeValueAsString(subscriptionDtoList);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("轉換Json時發生錯誤: " + e.getMessage());
+            throw new FormatExceptions(JSON_FORMAT_ERROR);
         }
     }
 }
-
-

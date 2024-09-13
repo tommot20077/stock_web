@@ -32,7 +32,6 @@ public interface EventCacheRepository extends JpaRepository<EventCache, String> 
      */
     List<EventCache> findEventCacheByProperty(Property property);
 
-
     /**
      * 查詢所有事件快取，去除重複
      *
