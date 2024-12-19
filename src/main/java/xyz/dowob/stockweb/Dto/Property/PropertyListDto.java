@@ -48,7 +48,7 @@ public class PropertyListDto {
          */
         public BigDecimal formatQuantityBigDecimal() {
             if (quantity == null) {
-                return null;
+                return BigDecimal.ZERO;
             }
             BigDecimal quantityBigDecimal = new BigDecimal(quantity.replace(",", ""));
             return quantityBigDecimal.setScale(8, RoundingMode.HALF_UP).stripTrailingZeros();

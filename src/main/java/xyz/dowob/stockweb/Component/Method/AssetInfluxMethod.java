@@ -167,6 +167,7 @@ public class AssetInfluxMethod {
      *
      * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
+    //todo 資產葉面錯誤的當前價格
     private List<FluxTable> queryLatestPrice(Asset asset, boolean useHistoryData) throws RuntimeException {
         try {
             var ref = new Object() {

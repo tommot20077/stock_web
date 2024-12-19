@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.util.concurrent.RateLimiter;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,7 @@ import java.util.*;
  * 台灣股票相關服務
  */
 @Service
+@Log4j2
 public class StockTwService {
     private final StockTwRepository stockTwRepository;
 
@@ -85,7 +87,16 @@ public class StockTwService {
      * @param subscribeMethod           訂閱方法
      * @param kafkaProducerMethod       Kafka生產者方法
      */
-    public StockTwService(StockTwRepository stockTwRepository, SubscribeRepository subscribeRepository, StockTwInfluxService stockTwInfluxService, CurrencyRepository currencyRepository, TaskRepository taskRepository, Optional<KafkaProducerMethod> kafkaProducerMethod, ObjectMapper objectMapper, ApplicationEventPublisher applicationEventPublisher, SubscribeMethod subscribeMethod) {
+    public StockTwService(
+            StockTwRepository stockTwRepository,
+            SubscribeRepository subscribeRepository,
+            StockTwInfluxService stockTwInfluxService,
+            CurrencyRepository currencyRepository,
+            TaskRepository taskRepository,
+            Optional<KafkaProducerMethod> kafkaProducerMethod,
+            ObjectMapper objectMapper,
+            ApplicationEventPublisher applicationEventPublisher,
+            SubscribeMethod subscribeMethod) {
         this.stockTwRepository = stockTwRepository;
         this.subscribeRepository = subscribeRepository;
         this.stockTwInfluxService = stockTwInfluxService;
@@ -105,8 +116,9 @@ public class StockTwService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void addStockSubscribeToUser(String stockId, User user) throws AssetExceptions, SubscriptionExceptions {
-        StockTw stock = stockTwRepository.findByStockCode(stockId)
-                                         .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_NOT_FOUND, stockId));
+        StockTw stock = stockTwRepository
+                .findByStockCode(stockId)
+                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_NOT_FOUND, stockId));
         Long assetId = stock.getId();
         if (subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId).isPresent()) {
             throw new SubscriptionExceptions(SubscriptionExceptions.ErrorEnum.SUBSCRIPTION_ALREADY_EXIST, stock.getStockCode());
@@ -130,11 +142,13 @@ public class StockTwService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void removeStockSubscribeToUser(String stockId, User user) throws AssetExceptions, SubscriptionExceptions {
-        StockTw stock = stockTwRepository.findByStockCode(stockId)
-                                         .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_NOT_FOUND, stockId));
+        StockTw stock = stockTwRepository
+                .findByStockCode(stockId)
+                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_NOT_FOUND, stockId));
         Long assetId = stock.getId();
-        Subscribe subscribe = subscribeRepository.findByUserIdAndAssetId(user.getId(), assetId)
-                                                 .orElseThrow(() -> new SubscriptionExceptions(SubscriptionExceptions.ErrorEnum.SUBSCRIPTION_NOT_FOUND));
+        Subscribe subscribe = subscribeRepository
+                .findByUserIdAndAssetId(user.getId(), assetId)
+                .orElseThrow(() -> new SubscriptionExceptions(SubscriptionExceptions.ErrorEnum.SUBSCRIPTION_NOT_FOUND));
         if (subscribe.isUserSubscribed()) {
             if (subscribe.isRemoveAble()) {
                 if (stock.checkUserIsSubscriber(user)) {
@@ -205,7 +219,7 @@ public class StockTwService {
             if ("twse".equals(stockType)) {
                 inquiry = "tse_" + stockCode + ".tw";
                 url = stockCurrentPriceUrl + inquiry;
-            } else if ("otc".equals(stockType)) {
+            } else if ("tpex".equals(stockType)) {
                 inquiry = "otc_" + stockCode + ".tw";
                 url = stockCurrentPriceUrl + inquiry;
             } else {
@@ -257,6 +271,7 @@ public class StockTwService {
      * 追蹤股票完整歷史價格,並處理任務狀態
      */
     @Async
+
     @SuppressWarnings("UnstableApiUsage")
     public void trackStockTwHistoryPrices(StockTw stockTw) {
         boolean rollbackChance = true;
@@ -268,16 +283,36 @@ public class StockTwService {
         taskRepository.save(task);
         try {
             while (hasData && (date.isAfter(endDate) || date.isEqual(endDate))) {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMM01");
-                String formattedDate = date.format(formatter);
-                String url = String.format("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=%s&stockNo=%s",
-                                           formattedDate,
-                                           stockTw.getStockCode());
+                String url;
+                if (Objects.equals(stockTw.getStockType(), "twse")) {
+                    url = String.format("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=%s&stockNo=%s",
+                                        date.format(DateTimeFormatter.ofPattern("yyyyMM01")),
+                                        stockTw.getStockCode());
+
+                } else if (Objects.equals(stockTw.getStockType(), "tpex")) {
+                    url = String.format("https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock?code=%s&date=%s",
+                                        stockTw.getStockCode(),
+                                        date.format(DateTimeFormatter.ofPattern("yyyy/MM/dd")));
+
+
+                } else {
+                    throw new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_DATA_RESOLVE_ERROR);
+                }
                 rateLimiter.acquire();
                 JsonNode rootNode = getJsonNodeByUrl(url);
-                int total = rootNode.path("total").asInt();
+                int total;
+                if (Objects.equals(stockTw.getStockType(), "twse")) {
+                    total = rootNode.path("total").asInt();
+                } else {
+                    total = rootNode.path("tables").get(0).path("totalCount").asInt();
+                }
                 if (total > 0) {
-                    ArrayNode dataArray = (ArrayNode) rootNode.path("data");
+                    ArrayNode dataArray;
+                    if (Objects.equals(stockTw.getStockType(), "twse")) {
+                        dataArray = (ArrayNode) rootNode.path("data");
+                    } else {
+                        dataArray = (ArrayNode) rootNode.path("tables").get(0).path("data");
+                    }
                     stockTwInfluxService.writeStockTwHistoryToInflux(dataArray, stockTw.getStockCode());
                     date = date.minusMonths(1);
                     neverHasData = false;
@@ -297,6 +332,7 @@ public class StockTwService {
             stockTwRepository.save(stockTw);
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, true, stockTw));
         } catch (Exception e) {
+            log.error("獲取歷史股價時發生錯誤: {} {}", stockTw.getStockCode(), e.getMessage());
             task.completeTask(TaskStatusType.FAILED, "獲取歷史股價時發生錯誤: " + stockTw.getStockCode() + e);
             applicationEventPublisher.publishEvent(new AssetHistoryDataFetchCompleteEvent(this, false, stockTw));
         }
@@ -308,8 +344,9 @@ public class StockTwService {
      */
     @Async
     public void trackStockHistoryPricesWithUpdateDaily() {
-        Set<String> needToUpdateStockCodes = stockTwRepository.findAllStockCodeBySubscribers();
-        if (needToUpdateStockCodes.isEmpty()) {
+        Set<String> needToUpdateTwseStockCodes = stockTwRepository.findAllStockCodeBySubscribers("twse");
+        Set<String> needToUpdateTpexStockCodes = stockTwRepository.findAllStockCodeBySubscribers("tpex");
+        if (needToUpdateTwseStockCodes.isEmpty()) {
             return;
         }
         Task task = new Task(UUID.randomUUID().toString(), "更新台灣股票每日最新價格", 1);
@@ -317,18 +354,38 @@ public class StockTwService {
         LocalDateTime setDateTime = LocalDate.now(ZoneId.of("Asia/Taipei")).atTime(0, 0);
         long timestamp = setDateTime.atZone(ZoneId.of("Asia/Taipei")).toInstant().toEpochMilli();
         try {
-            String url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
-            JsonNode rootNode = getJsonNodeByUrl(url);
+            String twseUrl = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
+            JsonNode rootNode = getJsonNodeByUrl(twseUrl);
             if (rootNode.isArray()) {
                 for (JsonNode node : rootNode) {
                     String stockCode = node.path("Code").asText();
-                    if (!needToUpdateStockCodes.contains(stockCode)) {
+                    if (!needToUpdateTwseStockCodes.contains(stockCode)) {
                         continue;
                     }
-                    stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(node, timestamp);
+                    stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(node, timestamp, true);
                 }
-                task.completeTask(TaskStatusType.SUCCESS, "更新每日最新價格的股票完成");
             }
+
+
+            needToUpdateTpexStockCodes.forEach(stockCode -> {
+                String tpexUrl = String.format("https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock?code=%s&date=%s",
+                                               stockCode,
+                                               setDateTime.format(DateTimeFormatter.ofPattern("yyyy/MM/dd")));
+                try {
+                    JsonNode tpexRootNode = getJsonNodeByUrl(tpexUrl);
+                    int total = tpexRootNode.path("tables").get(0).path("totalCount").asInt();
+                    if (total > 0) {
+                        ArrayNode dataArray = (ArrayNode) rootNode.path("tables").get(0).path("data");
+                        if (!dataArray.isEmpty()) {
+                            stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(dataArray.get(total - 1), timestamp, false, stockCode);
+                        }
+                    }
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            task.completeTask(TaskStatusType.SUCCESS, "更新每日最新價格的股票完成");
         } catch (Exception e) {
             task.completeTask(TaskStatusType.FAILED, "更新每日最新價格時發生錯誤");
         }
@@ -381,8 +438,9 @@ public class StockTwService {
      * @return StockTw 股票資料
      */
     public StockTw getStockTwByStockCode(String stockCode) throws AssetExceptions {
-        return stockTwRepository.findByStockCode(stockCode)
-                                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_NOT_FOUND, stockCode));
+        return stockTwRepository
+                .findByStockCode(stockCode)
+                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.STOCK_NOT_FOUND, stockCode));
     }
 
     /**
@@ -408,9 +466,9 @@ public class StockTwService {
     @MeaninglessData
     private HashMap<String, Map<String, String>> formatStockTwDataToKline(JsonNode msgArray) throws AssetExceptions {
         HashMap<String, Map<String, String>> klineData = new HashMap<>();
-        Currency twdCurrency = currencyRepository.findByCurrency("TWD")
-                                                 .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND,
-                                                                                        "TWD"));
+        Currency twdCurrency = currencyRepository
+                .findByCurrency("TWD")
+                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND, "TWD"));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
         for (JsonNode msgNode : msgArray) {
             if (Objects.equals(msgNode.path("z").asText(), "-") || Objects.equals(msgNode.path("z").asText(), "--") || Objects.equals(

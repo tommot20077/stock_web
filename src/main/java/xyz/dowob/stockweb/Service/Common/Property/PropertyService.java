@@ -416,13 +416,12 @@ public class PropertyService {
                 }
                 if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
                     throw new AssetExceptions(OPERATION_INVALID, "數量必須大於 0");
-                } else {
-                    propertyToUpdate.setQuantity(quantity);
                 }
-                propertyToUpdate.setDescription(Objects.requireNonNullElse(description, ""));
                 BigDecimal netFlow = propertyInfluxService.calculateNetFlow(quantity.subtract(propertyToUpdate.getQuantity()),
                                                                             propertyToUpdate.getAsset());
                 propertyInfluxService.writeNetFlowToInflux(netFlow, user);
+                propertyToUpdate.setQuantity(quantity);
+                propertyToUpdate.setDescription(Objects.requireNonNullElse(description, ""));
                 eventPublisher.publishEvent(new PropertyUpdateEvent(this, user));
                 propertyRepository.save(propertyToUpdate);
                 recordTransaction(user, propertyToUpdate, request.formatOperationTypeEnum());

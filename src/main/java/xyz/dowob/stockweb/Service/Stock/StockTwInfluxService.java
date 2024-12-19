@@ -41,6 +41,15 @@ public class StockTwInfluxService {
 
     private final OffsetDateTime stopDateTime = Instant.parse("2099-12-31T23:59:59Z").atOffset(ZoneOffset.UTC);
 
+    @Value("${db.influxdb.org}")
+    private String org;
+
+    @Value("${db.influxdb.bucket.stock_tw}")
+    private String stockBucket;
+
+    @Value("${db.influxdb.bucket.stock_tw_history}")
+    private String stockHistoryBucket;
+
     /**
      * StockTwInfluxService構造函數
      *
@@ -51,22 +60,17 @@ public class StockTwInfluxService {
      * @param retryTemplate              重試模板
      */
     public StockTwInfluxService(
-            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
+            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient,
+            AssetInfluxMethod assetInfluxMethod,
+            CurrencyRepository currencyRepository,
+            RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
         this.currencyRepository = currencyRepository;
         this.retryTemplate = retryTemplate;
     }
-
-    @Value("${db.influxdb.org}")
-    private String org;
-
-    @Value("${db.influxdb.bucket.stock_tw}")
-    private String stockBucket;
-
-    @Value("${db.influxdb.bucket.stock_tw_history}")
-    private String stockHistoryBucket;
 
     /**
      * 五秒搓合交易的kline數據寫入InfluxDB
@@ -83,14 +87,15 @@ public class StockTwInfluxService {
             Double openDouble = Double.parseDouble(data.get("open"));
             Double lowDouble = Double.parseDouble(data.get("low"));
             Double volumeDouble = Double.parseDouble(data.get("volume"));
-            Point point = Point.measurement("kline_data")
-                               .addTag("stock_tw", stockId)
-                               .addField("open", openDouble)
-                               .addField("close", closeDouble)
-                               .addField("high", highDouble)
-                               .addField("low", lowDouble)
-                               .addField("volume", volumeDouble)
-                               .time(Long.parseLong(time), WritePrecision.MS);
+            Point point = Point
+                    .measurement("kline_data")
+                    .addTag("stock_tw", stockId)
+                    .addField("open", openDouble)
+                    .addField("close", closeDouble)
+                    .addField("high", highDouble)
+                    .addField("low", lowDouble)
+                    .addField("volume", volumeDouble)
+                    .time(Long.parseLong(time), WritePrecision.MS);
             assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, point);
         }
     }
@@ -126,14 +131,34 @@ public class StockTwInfluxService {
      * @param node      股價數據
      * @param timestamp 日期Long格式
      */
-    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long timestamp) throws AssetExceptions {
-        String stockCode = node.path("Code").asText();
-        String tradeVolume = node.path("TradeVolume").asText();
-        String openingPrice = node.path("OpeningPrice").asText();
-        String highestPrice = node.path("HighestPrice").asText();
-        String lowestPrice = node.path("LowestPrice").asText();
-        String closingPrice = node.path("ClosingPrice").asText();
-        if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice, "--") || Objects.equals(
+    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long timestamp, boolean isTwse, String... tpexStockCode) throws AssetExceptions {
+        if (node == null) {
+            return;
+        }
+        String stockCode;
+        String tradeVolume;
+        String openingPrice;
+        String highestPrice;
+        String lowestPrice;
+        String closingPrice;
+        if (isTwse) {
+            stockCode = node.path("Code").asText();
+            tradeVolume = node.path("TradeVolume").asText();
+            openingPrice = node.path("OpeningPrice").asText();
+            highestPrice = node.path("HighestPrice").asText();
+            lowestPrice = node.path("LowestPrice").asText();
+            closingPrice = node.path("ClosingPrice").asText();
+        } else {
+            stockCode = tpexStockCode[0];
+            tradeVolume = node.get(1).asText().replace(",", "");
+            openingPrice = node.get(3).asText();
+            highestPrice = node.get(4).asText();
+            lowestPrice = node.get(5).asText();
+            closingPrice = node.get(6).asText();
+        }
+
+        if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice,
+                                                                                                       "--") || Objects.equals(
                 closingPrice,
                 "--")) {
             return;
@@ -189,23 +214,31 @@ public class StockTwInfluxService {
      * @param lowestPrice  最低價
      * @param closingPrice 收盤價
      */
-    private void writeKlineDataPoint(Long timestamp, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) throws AssetExceptions {
-        Currency twdCurrency = currencyRepository.findByCurrency("TWD")
-                                                 .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND,
-                                                                                        "TWD"));
+    private void writeKlineDataPoint(
+            Long timestamp,
+            String stockCode,
+            String tradeVolume,
+            String openingPrice,
+            String highestPrice,
+            String lowestPrice,
+            String closingPrice) throws AssetExceptions {
+        Currency twdCurrency = currencyRepository
+                .findByCurrency("TWD")
+                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND, "TWD"));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
         Double formatOpeningPrice = (new BigDecimal(openingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Double formatHighestPrice = (new BigDecimal(highestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Double formatLowestPrice = (new BigDecimal(lowestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Double formatClosingPrice = (new BigDecimal(closingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
-        Point point = Point.measurement("kline_data")
-                           .addTag("stock_tw", stockCode)
-                           .addField("high", formatHighestPrice)
-                           .addField("low", formatLowestPrice)
-                           .addField("open", formatOpeningPrice)
-                           .addField("close", formatClosingPrice)
-                           .addField("volume", Double.parseDouble(tradeVolume))
-                           .time(timestamp, WritePrecision.MS);
+        Point point = Point
+                .measurement("kline_data")
+                .addTag("stock_tw", stockCode)
+                .addField("high", formatHighestPrice)
+                .addField("low", formatLowestPrice)
+                .addField("open", formatOpeningPrice)
+                .addField("close", formatClosingPrice)
+                .addField("volume", Double.parseDouble(tradeVolume))
+                .time(timestamp, WritePrecision.MS);
         assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
     }
 }
