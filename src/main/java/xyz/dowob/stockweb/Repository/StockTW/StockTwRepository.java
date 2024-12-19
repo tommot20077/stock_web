@@ -76,8 +76,8 @@ public interface StockTwRepository extends JpaRepository<StockTw, Long> {
      *
      * @return 台灣股票列表
      */
-    @Query("SELECT DISTINCT s.stockCode FROM StockTw s JOIN s.subscribers subscriber")
-    Set<String> findAllStockCodeBySubscribers();
+    @Query("SELECT DISTINCT s.stockCode FROM StockTw s JOIN s.subscribers subscriber WHERE s.stockType = :stockType")
+    Set<String> findAllStockCodeBySubscribers(String stockType);
 
     /**
      * 查詢是否有訂閱者的台灣股票

@@ -58,7 +58,7 @@ public class LoggerAspect {
         try {
             Object result = joinPoint.proceed();
             String value = methodSignature(method, result, joinPoint);
-            log.info("請求者: {}, Service: {} 方法: {} 執行成功，返回值: {}", userMail, className, methodName, value);
+            log.debug("請求者: {}, Service: {} 方法: {} 執行成功，返回值: {}", userMail, className, methodName, value);
             return result;
         } catch (Throwable throwable) {
             log.error("請求者: {}, Service: {} 方法: {} 發生錯誤: {}", userMail, className, methodName, throwable);
