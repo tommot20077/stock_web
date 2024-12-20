@@ -131,7 +131,11 @@ public class StockTwInfluxService {
      * @param node      股價數據
      * @param timestamp 日期Long格式
      */
-    public void writeUpdateDailyStockTwHistoryToInflux(JsonNode node, Long timestamp, boolean isTwse, String... tpexStockCode) throws AssetExceptions {
+    public void writeUpdateDailyStockTwHistoryToInflux(
+            JsonNode node,
+            Long timestamp,
+            boolean isTwse,
+            String... tpexStockCode) throws AssetExceptions {
         if (node == null) {
             return;
         }
@@ -157,8 +161,7 @@ public class StockTwInfluxService {
             closingPrice = node.get(6).asText();
         }
 
-        if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice,
-                                                                                                       "--") || Objects.equals(
+        if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice, "--") || Objects.equals(
                 closingPrice,
                 "--")) {
             return;

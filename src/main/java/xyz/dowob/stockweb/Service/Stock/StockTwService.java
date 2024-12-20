@@ -367,6 +367,7 @@ public class StockTwService {
             }
 
 
+            log.debug("更新Tpex每日最新價格的股票: {}", needToUpdateTpexStockCodes);
             needToUpdateTpexStockCodes.forEach(stockCode -> {
                 String tpexUrl = String.format("https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock?code=%s&date=%s",
                                                stockCode,
@@ -375,7 +376,7 @@ public class StockTwService {
                     JsonNode tpexRootNode = getJsonNodeByUrl(tpexUrl);
                     int total = tpexRootNode.path("tables").get(0).path("totalCount").asInt();
                     if (total > 0) {
-                        ArrayNode dataArray = (ArrayNode) rootNode.path("tables").get(0).path("data");
+                        ArrayNode dataArray = (ArrayNode) tpexRootNode.path("tables").get(0).path("data");
                         if (!dataArray.isEmpty()) {
                             stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(dataArray.get(total - 1), timestamp, false, stockCode);
                         }

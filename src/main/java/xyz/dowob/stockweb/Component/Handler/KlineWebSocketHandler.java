@@ -142,7 +142,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         try {
             removeSession(session);
-        } catch (IOException e) {
+        } catch (IOException ignored) {
         }
     }
 
@@ -277,7 +277,7 @@ public class KlineWebSocketHandler extends TextWebSocketHandler {
             String listKey = String.format("%s_%s", KLINE_PREFIX, hashInnerKey);
             List<String> dataList = redisService.getCacheListValueFromKey(listKey + "data");
             return formatKlineData(dataList, type);
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
         return null;
     }
