@@ -33,6 +33,7 @@ import xyz.dowob.stockweb.Repository.User.SubscribeRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -64,7 +65,7 @@ public class StockTwService {
 
     private final SubscribeMethod subscribeMethod;
 
-    private final String stockCurrentPriceUrl = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
+    private final String STOCK_CURRENT_PRICE_URL = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=";
 
     @SuppressWarnings("UnstableApiUsage")
     RateLimiter rateLimiter = RateLimiter.create(0.5);
@@ -218,10 +219,10 @@ public class StockTwService {
             String stockType = subscribe[1].toString();
             if ("twse".equals(stockType)) {
                 inquiry = "tse_" + stockCode + ".tw";
-                url = stockCurrentPriceUrl + inquiry;
+                url = STOCK_CURRENT_PRICE_URL + inquiry;
             } else if ("tpex".equals(stockType)) {
                 inquiry = "otc_" + stockCode + ".tw";
-                url = stockCurrentPriceUrl + inquiry;
+                url = STOCK_CURRENT_PRICE_URL + inquiry;
             } else {
                 return;
             }
@@ -253,10 +254,9 @@ public class StockTwService {
      */
     @Async
     public void trackStockNowPrices(List<String> stockInquiryList) throws AssetExceptions, JsonProcessingException {
-        final StringBuilder inquireUrl = new StringBuilder(stockCurrentPriceUrl);
+        final StringBuilder inquireUrl = new StringBuilder(STOCK_CURRENT_PRICE_URL);
         stockInquiryList.forEach(stockInquiry -> inquireUrl.append(stockInquiry).append("|"));
-        JsonNode rootNode = getJsonNodeByUrl(inquireUrl.toString());
-        JsonNode msgArray = rootNode.path("msgArray");
+        JsonNode msgArray = getJsonNodeByUrl(inquireUrl.toString()).path("msgArray");
         if (!msgArray.isMissingNode() && msgArray.isArray() && !msgArray.isEmpty()) {
             Map<String, Map<String, String>> klineData = formatStockTwDataToKline(msgArray);
             if (kafkaProducerMethod.isPresent()) {
@@ -378,7 +378,10 @@ public class StockTwService {
                     if (total > 0) {
                         ArrayNode dataArray = (ArrayNode) tpexRootNode.path("tables").get(0).path("data");
                         if (!dataArray.isEmpty()) {
-                            stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(dataArray.get(total - 1), timestamp, false, stockCode);
+                            stockTwInfluxService.writeUpdateDailyStockTwHistoryToInflux(dataArray.get(total - 1),
+                                                                                        timestamp,
+                                                                                        false,
+                                                                                        stockCode);
                         }
                     }
                 } catch (JsonProcessingException e) {
@@ -477,20 +480,44 @@ public class StockTwService {
                     "--") || Objects.equals(msgNode.path("o").asText(), "--") || Objects.equals(msgNode.path("l").asText(), "--")) {
                 continue;
             }
-            BigDecimal priceUsd = (new BigDecimal(msgNode.path("z").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal highUsd = (new BigDecimal(msgNode.path("h").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal openUsd = (new BigDecimal(msgNode.path("o").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
-            BigDecimal lowUsd = (new BigDecimal(msgNode.path("l").asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP);
+
             HashMap<String, String> innerMap = new HashMap<>();
-            innerMap.put("time", msgNode.path("tlong").asText());
-            innerMap.put("close", priceUsd.toPlainString());
-            innerMap.put("high", highUsd.toPlainString());
-            innerMap.put("open", openUsd.toPlainString());
-            innerMap.put("low", lowUsd.toPlainString());
+            innerMap.put("time", String.valueOf(removeTimestampSecond(msgNode.path("tlong").asLong())));
+            innerMap.put("close", formatPriceToUsdToPlainString(msgNode, "z", twdToUsd));
+            innerMap.put("high", formatPriceToUsdToPlainString(msgNode, "h", twdToUsd));
+            innerMap.put("open", formatPriceToUsdToPlainString(msgNode, "o", twdToUsd));
+            innerMap.put("low", formatPriceToUsdToPlainString(msgNode, "l", twdToUsd));
             innerMap.put("volume", msgNode.path("v").asText());
             String stockId = msgNode.path("c").asText();
             klineData.put(stockId, innerMap);
         }
         return klineData;
+    }
+
+    /**
+     * 移除秒數，以每分鐘為最小單位
+     * 保證InfluxDB的時間戳是每分鐘的整點，避免同一分鐘有多筆資料
+     *
+     * @param timestamp 時間戳
+     *
+     * @return long 移除秒數後的時間戳
+     */
+    private long removeTimestampSecond(long timestamp) {
+        Instant instant = Instant.ofEpochMilli(timestamp);
+        LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, ZoneId.of("Asia/Taipei"));
+        return localDateTime.withSecond(0).withNano(0).atZone(ZoneId.of("Asia/Taipei")).toInstant().toEpochMilli();
+    }
+
+    /**
+     * 將台幣價格轉換為美元價格，並轉換成PlainString
+     *
+     * @param msgNode  股票資料
+     * @param index    股票資料索引
+     * @param twdToUsd 台幣對美元匯率
+     *
+     * @return String 轉換後的價格
+     */
+    private String formatPriceToUsdToPlainString(JsonNode msgNode, String index, BigDecimal twdToUsd) {
+        return (new BigDecimal(msgNode.path(index).asText())).divide(twdToUsd, 3, RoundingMode.HALF_UP).toPlainString();
     }
 }

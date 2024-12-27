@@ -132,10 +132,7 @@ public class StockTwInfluxService {
      * @param timestamp 日期Long格式
      */
     public void writeUpdateDailyStockTwHistoryToInflux(
-            JsonNode node,
-            Long timestamp,
-            boolean isTwse,
-            String... tpexStockCode) throws AssetExceptions {
+            JsonNode node, Long timestamp, boolean isTwse, String... tpexStockCode) throws AssetExceptions {
         if (node == null) {
             return;
         }
@@ -225,23 +222,32 @@ public class StockTwInfluxService {
             String highestPrice,
             String lowestPrice,
             String closingPrice) throws AssetExceptions {
+
         Currency twdCurrency = currencyRepository
                 .findByCurrency("TWD")
                 .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND, "TWD"));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
-        Double formatOpeningPrice = (new BigDecimal(openingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
-        Double formatHighestPrice = (new BigDecimal(highestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
-        Double formatLowestPrice = (new BigDecimal(lowestPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
-        Double formatClosingPrice = (new BigDecimal(closingPrice)).divide(twdToUsd, 3, RoundingMode.HALF_UP).doubleValue();
         Point point = Point
                 .measurement("kline_data")
                 .addTag("stock_tw", stockCode)
-                .addField("high", formatHighestPrice)
-                .addField("low", formatLowestPrice)
-                .addField("open", formatOpeningPrice)
-                .addField("close", formatClosingPrice)
+                .addField("high", formatPrice(highestPrice, twdToUsd))
+                .addField("low", formatPrice(lowestPrice, twdToUsd))
+                .addField("open", formatPrice(openingPrice, twdToUsd))
+                .addField("close", formatPrice(closingPrice, twdToUsd))
                 .addField("volume", Double.parseDouble(tradeVolume))
                 .time(timestamp, WritePrecision.MS);
         assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
+    }
+
+    /**
+     * 格式化價格，將台幣轉換為美元，並保留三位小數
+     *
+     * @param price        價格
+     * @param exchangeRate 匯率
+     *
+     * @return 格式化後的價格
+     */
+    private Double formatPrice(String price, BigDecimal exchangeRate) {
+        return (new BigDecimal(price)).divide(exchangeRate, 3, RoundingMode.HALF_UP).doubleValue();
     }
 }
