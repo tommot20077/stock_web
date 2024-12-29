@@ -139,7 +139,7 @@ public class CrontabMethod {
                 assetService.cacheTrieToRedis();
             }
         } catch (Exception e) {
-            log.error("初始化失敗", e);
+            log.error("初始化失敗: {}", e.getMessage());
         }
     }
 
@@ -152,7 +152,7 @@ public class CrontabMethod {
         try {
             tokenService.removeExpiredTokens();
         } catch (Exception e) {
-            log.error("清除過期的token失敗", e);
+            log.error("清除過期的token失敗: {}", e.getMessage());
         }
     }
 
@@ -165,7 +165,7 @@ public class CrontabMethod {
         try {
             currencyService.updateCurrencyData();
         } catch (Exception e) {
-            log.error("更新匯率資料失敗", e);
+            log.error("更新匯率資料失敗: {}", e.getMessage());
         }
     }
 
@@ -179,7 +179,7 @@ public class CrontabMethod {
         try {
             stockTwService.updateStockList();
         } catch (Exception e) {
-            log.error("更新台股股票列表失敗", e);
+            log.error("更新台股股票列表失敗: {}", e.getMessage());
         }
     }
 
@@ -201,7 +201,7 @@ public class CrontabMethod {
                 }
             }
         } catch (Exception e) {
-            log.error("檢查台灣股票訂閱狀況失敗", e);
+            log.error("檢查台灣股票訂閱狀況失敗: {}", e.getMessage());
         }
     }
 
@@ -227,7 +227,7 @@ public class CrontabMethod {
                 }
             }
         } catch (Exception e) {
-            log.error("追蹤台股股票5秒搓合交易價格失敗", e);
+            log.error("追蹤台股股票5秒搓合交易價格失敗: {}", e.getMessage());
         }
     }
 
@@ -241,7 +241,7 @@ public class CrontabMethod {
         try {
             stockTwService.trackStockHistoryPricesWithUpdateDaily();
         } catch (Exception e) {
-            log.error("更新台股股票的每日歷史價格失敗", e);
+            log.error("更新台股股票的每日歷史價格失敗: {}", e.getMessage());
         }
     }
 
@@ -255,7 +255,7 @@ public class CrontabMethod {
         try {
             cryptoService.trackCryptoHistoryPricesWithUpdateDaily();
         } catch (Exception e) {
-            log.error("更新加密貨幣的每日歷史價格失敗", e);
+            log.error("更新加密貨幣的每日歷史價格失敗: {}", e.getMessage());
         }
     }
 
@@ -269,7 +269,7 @@ public class CrontabMethod {
         try {
             subscribeMethod.CheckSubscribedAssets();
         } catch (Exception e) {
-            log.error("檢查資產的歷史數據完整性失敗", e);
+            log.error("檢查資產的歷史數據完整性失敗: {}", e.getMessage());
         }
     }
 
@@ -293,7 +293,7 @@ public class CrontabMethod {
                 propertyService.writeAllPropertiesToInflux(toInfluxPropertyDto, user);
             }
         } catch (Exception e) {
-            log.error("記錄使用者的資產總價失敗", e);
+            log.error("記錄使用者的資產總價失敗: {}", e.getMessage());
         }
     }
 
@@ -310,7 +310,7 @@ public class CrontabMethod {
                 propertyInfluxService.writeNetFlowToInflux(BigDecimal.ZERO, user);
             }
         } catch (Exception e) {
-            log.error("更新使用者的現金流失敗", e);
+            log.error("更新使用者的現金流失敗: {}", e.getMessage());
         }
     }
 
@@ -330,7 +330,7 @@ public class CrontabMethod {
                 propertyInfluxService.writeUserRoiDataToInflux(roiObject, user, time);
             }
         } catch (Exception e) {
-            log.error("更新使用者的 ROI 失敗", e);
+            log.error("更新使用者的 ROI 失敗: {}", e.getMessage());
         }
     }
 
@@ -352,7 +352,7 @@ public class CrontabMethod {
                 propertyInfluxService.writeUserDrawDownToInflux(drawDownResult, user);
             }
         } catch (Exception e) {
-            log.error("更新使用者的 ROI 統計資料失敗", e);
+            log.error("更新使用者的 ROI 統計資料失敗: {}", e.getMessage());
         }
     }
 
@@ -367,7 +367,7 @@ public class CrontabMethod {
                 cryptoService.checkAndReconnectWebSocket();
             }
         } catch (Exception e) {
-            log.error("檢查並重新連接WebSocket失敗", e);
+            log.error("檢查並重新連接WebSocket失敗: {}", e.getMessage());
         }
     }
 
@@ -386,7 +386,7 @@ public class CrontabMethod {
                 newsService.deleteNewsBeforeDate(removeTime);
             }
         } catch (Exception e) {
-            log.error("刪除過期的新聞失敗", e);
+            log.error("刪除過期的新聞失敗: {}", e.getMessage());
         }
     }
 
@@ -411,7 +411,7 @@ public class CrontabMethod {
             }
             newsService.sendNewsRequest(false, 1, "DEBT", null);
         } catch (Exception e) {
-            log.error("更新新聞資料失敗", e);
+            log.error("更新新聞資料失敗: {}", e.getMessage());
         }
     }
 
@@ -432,7 +432,7 @@ public class CrontabMethod {
                 }
             }
         } catch (Exception e) {
-            log.error("更新資產列表緩存失敗", e);
+            log.error("更新資產列表緩存失敗: {}", e.getMessage());
         }
     }
 
@@ -445,7 +445,7 @@ public class CrontabMethod {
         try {
             assetService.GovernmentBondsDataFetcherAndSaveToInflux();
         } catch (Exception e) {
-            log.error("更新政府公債資料失敗", e);
+            log.error("更新政府公債資料失敗: {}", e.getMessage());
         }
     }
 
@@ -459,7 +459,7 @@ public class CrontabMethod {
             immediatelyUpdateStockTw = isOpen;
             applicationEventPublisher.publishEvent(new ImmediateDataUpdateEvent(this, isOpen, AssetType.STOCK_TW));
         } catch (Exception e) {
-            log.error("變更股票台灣自動更新狀態失敗", e);
+            log.error("變更股票台灣自動更新狀態失敗: {}", e.getMessage());
         }
     }
 
@@ -482,7 +482,7 @@ public class CrontabMethod {
             }
             return false;
         } catch (Exception e) {
-            log.error("獲取股票台灣自動更新狀態失敗", e);
+            log.error("獲取股票台灣自動更新狀態失敗: {}", e.getMessage());
             return false;
         }
     }
@@ -498,7 +498,7 @@ public class CrontabMethod {
             redisService.deleteByPattern("assetTrie");
             assetService.cacheTrieToRedis();
         } catch (Exception e) {
-            log.error("緩存資產前綴樹失敗", e);
+            log.error("緩存資產前綴樹失敗: {}", e.getMessage());
         }
     }
 }
