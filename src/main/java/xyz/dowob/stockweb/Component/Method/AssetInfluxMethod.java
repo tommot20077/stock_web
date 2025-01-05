@@ -244,7 +244,7 @@ public class AssetInfluxMethod {
     }
 
     /**
-     * 寫入Influx方法。
+     * 寫入Influx方法，此為寫入單個資料點。
      *
      * @param influxClient InfluxDB客戶端
      * @param point        資料點
@@ -255,6 +255,28 @@ public class AssetInfluxMethod {
                 try {
                     try (WriteApi writeApi = influxClient.makeWriteApi()) {
                         writeApi.writePoint(point);
+                    }
+                } catch (Exception e) {
+                    throw new RepositoryExceptions(RepositoryExceptions.ErrorEnum.INFLUXDB_WRITE_ERROR, e);
+                }
+            });
+        } catch (RetryException e) {
+            throw new RuntimeException("重試失敗，最後一次錯誤信息：" + e.getLastException().getMessage());
+        }
+    }
+
+    /**
+     * 寫入Influx方法，此為批量寫入多個資料點。
+     *
+     * @param influxClient InfluxDB客戶端
+     * @param points       資料點列表
+     */
+    public void writeToInflux(InfluxDBClient influxClient, List<Point> points) {
+        try {
+            retryTemplate.doWithRetry(() -> {
+                try {
+                    try (WriteApi writeApi = influxClient.makeWriteApi()) {
+                        writeApi.writePoints(points);
                     }
                 } catch (Exception e) {
                     throw new RepositoryExceptions(RepositoryExceptions.ErrorEnum.INFLUXDB_WRITE_ERROR, e);

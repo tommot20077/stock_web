@@ -13,6 +13,7 @@ import xyz.dowob.stockweb.Exception.AssetExceptions;
 import xyz.dowob.stockweb.Exception.RetryException;
 
 import java.time.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -59,12 +60,16 @@ public class CryptoInfluxService {
     @Value("${db.influxdb.org}")
     private String org;
 
+    @Value("${db.influxdb.max_send_num:100}")
+    private int influxMaxSendNum;
+
     /**
      * WebSocket的kline數據寫入InfluxDB
      *
      * @param klineData kline數據
      */
     public void writeToInflux(Map<String, Map<String, String>> klineData) {
+        List<Point> points = new ArrayList<>();
         for (Map.Entry<String, Map<String, String>> entry : klineData.entrySet()) {
             Double open = Double.parseDouble(entry.getValue().get("open"));
             Double close = Double.parseDouble(entry.getValue().get("close"));
@@ -79,7 +84,14 @@ public class CryptoInfluxService {
                                .addField("low", low)
                                .addField("volume", volume)
                                .time(Long.parseLong(entry.getValue().get("time")), WritePrecision.MS);
-            assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, point);
+            points.add(point);
+            if (points.size() >= influxMaxSendNum) {
+                assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, points);
+                points.clear();
+            }
+        }
+        if (!points.isEmpty()) {
+            assetInfluxMethod.writeToInflux(cryptoInfluxDBClient, points);
         }
     }
 
@@ -90,8 +102,9 @@ public class CryptoInfluxService {
      * @param tradingPair 交易對
      */
     public void writeCryptoHistoryToInflux(List<String[]> data, String tradingPair) {
+        List<Point> points = new ArrayList<>();
         for (String[] record : data) {
-            Long time = Long.parseLong(record[0]);
+            Long time = Long.parseLong(record[0]) / 1000;
             Double open = Double.parseDouble(record[1]);
             Double high = Double.parseDouble(record[2]);
             Double low = Double.parseDouble(record[3]);
@@ -105,7 +118,14 @@ public class CryptoInfluxService {
                                .addField("low", low)
                                .addField("volume", volume)
                                .time(time, WritePrecision.MS);
-            assetInfluxMethod.writeToInflux(cryptoHistoryInfluxDBClient, point);
+            points.add(point);
+            if (points.size() >= influxMaxSendNum) {
+                assetInfluxMethod.writeToInflux(cryptoHistoryInfluxDBClient, points);
+                points.clear();
+            }
+        }
+        if (!points.isEmpty()) {
+            assetInfluxMethod.writeToInflux(cryptoHistoryInfluxDBClient, points);
         }
     }
 
