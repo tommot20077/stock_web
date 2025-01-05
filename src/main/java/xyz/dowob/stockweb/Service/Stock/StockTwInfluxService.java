@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -50,6 +52,9 @@ public class StockTwInfluxService {
     @Value("${db.influxdb.bucket.stock_tw_history}")
     private String stockHistoryBucket;
 
+    @Value("{db.influxdb.max_send_num:100}")
+    private int maxSendNum;
+
     /**
      * StockTwInfluxService構造函數
      *
@@ -59,12 +64,9 @@ public class StockTwInfluxService {
      * @param currencyRepository         貨幣資料庫
      * @param retryTemplate              重試模板
      */
-    public StockTwInfluxService(
-            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient,
-            @Qualifier("StockTwHistoryInfluxClient") InfluxDBClient stockTwHistoryInfluxClient,
-            AssetInfluxMethod assetInfluxMethod,
-            CurrencyRepository currencyRepository,
-            RetryTemplate retryTemplate) {
+    public StockTwInfluxService (
+            @Qualifier("StockTwInfluxClient") InfluxDBClient stockTwInfluxClient, @Qualifier("StockTwHistoryInfluxClient")
+    InfluxDBClient stockTwHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, CurrencyRepository currencyRepository, RetryTemplate retryTemplate) {
         StockTwInfluxDBClient = stockTwInfluxClient;
         StockTwHistoryInfluxDBClient = stockTwHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -77,7 +79,8 @@ public class StockTwInfluxService {
      *
      * @param msgArray kline數據
      */
-    public void writeToInflux(Map<String, Map<String, String>> msgArray) {
+    public void writeToInflux (Map<String, Map<String, String>> msgArray) {
+        List<Point> points = new ArrayList<>();
         for (Map.Entry<String, Map<String, String>> dataMap : msgArray.entrySet()) {
             String stockId = dataMap.getKey();
             Map<String, String> data = dataMap.getValue();
@@ -87,16 +90,22 @@ public class StockTwInfluxService {
             Double openDouble = Double.parseDouble(data.get("open"));
             Double lowDouble = Double.parseDouble(data.get("low"));
             Double volumeDouble = Double.parseDouble(data.get("volume"));
-            Point point = Point
-                    .measurement("kline_data")
-                    .addTag("stock_tw", stockId)
-                    .addField("open", openDouble)
-                    .addField("close", closeDouble)
-                    .addField("high", highDouble)
-                    .addField("low", lowDouble)
-                    .addField("volume", volumeDouble)
-                    .time(Long.parseLong(time), WritePrecision.MS);
-            assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, point);
+            Point point = Point.measurement("kline_data")
+                               .addTag("stock_tw", stockId)
+                               .addField("open", openDouble)
+                               .addField("close", closeDouble)
+                               .addField("high", highDouble)
+                               .addField("low", lowDouble)
+                               .addField("volume", volumeDouble)
+                               .time(Long.parseLong(time), WritePrecision.MS);
+            points.add(point);
+            if (points.size() >= maxSendNum) {
+                assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, points);
+                points.clear();
+            }
+        }
+        if (!points.isEmpty()) {
+            assetInfluxMethod.writeToInflux(StockTwInfluxDBClient, points);
         }
     }
 
@@ -106,7 +115,8 @@ public class StockTwInfluxService {
      * @param dataArray 股價數據
      * @param stockCode 股票代碼
      */
-    public void writeStockTwHistoryToInflux(ArrayNode dataArray, String stockCode) throws AssetExceptions {
+    public void writeStockTwHistoryToInflux (ArrayNode dataArray, String stockCode) throws AssetExceptions {
+        List<Point> points = new ArrayList<>();
         for (JsonNode dataEntry : dataArray) {
             String dateStr = dataEntry.get(0).asText();
             Long tLong = formattedRocData(dateStr);
@@ -116,12 +126,26 @@ public class StockTwInfluxService {
             String lowestPrice = dataEntry.get(5).asText();
             String closingPrice = dataEntry.get(6).asText();
             if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice,
-                                                                                                           "--") || Objects.equals(
-                    closingPrice,
-                    "--")) {
+                                                                                                           "--"
+            ) || Objects.equals(closingPrice, "--")) {
                 continue;
             }
-            writeKlineDataPoint(tLong, stockCode, numberOfStocksVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
+            Point point = formatKlineDataToPoint(tLong,
+                                                 stockCode,
+                                                 numberOfStocksVolume,
+                                                 openingPrice,
+                                                 highestPrice,
+                                                 lowestPrice,
+                                                 closingPrice
+            );
+            points.add(point);
+            if (points.size() >= maxSendNum) {
+                assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, points);
+                points.clear();
+            }
+        }
+        if (!points.isEmpty()) {
+            assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, points);
         }
     }
 
@@ -131,8 +155,7 @@ public class StockTwInfluxService {
      * @param node      股價數據
      * @param timestamp 日期Long格式
      */
-    public void writeUpdateDailyStockTwHistoryToInflux(
-            JsonNode node, Long timestamp, boolean isTwse, String... tpexStockCode) throws AssetExceptions {
+    public void writeUpdateDailyStockTwHistoryToInflux (JsonNode node, Long timestamp, boolean isTwse, String... tpexStockCode) throws AssetExceptions {
         if (node == null) {
             return;
         }
@@ -160,10 +183,12 @@ public class StockTwInfluxService {
 
         if (Objects.equals(openingPrice, "--") || Objects.equals(highestPrice, "--") || Objects.equals(lowestPrice, "--") || Objects.equals(
                 closingPrice,
-                "--")) {
+                "--"
+        )) {
             return;
         }
-        writeKlineDataPoint(timestamp, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
+        Point point = formatKlineDataToPoint(timestamp, stockCode, tradeVolume, openingPrice, highestPrice, lowestPrice, closingPrice);
+        assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
     }
 
     /**
@@ -173,7 +198,7 @@ public class StockTwInfluxService {
      *
      * @return 西元日期
      */
-    private Long formattedRocData(String dateStr) {
+    private Long formattedRocData (String dateStr) {
         String[] dateParts = dateStr.split("/");
         int yearRoc = Integer.parseInt(dateParts[0]);
         int yearAd = yearRoc + 1911;
@@ -191,7 +216,7 @@ public class StockTwInfluxService {
      *
      * @throws RuntimeException 重試失敗
      */
-    public void deleteDataByStockCode(String stockCode) {
+    public void deleteDataByStockCode (String stockCode) {
         String predicate = String.format("_measurement=\"kline_data\" AND stock_tw=\"%s\"", stockCode);
         try {
             retryTemplate.doWithRetry(() -> {
@@ -214,29 +239,22 @@ public class StockTwInfluxService {
      * @param lowestPrice  最低價
      * @param closingPrice 收盤價
      */
-    private void writeKlineDataPoint(
-            Long timestamp,
-            String stockCode,
-            String tradeVolume,
-            String openingPrice,
-            String highestPrice,
-            String lowestPrice,
-            String closingPrice) throws AssetExceptions {
+    private Point formatKlineDataToPoint (Long timestamp, String stockCode, String tradeVolume, String openingPrice, String highestPrice, String lowestPrice, String closingPrice) throws AssetExceptions {
 
-        Currency twdCurrency = currencyRepository
-                .findByCurrency("TWD")
-                .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND, "TWD"));
+        Currency twdCurrency = currencyRepository.findByCurrency("TWD")
+                                                 .orElseThrow(() -> new AssetExceptions(AssetExceptions.ErrorEnum.DEFAULT_CURRENCY_NOT_FOUND,
+                                                                                        "TWD"
+                                                 ));
         BigDecimal twdToUsd = twdCurrency.getExchangeRate();
-        Point point = Point
-                .measurement("kline_data")
-                .addTag("stock_tw", stockCode)
-                .addField("high", formatPrice(highestPrice, twdToUsd))
-                .addField("low", formatPrice(lowestPrice, twdToUsd))
-                .addField("open", formatPrice(openingPrice, twdToUsd))
-                .addField("close", formatPrice(closingPrice, twdToUsd))
-                .addField("volume", Double.parseDouble(tradeVolume))
-                .time(timestamp, WritePrecision.MS);
-        assetInfluxMethod.writeToInflux(StockTwHistoryInfluxDBClient, point);
+        return Point.measurement("kline_data")
+                    .addTag("stock_tw", stockCode)
+                    .addField("high", formatPrice(highestPrice, twdToUsd))
+                    .addField("low", formatPrice(lowestPrice, twdToUsd))
+                    .addField("open", formatPrice(openingPrice, twdToUsd))
+                    .addField("close", formatPrice(closingPrice, twdToUsd))
+                    .addField("volume", Double.parseDouble(tradeVolume))
+                    .time(timestamp, WritePrecision.MS);
+
     }
 
     /**
@@ -247,7 +265,7 @@ public class StockTwInfluxService {
      *
      * @return 格式化後的價格
      */
-    private Double formatPrice(String price, BigDecimal exchangeRate) {
+    private Double formatPrice (String price, BigDecimal exchangeRate) {
         return (new BigDecimal(price)).divide(exchangeRate, 3, RoundingMode.HALF_UP).doubleValue();
     }
 }
