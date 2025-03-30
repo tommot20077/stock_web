@@ -167,7 +167,6 @@ public class AssetInfluxMethod {
      *
      * @throws RuntimeException 重試失敗時的最後一次錯誤
      */
-    //todo 資產葉面錯誤的當前價格
     private List<FluxTable> queryLatestPrice(Asset asset, boolean useHistoryData) throws RuntimeException {
         try {
             var ref = new Object() {
@@ -181,7 +180,7 @@ public class AssetInfluxMethod {
                 String field = (String) bucketAndClient[3];
                 String assetType = (String) bucketAndClient[4];
                 String symbol = (String) bucketAndClient[5];
-                String query = String.format("from(bucket: \"%s\") " + " |> range(start: -7d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" + " |> last()",
+                String query = String.format("from(bucket: \"%s\") " + " |> range(start: -30d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"%s\")" + " |> filter(fn: (r) => r[\"_field\"] == \"%s\")" + " |> filter(fn: (r) => r[\"%s\"] == \"%s\")" + " |> last()",
                                              bucket,
                                              measurement,
                                              field,

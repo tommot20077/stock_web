@@ -43,8 +43,9 @@ public class CryptoInfluxService {
      * @param assetInfluxMethod         資產InfluxDB方法
      * @param retryTemplate             重試模板
      */
-    public CryptoInfluxService(
-            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient") InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
+    public CryptoInfluxService (
+            @Qualifier("CryptoInfluxClient") InfluxDBClient cryptoInfluxClient, @Qualifier("CryptoHistoryInfluxClient")
+    InfluxDBClient cryptoHistoryInfluxClient, AssetInfluxMethod assetInfluxMethod, RetryTemplate retryTemplate) {
         this.cryptoInfluxDBClient = cryptoInfluxClient;
         this.cryptoHistoryInfluxDBClient = cryptoHistoryInfluxClient;
         this.assetInfluxMethod = assetInfluxMethod;
@@ -68,7 +69,7 @@ public class CryptoInfluxService {
      *
      * @param klineData kline數據
      */
-    public void writeToInflux(Map<String, Map<String, String>> klineData) {
+    public void writeToInflux (Map<String, Map<String, String>> klineData) {
         List<Point> points = new ArrayList<>();
         for (Map.Entry<String, Map<String, String>> entry : klineData.entrySet()) {
             Double open = Double.parseDouble(entry.getValue().get("open"));
@@ -101,7 +102,7 @@ public class CryptoInfluxService {
      * @param data        加密貨幣歷史數據
      * @param tradingPair 交易對
      */
-    public void writeCryptoHistoryToInflux(List<String[]> data, String tradingPair) {
+    public void writeCryptoHistoryToInflux (List<String[]> data, String tradingPair) {
         List<Point> points = new ArrayList<>();
         for (String[] record : data) {
             Long time = Long.parseLong(record[0]) / 1000;
@@ -136,7 +137,7 @@ public class CryptoInfluxService {
      *
      * @throws RuntimeException 刪除數據時發生錯誤
      */
-    public void deleteDataByTradingPair(String tradingPair) {
+    public void deleteDataByTradingPair (String tradingPair) {
         String predicate = String.format("_measurement=\"kline_data\" AND tradingPair=\"%s\"", tradingPair);
         try {
             retryTemplate.doWithRetry(() -> {
@@ -160,13 +161,14 @@ public class CryptoInfluxService {
      * @return 最後一條數據的日期
      */
     // todo 實現接口處理指定範圍資料重新抓取 如|> range(start: -365d, stop: -1d)
-    public LocalDate getLastDateByTradingPair(String tradingPair) {
+    public LocalDate getLastDateByTradingPair (String tradingPair) {
         var ref = new Object() {
             FluxTable result;
         };
         String query = String.format("from(bucket: \"%s\") |> range(start: -365d)" + " |> filter(fn: (r) => r[\"_measurement\"] == \"kline_data\")" + " |> filter(fn: (r) => r[\"tradingPair\"] == \"%s\")" + " |> last()",
                                      cryptoHistoryBucket,
-                                     tradingPair);
+                                     tradingPair
+        );
         try {
             retryTemplate.doWithRetry(() -> ref.result = cryptoHistoryInfluxDBClient.getQueryApi().query(query, org).getLast());
         } catch (RetryException e) {
