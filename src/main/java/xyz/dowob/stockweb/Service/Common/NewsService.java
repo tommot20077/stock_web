@@ -53,10 +53,10 @@ public class NewsService {
     @Value("${news.index.category:business}")
     private String indexCategory;
 
-    @Value("${news.prefer.country:tw}")
+    @Value("${news.prefer.country:none}")
     private String preferCountry;
 
-    @Value("${news.prefer.language:zh}")
+    @Value("${news.prefer.language:none}")
     private String preferLanguage;
 
     @Value("${common.global_page_size:100}")
@@ -95,15 +95,24 @@ public class NewsService {
         }
         if (isHeadline) {
             inquiryUrl.append("top-headlines?");
-            inquiryUrl.append("country=").append(preferCountry).append("&");
             inquiryUrl.append("category=").append(indexCategory).append("&");
+            if (!preferCountry.equals("none")) {
+                inquiryUrl.append("country=").append(preferCountry).append("&");
+            }
         } else {
             inquiryUrl.append("everything?");
-            inquiryUrl.append("language=").append(preferLanguage).append("&");
+            if (!preferLanguage.equals("none")) {
+                inquiryUrl.append("language=").append(preferLanguage).append("&");
+            }
+
             if ("DEBT".equalsIgnoreCase(keyword)) {
                 String query = "公債 OR 國債";
                 String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-                inquiryUrl = new StringBuilder("https://newsapi.org/v2/everything?language=zh&q=" + encodedQuery + "&pageSize=100&page=1");
+                inquiryUrl = new StringBuilder(newsApiUrl + "everything?");
+                if (!preferLanguage.equals("none")) {
+                    inquiryUrl.append("language=").append(preferLanguage).append("&");
+                }
+                inquiryUrl.append("q=").append(encodedQuery).append("&");
             } else {
                 inquiryUrl = new StringBuilder(inquiryUrl + "q=" + keyword + "&");
             }
@@ -126,10 +135,11 @@ public class NewsService {
         String inquiryUrl = getInquiryUrl(isHeadline, page, keyword, asset);
         RestTemplate restTemplate = new RestTemplate();
         URI uri = URI.create(inquiryUrl);
-        RequestEntity<?> requestEntity = RequestEntity.get(uri)
-                                                      .header("Authorization", "Bearer " + newsApiToken)
-                                                      .accept(MediaType.APPLICATION_JSON)
-                                                      .build();
+        RequestEntity<?> requestEntity = RequestEntity
+                .get(uri)
+                .header("Authorization", "Bearer " + newsApiToken)
+                .accept(MediaType.APPLICATION_JSON)
+                .build();
         try {
             ResponseEntity<String> response = restTemplate.exchange(requestEntity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
