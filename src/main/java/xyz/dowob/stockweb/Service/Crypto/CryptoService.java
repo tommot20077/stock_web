@@ -86,7 +86,7 @@ public class CryptoService {
     @Value("${kafka.enable:false}")
     private boolean isKafkaEnable;
 
-    private final String dataUrl = "https://data.binance.vision/data/spot/";
+    private final String dataUrl = "https://data.binance.vision/?prefix=data/spot/";
 
     @SuppressWarnings("UnstableApiUsage")
     RateLimiter rateLimiter = RateLimiter.create(1.0);

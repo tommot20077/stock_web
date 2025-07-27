@@ -26,11 +26,11 @@ import java.util.Map;
  * @Version 1.0
  **/
 @Configuration
-@ConditionalOnProperty(name = "common.kafka.enable",
-                       havingValue = "true")
+@ConditionalOnProperty(name = "common.kafka.enable", havingValue = "true")
 public class KafkaProducerConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
+
 
     /**
      * 配置Kafka生產者的工廠
@@ -45,6 +45,7 @@ public class KafkaProducerConfig {
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         return new DefaultKafkaProducerFactory<>(configProps);
     }
+
 
     /**
      * 配置Kafka生產者的模板

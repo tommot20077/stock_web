@@ -50,38 +50,33 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
-        http.csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**", "/ws/**", "/sockjs/**"))
-            .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                                                   .sessionConcurrency((concurrency) -> concurrency.maximumSessions(1)
-                                                                                                   .maxSessionsPreventsLogin(false)
-                                                                                                   .expiredSessionStrategy(event -> event.getResponse()
-                                                                                                                                         .sendRedirect(
-                                                                                                                                                 "/login"))))
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(rememberMeAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-            .formLogin((form) -> form.loginPage("/login").defaultSuccessUrl("/", true).failureUrl("/error").permitAll())
-            .exceptionHandling((exception) -> exception.accessDeniedPage("/login"))
-            .authorizeHttpRequests((authorize) -> authorize.requestMatchers("/api/user/common/**",
-                                                                            "/login",
-                                                                            "/login_p",
-                                                                            "/register",
-                                                                            "/reset_password",
-                                                                            "/error")
-                                                           .permitAll()
-                                                           .requestMatchers("/static/**")
-                                                           .permitAll()
-                                                           .requestMatchers("/api/admin/**")
-                                                           .hasRole("ADMIN")
-                                                           .anyRequest()
-                                                           .authenticated())
-            .logout((logout) -> logout.addLogoutHandler((request, response, authentication) -> {
-                HttpSession session = request.getSession(false);
-                if (session != null) {
-                    Cookie[] cookies = request.getCookies();
-                    tokenService.deleteRememberMeCookie(response, session, cookies);
-                    session.invalidate();
-                }
-            }));
+        http
+                .csrf((csrf) -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**", "/ws/**", "/sockjs/**"))
+                .sessionManagement((session) -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .sessionConcurrency((concurrency) -> concurrency
+                                .maximumSessions(1)
+                                .maxSessionsPreventsLogin(false)
+                                .expiredSessionStrategy(event -> event.getResponse().sendRedirect("/login"))))
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rememberMeAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .formLogin((form) -> form.loginPage("/login").defaultSuccessUrl("/", true).failureUrl("/error").permitAll())
+                .exceptionHandling((exception) -> exception.accessDeniedPage("/login"))
+                .authorizeHttpRequests((authorize) -> authorize
+                        .requestMatchers("/api/user/common/**", "/login", "/login_p", "/register", "/reset_password", "/error", "/static/**")
+                        .permitAll()
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
+                        .anyRequest()
+                        .authenticated())
+                .logout(logout -> logout.addLogoutHandler((request, response, authentication) -> {
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        Cookie[] cookies = request.getCookies();
+                        tokenService.deleteRememberMeCookie(response, session, cookies);
+                        session.invalidate();
+                    }
+                }));
         return http.build();
     }
 

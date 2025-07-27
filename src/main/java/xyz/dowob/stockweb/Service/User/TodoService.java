@@ -46,7 +46,7 @@ public class TodoService {
 
     private final Map<Long, ScheduledFuture<?>> scheduledFutureMap = new HashMap<>();
 
-    @Value(value = "${spring.mail.username}")
+    @Value(value = "${mail.sender.name}")
     private String emailSender;
 
     /**

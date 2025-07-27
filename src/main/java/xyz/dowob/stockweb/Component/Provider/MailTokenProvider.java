@@ -42,7 +42,7 @@ public class MailTokenProvider {
     @Value(value = "${security.email.receive.url:http://localhost:8080}")
     private String emailReceiveUrl;
 
-    @Value(value = "${spring.mail.username}")
+    @Value(value = "${mail.sender.name}")
     private String emailSender;
 
     @Value(value = "${security.email.expiration:10}")
